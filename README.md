@@ -2,8 +2,7 @@
 
 EduSathi is a full-stack, AI-powered educational platform designed to streamline course delivery, interactive assessments, automated grading, 365-day attendance heatmaps, academic analytics, and contextual AI study assistance.
 
----git config --global user.email "YOUR_NOREPLY_EMAIL@users.noreply.github.com"
-
+---
 
 ## 🚀 Key Features
 
