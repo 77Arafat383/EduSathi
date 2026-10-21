@@ -1,12 +1,19 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import apiRouter from './routes';
 import { errorHandler } from './middleware/error';
 import { config } from './config';
 
 const app = express();
+
+// Enable Gzip/Deflate compression for fast network payload transfer
+app.use(compression({
+  threshold: 1024,
+  level: 6,
+}));
 
 // Security Headers
 app.use(helmet());

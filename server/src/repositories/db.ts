@@ -22,9 +22,14 @@ if (isPostgres) {
   }
   const dbFile = path.join(dataDir, 'edusathi.db');
   sqliteDb = new Database(dbFile);
+  // High-performance Pragmas
   sqliteDb.pragma('journal_mode = WAL');
+  sqliteDb.pragma('synchronous = NORMAL');
+  sqliteDb.pragma('cache_size = -64000'); // 64MB memory page cache
+  sqliteDb.pragma('temp_store = MEMORY');
+  sqliteDb.pragma('mmap_size = 30000000000'); // Memory-mapped I/O
   sqliteDb.pragma('foreign_keys = ON');
-  console.log(`[DB] Using local SQLite database at: ${dbFile}`);
+  console.log(`[DB] Using optimized local SQLite database at: ${dbFile}`);
 }
 
 export async function query<T = any>(sqlStr: string, params: any[] = []): Promise<T[]> {

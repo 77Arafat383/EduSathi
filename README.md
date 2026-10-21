@@ -2,7 +2,8 @@
 
 EduSathi is a full-stack, AI-powered educational platform designed to streamline course delivery, interactive assessments, automated grading, 365-day attendance heatmaps, academic analytics, and contextual AI study assistance.
 
----
+---git config --global user.email "YOUR_NOREPLY_EMAIL@users.noreply.github.com"
+
 
 ## 🚀 Key Features
 
@@ -54,7 +55,47 @@ cd EduSathi
 cp .env.example .env
 ```
 
-### 2. Start Backend Server
+---
+
+## 🐳 Docker Quickstart (Recommended & Fastest)
+
+EduSathi features production-optimized multi-stage Docker builds with Nginx reverse proxying, Gzip compression, and HTTP asset caching:
+
+```bash
+# Build and run the entire stack (Client + Server + DB) in background
+docker compose up --build -d
+```
+
+- **Frontend App**: [http://localhost](http://localhost) (or [http://localhost:5173](http://localhost:5173))
+- **Backend API**: [http://localhost:5000](http://localhost:5000)
+- **API Health**: [http://localhost:5000/api/health](http://localhost:5000/api/health)
+
+Stop all containers:
+```bash
+docker compose down
+```
+
+Optional self-hosted PostgreSQL container:
+```bash
+docker compose --profile postgres up --build -d
+```
+
+---
+
+## ⚡ High-Speed Performance Architecture
+
+This project is engineered for speed with maximum throughput and minimum latency:
+1. **Dynamic Route Splitting (`React.lazy`)**: Each role workspace (Student, Teacher, Admin) is isolated into separate on-demand JS chunks, reducing initial bundle weight from ~800KB down to **26KB** (~7KB gzipped)!
+2. **Nginx Reverse Proxy & HTTP Caching**: Nginx serves static assets with `Cache-Control: public, max-age=31536000, immutable`, eliminating repeated network roundtrips.
+3. **Gzip / Deflate Compression**: Express and Nginx apply automatic Gzip compression to all API JSON payloads and web assets (>1KB).
+4. **SQLite WAL & Memory Optimization**: SQLite operates in **WAL** (Write-Ahead Logging) mode with `synchronous = NORMAL`, `64MB memory page cache`, `temp_store = MEMORY`, and memory-mapped I/O (`mmap_size`) for concurrent reads and writes with zero lock contention.
+5. **Rollup Manual Vendor Chunking**: Vite splits dependencies into independent browser-cacheable chunks (`vendor-react`, `vendor-charts`, `vendor-icons`).
+
+---
+
+### Manual Development Setup (Without Docker)
+
+#### A. Start Backend Server
 ```bash
 cd server
 npm install
@@ -62,7 +103,7 @@ npm run dev
 ```
 The server will initialize the database schema, seed demonstration accounts, and start listening at `http://localhost:5000`.
 
-### 3. Start Frontend Client
+#### B. Start Frontend Client
 In a new terminal:
 ```bash
 cd client

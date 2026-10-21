@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import request from 'supertest';
 import app from '../src/app';
-import { initDb } from '../src/repositories/db';
+import { initDb, run } from '../src/repositories/db';
 
 let studentToken = '';
 let teacherToken = '';
@@ -9,6 +9,9 @@ let adminToken = '';
 
 beforeAll(async () => {
   await initDb();
+  // Clean previous test attempt records to ensure idempotency
+  await run("DELETE FROM quiz_answers WHERE attempt_id IN (SELECT id FROM quiz_attempts WHERE quiz_id = 'qiz_web_1' AND student_id = 'usr_student_1')");
+  await run("DELETE FROM quiz_attempts WHERE quiz_id = 'qiz_web_1' AND student_id = 'usr_student_1'");
 
   // Login admin
   const adminRes = await request(app)
