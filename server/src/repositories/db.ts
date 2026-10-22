@@ -1,9 +1,12 @@
 import Database from 'better-sqlite3';
-import { Pool } from 'pg';
+import { Pool, types } from 'pg';
 import path from 'path';
 import fs from 'fs';
 import bcrypt from 'bcryptjs';
 import { config } from '../config';
+
+// Parse PostgreSQL COUNT(*) and bigint as integer instead of string
+types.setTypeParser(20, (val: string) => parseInt(val, 10));
 
 let sqliteDb: Database.Database | null = null;
 let pgPool: Pool | null = null;
@@ -13,6 +16,9 @@ const isPostgres = Boolean(config.databaseUrl);
 if (isPostgres) {
   pgPool = new Pool({
     connectionString: config.databaseUrl,
+    ssl: config.databaseUrl.includes('supabase') || config.databaseUrl.includes('sslmode=require')
+      ? { rejectUnauthorized: false }
+      : undefined,
   });
   console.log('[DB] Configured for PostgreSQL / Supabase.');
 } else {
@@ -40,8 +46,9 @@ export async function query<T = any>(sqlStr: string, params: any[] = []): Promis
     const res = await pgPool.query(pgSql, params);
     return res.rows as T[];
   } else if (sqliteDb) {
+    const sanitizedParams = params.map(p => typeof p === 'boolean' ? (p ? 1 : 0) : p);
     const stmt = sqliteDb.prepare(sqlStr);
-    return stmt.all(...params) as T[];
+    return stmt.all(...sanitizedParams) as T[];
   }
   return [];
 }
@@ -58,8 +65,9 @@ export async function run(sqlStr: string, params: any[] = []): Promise<{ changes
     const res = await pgPool.query(pgSql, params);
     return { changes: res.rowCount || 0 };
   } else if (sqliteDb) {
+    const sanitizedParams = params.map(p => typeof p === 'boolean' ? (p ? 1 : 0) : p);
     const stmt = sqliteDb.prepare(sqlStr);
-    const info = stmt.run(...params);
+    const info = stmt.run(...sanitizedParams);
     return { changes: info.changes };
   }
   return { changes: 0 };
@@ -79,8 +87,8 @@ export async function initDb(): Promise<void> {
       avatar_url TEXT,
       student_id TEXT,
       department TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
 
     `CREATE TABLE IF NOT EXISTS subjects (
@@ -89,7 +97,7 @@ export async function initDb(): Promise<void> {
       code TEXT UNIQUE NOT NULL,
       description TEXT,
       status TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
 
     `CREATE TABLE IF NOT EXISTS courses (
@@ -100,14 +108,14 @@ export async function initDb(): Promise<void> {
       status TEXT DEFAULT 'published' CHECK (status IN ('draft', 'published', 'archived')),
       created_by TEXT REFERENCES profiles(id) ON DELETE CASCADE,
       banner_url TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
 
     `CREATE TABLE IF NOT EXISTS course_teachers (
       course_id TEXT REFERENCES courses(id) ON DELETE CASCADE,
       teacher_id TEXT REFERENCES profiles(id) ON DELETE CASCADE,
-      assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (course_id, teacher_id)
     )`,
 
@@ -116,7 +124,7 @@ export async function initDb(): Promise<void> {
       course_id TEXT REFERENCES courses(id) ON DELETE CASCADE,
       student_id TEXT REFERENCES profiles(id) ON DELETE CASCADE,
       status TEXT DEFAULT 'active' CHECK (status IN ('active', 'completed', 'dropped')),
-      enrolled_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      enrolled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE (course_id, student_id)
     )`,
 
@@ -125,7 +133,7 @@ export async function initDb(): Promise<void> {
       course_id TEXT REFERENCES courses(id) ON DELETE CASCADE,
       title TEXT NOT NULL,
       position INTEGER DEFAULT 1,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
 
     `CREATE TABLE IF NOT EXISTS lessons (
@@ -134,14 +142,14 @@ export async function initDb(): Promise<void> {
       title TEXT NOT NULL,
       content TEXT,
       position INTEGER DEFAULT 1,
-      published_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      published_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
 
     `CREATE TABLE IF NOT EXISTS lesson_progress (
       student_id TEXT REFERENCES profiles(id) ON DELETE CASCADE,
       lesson_id TEXT REFERENCES lessons(id) ON DELETE CASCADE,
-      completed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (student_id, lesson_id)
     )`,
 
@@ -151,10 +159,10 @@ export async function initDb(): Promise<void> {
       title TEXT NOT NULL,
       instructions TEXT,
       max_score INTEGER DEFAULT 100,
-      due_at DATETIME,
+      due_at TIMESTAMP,
       status TEXT DEFAULT 'published' CHECK (status IN ('draft', 'published', 'closed')),
-      results_released BOOLEAN DEFAULT 1,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      results_released BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
 
     `CREATE TABLE IF NOT EXISTS quiz_questions (
@@ -170,7 +178,7 @@ export async function initDb(): Promise<void> {
       id TEXT PRIMARY KEY,
       question_id TEXT REFERENCES quiz_questions(id) ON DELETE CASCADE,
       option_text TEXT NOT NULL,
-      is_correct BOOLEAN DEFAULT 0,
+      is_correct BOOLEAN DEFAULT FALSE,
       explanation TEXT
     )`,
 
@@ -178,8 +186,8 @@ export async function initDb(): Promise<void> {
       id TEXT PRIMARY KEY,
       quiz_id TEXT REFERENCES quizzes(id) ON DELETE CASCADE,
       student_id TEXT REFERENCES profiles(id) ON DELETE CASCADE,
-      started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      submitted_at DATETIME,
+      started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      submitted_at TIMESTAMP,
       score REAL DEFAULT 0,
       max_score REAL DEFAULT 0,
       status TEXT DEFAULT 'completed' CHECK (status IN ('in_progress', 'completed', 'graded'))
@@ -190,7 +198,7 @@ export async function initDb(): Promise<void> {
       attempt_id TEXT REFERENCES quiz_attempts(id) ON DELETE CASCADE,
       question_id TEXT REFERENCES quiz_questions(id) ON DELETE CASCADE,
       selected_option_ids TEXT,
-      is_correct BOOLEAN DEFAULT 0,
+      is_correct BOOLEAN DEFAULT FALSE,
       score_awarded REAL DEFAULT 0
     )`,
 
@@ -200,10 +208,10 @@ export async function initDb(): Promise<void> {
       title TEXT NOT NULL,
       instructions TEXT NOT NULL,
       max_score INTEGER DEFAULT 100,
-      due_at DATETIME,
+      due_at TIMESTAMP,
       submission_type TEXT DEFAULT 'text_or_link',
       status TEXT DEFAULT 'published' CHECK (status IN ('draft', 'published', 'closed')),
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
 
     `CREATE TABLE IF NOT EXISTS submissions (
@@ -212,7 +220,7 @@ export async function initDb(): Promise<void> {
       student_id TEXT REFERENCES profiles(id) ON DELETE CASCADE,
       content TEXT NOT NULL,
       file_url TEXT,
-      submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       status TEXT DEFAULT 'submitted' CHECK (status IN ('submitted', 'graded', 'resubmitted')),
       UNIQUE (assignment_id, student_id)
     )`,
@@ -223,8 +231,8 @@ export async function initDb(): Promise<void> {
       graded_by TEXT REFERENCES profiles(id) ON DELETE SET NULL,
       score REAL NOT NULL,
       feedback TEXT,
-      released_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      released_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
 
     `CREATE TABLE IF NOT EXISTS attendance_sessions (
@@ -234,7 +242,7 @@ export async function initDb(): Promise<void> {
       created_by TEXT REFERENCES profiles(id) ON DELETE SET NULL,
       title TEXT,
       status TEXT DEFAULT 'completed',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
 
     `CREATE TABLE IF NOT EXISTS attendance_records (
@@ -243,7 +251,7 @@ export async function initDb(): Promise<void> {
       student_id TEXT REFERENCES profiles(id) ON DELETE CASCADE,
       status TEXT NOT NULL CHECK (status IN ('present', 'absent', 'late')),
       marked_by TEXT REFERENCES profiles(id) ON DELETE SET NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE (session_id, student_id)
     )`,
 
@@ -253,7 +261,7 @@ export async function initDb(): Promise<void> {
       author_id TEXT REFERENCES profiles(id) ON DELETE SET NULL,
       title TEXT NOT NULL,
       body TEXT NOT NULL,
-      published_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      published_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
 
     `CREATE TABLE IF NOT EXISTS comments (
@@ -264,7 +272,7 @@ export async function initDb(): Promise<void> {
       author_id TEXT REFERENCES profiles(id) ON DELETE CASCADE,
       parent_id TEXT REFERENCES comments(id) ON DELETE CASCADE,
       body TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
 
     `CREATE TABLE IF NOT EXISTS notifications (
@@ -274,8 +282,8 @@ export async function initDb(): Promise<void> {
       title TEXT NOT NULL,
       message TEXT NOT NULL,
       link TEXT,
-      read_at DATETIME,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      read_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
 
     `CREATE TABLE IF NOT EXISTS study_plans (
@@ -286,14 +294,14 @@ export async function initDb(): Promise<void> {
       end_date DATE,
       source TEXT DEFAULT 'ai_assisted',
       status TEXT DEFAULT 'active' CHECK (status IN ('active', 'completed', 'archived')),
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
 
     `CREATE TABLE IF NOT EXISTS study_plan_tasks (
       id TEXT PRIMARY KEY,
       study_plan_id TEXT REFERENCES study_plans(id) ON DELETE CASCADE,
       title TEXT NOT NULL,
-      due_at DATETIME,
+      due_at TIMESTAMP,
       status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'completed')),
       position INTEGER DEFAULT 1
     )`
@@ -401,30 +409,30 @@ async function seedDefaults(): Promise<void> {
 
   // Quizzes & Questions
   await run(`INSERT INTO quizzes (id, course_id, title, instructions, max_score, due_at, status, results_released) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    ['qiz_web_1', 'crs_web_dev', 'Quiz 1: Web Architecture & RESTful Services', 'Answer all questions. Multiple-choice questions test core concepts.', 40, '2026-11-15 23:59:59', 'published', 1]);
+    ['qiz_web_1', 'crs_web_dev', 'Quiz 1: Web Architecture & RESTful Services', 'Answer all questions. Multiple-choice questions test core concepts.', 40, '2026-11-15 23:59:59', 'published', true]);
 
   await run(`INSERT INTO quiz_questions (id, quiz_id, question_text, question_type, marks, position) VALUES (?, ?, ?, ?, ?, ?)`,
     ['qq_1', 'qiz_web_1', 'Which of the following HTTP methods are idempotent by definition?', 'multiple', 10, 1]);
-  await run(`INSERT INTO quiz_options (id, question_id, option_text, is_correct, explanation) VALUES (?, ?, ?, ?, ?)`, ['opt_1_1', 'qq_1', 'GET', 1, 'GET is safe and idempotent.']);
-  await run(`INSERT INTO quiz_options (id, question_id, option_text, is_correct, explanation) VALUES (?, ?, ?, ?, ?)`, ['opt_1_2', 'qq_1', 'PUT', 1, 'PUT is idempotent.']);
-  await run(`INSERT INTO quiz_options (id, question_id, option_text, is_correct, explanation) VALUES (?, ?, ?, ?, ?)`, ['opt_1_3', 'qq_1', 'DELETE', 1, 'DELETE is idempotent.']);
-  await run(`INSERT INTO quiz_options (id, question_id, option_text, is_correct, explanation) VALUES (?, ?, ?, ?, ?)`, ['opt_1_4', 'qq_1', 'POST', 0, 'POST creates a new resource and is not idempotent.']);
+  await run(`INSERT INTO quiz_options (id, question_id, option_text, is_correct, explanation) VALUES (?, ?, ?, ?, ?)`, ['opt_1_1', 'qq_1', 'GET', true, 'GET is safe and idempotent.']);
+  await run(`INSERT INTO quiz_options (id, question_id, option_text, is_correct, explanation) VALUES (?, ?, ?, ?, ?)`, ['opt_1_2', 'qq_1', 'PUT', true, 'PUT is idempotent.']);
+  await run(`INSERT INTO quiz_options (id, question_id, option_text, is_correct, explanation) VALUES (?, ?, ?, ?, ?)`, ['opt_1_3', 'qq_1', 'DELETE', true, 'DELETE is idempotent.']);
+  await run(`INSERT INTO quiz_options (id, question_id, option_text, is_correct, explanation) VALUES (?, ?, ?, ?, ?)`, ['opt_1_4', 'qq_1', 'POST', false, 'POST creates a new resource and is not idempotent.']);
 
   await run(`INSERT INTO quiz_questions (id, quiz_id, question_text, question_type, marks, position) VALUES (?, ?, ?, ?, ?, ?)`,
     ['qq_2', 'qiz_web_1', 'What does BOLA stand for in API security context?', 'single', 10, 2]);
-  await run(`INSERT INTO quiz_options (id, question_id, option_text, is_correct, explanation) VALUES (?, ?, ?, ?, ?)`, ['opt_2_1', 'qq_2', 'Broken Object Level Authorization', 1, 'BOLA occurs when endpoints lack ownership verification.']);
-  await run(`INSERT INTO quiz_options (id, question_id, option_text, is_correct, explanation) VALUES (?, ?, ?, ?, ?)`, ['opt_2_2', 'qq_2', 'Binary Object Linked Access', 0, 'Incorrect definition.']);
-  await run(`INSERT INTO quiz_options (id, question_id, option_text, is_correct, explanation) VALUES (?, ?, ?, ?, ?)`, ['opt_2_3', 'qq_2', 'Basic Online Login Authentication', 0, 'Incorrect definition.']);
+  await run(`INSERT INTO quiz_options (id, question_id, option_text, is_correct, explanation) VALUES (?, ?, ?, ?, ?)`, ['opt_2_1', 'qq_2', 'Broken Object Level Authorization', true, 'BOLA occurs when endpoints lack ownership verification.']);
+  await run(`INSERT INTO quiz_options (id, question_id, option_text, is_correct, explanation) VALUES (?, ?, ?, ?, ?)`, ['opt_2_2', 'qq_2', 'Binary Object Linked Access', false, 'Incorrect definition.']);
+  await run(`INSERT INTO quiz_options (id, question_id, option_text, is_correct, explanation) VALUES (?, ?, ?, ?, ?)`, ['opt_2_3', 'qq_2', 'Basic Online Login Authentication', false, 'Incorrect definition.']);
 
   await run(`INSERT INTO quiz_questions (id, quiz_id, question_text, question_type, marks, position) VALUES (?, ?, ?, ?, ?, ?)`,
     ['qq_3', 'qiz_web_1', 'Where should sensitive database credentials and AI API keys be stored?', 'single', 10, 3]);
-  await run(`INSERT INTO quiz_options (id, question_id, option_text, is_correct, explanation) VALUES (?, ?, ?, ?, ?)`, ['opt_3_1', 'qq_3', 'In server-side environment variables (.env)', 1, 'Privileged secrets must never be exposed to the browser.']);
-  await run(`INSERT INTO quiz_options (id, question_id, option_text, is_correct, explanation) VALUES (?, ?, ?, ?, ?)`, ['opt_3_2', 'qq_3', 'In client localStorage', 0, 'Accessible to client scripts; unsafe.']);
+  await run(`INSERT INTO quiz_options (id, question_id, option_text, is_correct, explanation) VALUES (?, ?, ?, ?, ?)`, ['opt_3_1', 'qq_3', 'In server-side environment variables (.env)', true, 'Privileged secrets must never be exposed to the browser.']);
+  await run(`INSERT INTO quiz_options (id, question_id, option_text, is_correct, explanation) VALUES (?, ?, ?, ?, ?)`, ['opt_3_2', 'qq_3', 'In client localStorage', false, 'Accessible to client scripts; unsafe.']);
 
   await run(`INSERT INTO quiz_questions (id, quiz_id, question_text, question_type, marks, position) VALUES (?, ?, ?, ?, ?, ?)`,
     ['qq_4', 'qiz_web_1', 'Which status code indicates an unauthenticated request?', 'single', 10, 4]);
-  await run(`INSERT INTO quiz_options (id, question_id, option_text, is_correct, explanation) VALUES (?, ?, ?, ?, ?)`, ['opt_4_1', 'qq_4', '401 Unauthorized', 1, '401 indicates missing or invalid authentication credentials.']);
-  await run(`INSERT INTO quiz_options (id, question_id, option_text, is_correct, explanation) VALUES (?, ?, ?, ?, ?)`, ['opt_4_2', 'qq_4', '403 Forbidden', 0, '403 indicates authenticated but forbidden.']);
+  await run(`INSERT INTO quiz_options (id, question_id, option_text, is_correct, explanation) VALUES (?, ?, ?, ?, ?)`, ['opt_4_1', 'qq_4', '401 Unauthorized', true, '401 indicates missing or invalid authentication credentials.']);
+  await run(`INSERT INTO quiz_options (id, question_id, option_text, is_correct, explanation) VALUES (?, ?, ?, ?, ?)`, ['opt_4_2', 'qq_4', '403 Forbidden', false, '403 indicates authenticated but forbidden.']);
 
   // Assignments & Submissions & Grades
   await run(`INSERT INTO assignments (id, course_id, title, instructions, max_score, due_at, submission_type, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -450,7 +458,7 @@ async function seedDefaults(): Promise<void> {
     if (dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5) {
       const dateStr = d.toISOString().split('T')[0];
       const sessionId = `att_sess_${dateStr}`;
-      await run(`INSERT OR IGNORE INTO attendance_sessions (id, course_id, session_date, created_by, title, status) VALUES (?, ?, ?, ?, ?, ?)`,
+      await run(`INSERT INTO attendance_sessions (id, course_id, session_date, created_by, title, status) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`,
         [sessionId, 'crs_web_dev', dateStr, 'usr_teacher_1', `Class Session ${dateStr}`, 'completed']);
       
       // Attendance status: 90% present, 5% late, 5% absent
@@ -458,9 +466,9 @@ async function seedDefaults(): Promise<void> {
       if (i % 15 === 0) status = 'absent';
       else if (i % 7 === 0) status = 'late';
 
-      await run(`INSERT OR IGNORE INTO attendance_records (id, session_id, student_id, status, marked_by) VALUES (?, ?, ?, ?, ?)`,
+      await run(`INSERT INTO attendance_records (id, session_id, student_id, status, marked_by) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`,
         [`rec_${sessionId}_std1`, sessionId, 'usr_student_1', status, 'usr_teacher_1']);
-      await run(`INSERT OR IGNORE INTO attendance_records (id, session_id, student_id, status, marked_by) VALUES (?, ?, ?, ?, ?)`,
+      await run(`INSERT INTO attendance_records (id, session_id, student_id, status, marked_by) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`,
         [`rec_${sessionId}_std2`, sessionId, 'usr_student_2', 'present', 'usr_teacher_1']);
     }
   }
@@ -489,3 +497,4 @@ async function seedDefaults(): Promise<void> {
 
   console.log('[DB] Synthetic demonstration data successfully seeded.');
 }
+

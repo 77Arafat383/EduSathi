@@ -40,7 +40,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { label: 'Assignments', to: '/student/assignments', icon: FileText },
     { label: 'Progress & Grades', to: '/student/progress', icon: TrendingUp },
     { label: 'Attendance', to: '/student/attendance', icon: CalendarCheck2 },
-    { label: 'AI Study Assistant', to: '/student/ai-assistant', icon: Bot, highlight: true },
+    { label: 'AI Study Assistant', to: '/student/ai-assistant', icon: Bot },
     { label: 'Notifications', to: '/student/notifications', icon: Bell },
   ];
 
@@ -76,9 +76,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       )}
 
       <aside
-        className={`fixed top-0 left-0 z-50 h-screen w-64 bg-slate-900 text-slate-300 flex flex-col transition-transform duration-300 ease-in-out border-r border-slate-800 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        }`}
+        className={`fixed top-0 left-0 z-50 h-screen w-64 bg-slate-900 text-slate-300 flex flex-col transition-transform duration-300 ease-in-out border-r border-slate-800 ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+          }`}
       >
         {/* Brand header */}
         <div className="h-16 flex items-center gap-3 px-6 border-b border-slate-800/80 bg-slate-950/40">
@@ -88,7 +87,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           <div>
             <div className="flex items-center gap-1.5">
               <span className="font-extrabold text-white text-base tracking-tight">EduSathi</span>
-              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-brand-500/20 text-brand-300 border border-brand-500/30">AI</span>
             </div>
             <p className="text-[11px] text-slate-400 capitalize">{role} Portal</p>
           </div>
@@ -108,20 +106,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 end={link.to === '/student' || link.to === '/teacher' || link.to === '/admin'}
                 onClick={onClose}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                    isActive
-                      ? 'bg-brand-600 text-white shadow-sm shadow-brand-600/30'
-                      : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
+                  `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${isActive
+                    ? 'bg-brand-600 text-white shadow-sm shadow-brand-600/30'
+                    : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
                   } ${link.highlight ? 'ring-1 ring-brand-500/30' : ''}`
                 }
               >
                 <Icon className="w-4 h-4 shrink-0" />
                 <span className="truncate">{link.label}</span>
-                {link.highlight && (
-                  <span className="ml-auto text-[9px] bg-brand-400 text-slate-950 px-1.5 py-0.5 rounded font-extrabold">
-                    AI
-                  </span>
-                )}
+
               </NavLink>
             );
           })}
@@ -131,8 +124,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         <div className="p-4 border-t border-slate-800 bg-slate-950/20">
           <div className="p-3 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700/60">
             <div className="flex items-center gap-2 text-brand-400 mb-1">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span className="text-[11px] font-bold">EduSathi AI LMS</span>
+
+              <span className="text-[11px] font-bold">EduSathi</span>
             </div>
             <p className="text-[10px] text-slate-400 leading-relaxed">
               Real-time curriculum guidance & automated scoring active.

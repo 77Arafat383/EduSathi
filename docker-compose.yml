@@ -12,14 +12,17 @@ services:
     restart: unless-stopped
     ports:
       - "5000:5000"
+    env_file:
+      - .env
     environment:
       - PORT=5000
       - NODE_ENV=production
       - CLIENT_URL=http://localhost
-      - JWT_SECRET=edusathi_production_super_secret_jwt_key_2026
-      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
-      # Set DATABASE_URL to use the postgres service, or omit to use fast embedded SQLite
-      # - DATABASE_URL=postgres://edusathi:edusathi_secure_db_password_123@postgres:5432/edusathi
+      - JWT_SECRET=${JWT_SECRET:-edusathi_production_super_secret_jwt_key_2026}
+      - DATABASE_URL=${DATABASE_URL:-}
+      - AI_API_KEY=${AI_API_KEY:-}
+      - AI_PROVIDER=${AI_PROVIDER:-gemini}
+      - AI_MODEL=${AI_MODEL:-gemini-1.5-flash}
     volumes:
       - server-data:/app/data
     networks:

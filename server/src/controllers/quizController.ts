@@ -22,7 +22,7 @@ export async function createQuiz(req: AuthRequest, res: Response): Promise<void>
   await run(
     `INSERT INTO quizzes (id, course_id, title, instructions, max_score, due_at, status, results_released)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [quizId, courseId, title, instructions || null, max_score || 100, due_at || null, status || 'published', results_released ? 1 : 0]
+    [quizId, courseId, title, instructions || null, max_score || 100, due_at || null, status || 'published', Boolean(results_released)]
   );
 
   let qPos = 1;
@@ -40,7 +40,7 @@ export async function createQuiz(req: AuthRequest, res: Response): Promise<void>
       await run(
         `INSERT INTO quiz_options (id, question_id, option_text, is_correct, explanation)
          VALUES (?, ?, ?, ?, ?)`,
-        [optId, qId, opt.option_text, opt.is_correct ? 1 : 0, opt.explanation || null]
+        [optId, qId, opt.option_text, Boolean(opt.is_correct), opt.explanation || null]
       );
     }
   }
@@ -131,7 +131,7 @@ export async function submitQuizAttempt(req: AuthRequest, res: Response): Promis
     totalMaxMarks += q.marks;
 
     const correctOptions = await query<{ id: string }>(
-      'SELECT id FROM quiz_options WHERE question_id = ? AND is_correct = 1',
+      'SELECT id FROM quiz_options WHERE question_id = ? AND is_correct = TRUE',
       [q.id]
     );
     const correctIds = new Set(correctOptions.map(o => o.id));
@@ -170,7 +170,7 @@ export async function submitQuizAttempt(req: AuthRequest, res: Response): Promis
     await run(
       `INSERT INTO quiz_answers (id, attempt_id, question_id, selected_option_ids, is_correct, score_awarded)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [item.id, attemptId, item.question_id, item.selected_ids, item.is_correct ? 1 : 0, item.score]
+      [item.id, attemptId, item.question_id, item.selected_ids, Boolean(item.is_correct), item.score]
     );
   }
 

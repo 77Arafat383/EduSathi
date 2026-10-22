@@ -22,10 +22,6 @@ export const LandingPage: React.FC = () => {
       {/* Hero Section */}
       <section className="relative pt-12 sm:pt-20 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10 text-center">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-50 text-brand-700 border border-brand-200/80 text-xs font-bold mb-6">
-            <Sparkles className="w-3.5 h-3.5 text-brand-500" />
-            Next-Generation AI Learning Platform
-          </div>
 
           <h1 className="text-4xl sm:text-6xl font-extrabold text-slate-900 tracking-tight max-w-4xl mx-auto leading-[1.15]">
             Unified Learning, Automated Scoring &amp; <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 via-teal-500 to-indigo-600">AI Study Guidance</span>
@@ -50,46 +46,7 @@ export const LandingPage: React.FC = () => {
             </Link>
           </div>
 
-          {/* Quick Demo Personas Bar */}
-          <div className="mt-12 p-4 max-w-3xl mx-auto bg-white rounded-2xl border border-slate-200/80 shadow-md">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
-              ⚡ Instant 1-Click Academic Evaluation Demos
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <button
-                onClick={() => switchDemoUser('student')}
-                className="p-3 rounded-xl bg-slate-50 hover:bg-brand-50 border border-slate-200 hover:border-brand-300 text-left transition group"
-              >
-                <div className="text-xs font-bold text-slate-900 group-hover:text-brand-600 flex items-center justify-between">
-                  <span>Student Persona</span>
-                  <span className="text-[10px] text-brand-600">Explore →</span>
-                </div>
-                <p className="text-[11px] text-slate-500 mt-0.5">Take quizzes, submit work &amp; AI study help</p>
-              </button>
 
-              <button
-                onClick={() => switchDemoUser('teacher')}
-                className="p-3 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 text-left transition group"
-              >
-                <div className="text-xs font-bold text-slate-900 group-hover:text-indigo-600 flex items-center justify-between">
-                  <span>Teacher Persona</span>
-                  <span className="text-[10px] text-indigo-600">Explore →</span>
-                </div>
-                <p className="text-[11px] text-slate-500 mt-0.5">Build quizzes, grade submissions &amp; attendance</p>
-              </button>
-
-              <button
-                onClick={() => switchDemoUser('admin')}
-                className="p-3 rounded-xl bg-slate-50 hover:bg-purple-50 border border-slate-200 hover:border-purple-300 text-left transition group"
-              >
-                <div className="text-xs font-bold text-slate-900 group-hover:text-purple-600 flex items-center justify-between">
-                  <span>Admin Persona</span>
-                  <span className="text-[10px] text-purple-600">Explore →</span>
-                </div>
-                <p className="text-[11px] text-slate-500 mt-0.5">Manage accounts, subjects &amp; system reports</p>
-              </button>
-            </div>
-          </div>
         </div>
       </section>
 

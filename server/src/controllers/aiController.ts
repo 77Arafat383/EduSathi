@@ -70,7 +70,7 @@ ${courseContext}
 ${performanceContext}
 ${deadlinesContext}`;
 
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${config.ai.model || 'gemini-1.5-flash'}:generateContent?key=${config.ai.apiKey}`;
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${config.ai.model || 'gemini-3.5-flash-lite'}:generateContent?key=${config.ai.apiKey}`;
       const response = await fetch(geminiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

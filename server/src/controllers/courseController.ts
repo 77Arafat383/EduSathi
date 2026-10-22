@@ -309,7 +309,7 @@ export async function markLessonProgress(req: AuthRequest, res: Response): Promi
   const studentId = req.user?.id;
 
   await run(
-    `INSERT OR IGNORE INTO lesson_progress (student_id, lesson_id, completed_at) VALUES (?, ?, CURRENT_TIMESTAMP)`,
+    `INSERT INTO lesson_progress (student_id, lesson_id, completed_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT DO NOTHING`,
     [studentId, lessonId]
   );
 

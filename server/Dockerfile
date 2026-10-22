@@ -3,47 +3,45 @@
 # ==========================================
 
 # 1. Build Stage
-FROM node:22-alpine AS builder
+FROM node:22-bookworm-slim AS builder
 WORKDIR /app
 
-# Install native compilation dependencies for better-sqlite3
-RUN apk add --no-cache python3 make g++
+# Install build tools if compilation is needed
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
 
-# Install all dependencies (including devDependencies for TypeScript build)
+# Install all dependencies
 COPY package*.json ./
 RUN npm ci
 
-# Copy source code and compile TypeScript to JavaScript
+# Copy source code and compile TypeScript
 COPY . .
 RUN npm run build
 
 # 2. Production Runner Stage
-FROM node:22-alpine AS runner
+FROM node:22-bookworm-slim AS runner
 WORKDIR /app
-
-# Install native dependencies temporarily for production modules, then clean up
-RUN apk add --no-cache python3 make g++
 
 ENV NODE_ENV=production
 ENV PORT=5000
 
 # Install production dependencies only
 COPY package*.json ./
-RUN npm ci --omit=dev && \
-    apk del python3 make g++
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && \
+    npm ci --omit=dev && \
+    apt-get purge -y python3 make g++ && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 
 # Copy compiled code from builder stage
 COPY --from=builder /app/dist ./dist
 
-# Create SQLite data storage folder and assign ownership to non-root node user
+# Create data storage folder and set ownership
 RUN mkdir -p /app/data && chown -R node:node /app
 
 USER node
 
 EXPOSE 5000
 
-# Health check
+# Health check using native Node.js fetch
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:5000/api/health || exit 1
+  CMD node -e "fetch('http://localhost:5000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 
 CMD ["node", "dist/server.js"]

@@ -19,7 +19,7 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
     if (user) {
       api.getNotifications()
         .then(data => setNotifications(data || []))
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [user]);
 
@@ -29,7 +29,7 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
     try {
       await api.markAllNotificationsRead();
       setNotifications(prev => prev.map(n => ({ ...n, read_at: new Date().toISOString() })));
-    } catch (err) {}
+    } catch (err) { }
   };
 
   return (
@@ -43,43 +43,12 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
         </button>
         <div className="hidden sm:block">
           <h2 className="text-sm font-bold text-slate-800">
-            Welcome back, <span className="text-brand-600">{user?.full_name?.split(' ')[0]}</span> 👋
+            Welcome back, <span className="text-brand-600">{user?.full_name}</span>
           </h2>
-          <p className="text-[11px] text-slate-400 capitalize">
-            Active Workspace: {user?.department || 'Academic Portal'}
-          </p>
         </div>
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Fast Role Switcher for Academic Demonstration Review */}
-        <div className="hidden md:flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
-          <span className="text-[10px] font-bold text-slate-400 uppercase px-2">Demo Switcher:</span>
-          <button
-            onClick={() => switchDemoUser('student')}
-            className={`px-2.5 py-1 rounded-lg font-semibold transition ${
-              user?.role === 'student' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Student
-          </button>
-          <button
-            onClick={() => switchDemoUser('teacher')}
-            className={`px-2.5 py-1 rounded-lg font-semibold transition ${
-              user?.role === 'teacher' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Teacher
-          </button>
-          <button
-            onClick={() => switchDemoUser('admin')}
-            className={`px-2.5 py-1 rounded-lg font-semibold transition ${
-              user?.role === 'admin' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Admin
-          </button>
-        </div>
 
         {/* Notification Bell */}
         <div className="relative">

@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 export const config = {
@@ -13,6 +14,6 @@ export const config = {
   ai: {
     provider: process.env.AI_PROVIDER || 'gemini',
     apiKey: process.env.AI_API_KEY || '',
-    model: process.env.AI_MODEL || 'gemini-1.5-flash',
+    model: process.env.AI_MODEL || 'gemini-3.5-flash-lite',
   },
 };
