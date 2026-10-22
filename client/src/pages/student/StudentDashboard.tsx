@@ -72,7 +72,7 @@ export const StudentDashboard: React.FC = () => {
         <StatCard
           title="Enrolled Courses"
           value={analytics?.enrolled_courses || 0}
-          subtitle="Active curriculum subjects"
+          subtitle="Active enrolled courses"
           icon={BookOpen}
           color="brand"
         />

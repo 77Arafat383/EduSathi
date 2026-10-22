@@ -173,6 +173,86 @@ export async function getAdminAnalytics(req: AuthRequest, res: Response): Promis
   const totalQuizzes = await getOne<{ count: number }>('SELECT COUNT(*) as count FROM quizzes');
   const totalAttendance = await getOne<{ count: number }>('SELECT COUNT(*) as count FROM attendance_records');
 
+  // 1. Department Distribution
+  const departments = await query<{ department: string; count: number }>(`
+    SELECT COALESCE(department, 'General Studies') as department, COUNT(*) as count
+    FROM profiles
+    WHERE role = 'student'
+    GROUP BY department
+    ORDER BY count DESC
+  `);
+
+  // 2. Comprehensive Course Performance & Syllabus Audit
+  const coursePerformance = await query<any>(`
+    SELECT c.id, c.title, s.name as subject_name, c.status,
+           (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id AND status = 'active') as enrolled_students,
+           (SELECT COUNT(*) FROM lessons l JOIN modules m ON l.module_id = m.id WHERE m.course_id = c.id) as total_lessons,
+           (SELECT COUNT(*) FROM lesson_progress lp JOIN lessons l ON lp.lesson_id = l.id JOIN modules m ON l.module_id = m.id WHERE m.course_id = c.id) as completed_lessons,
+           (SELECT p.full_name FROM profiles p JOIN course_teachers ct ON p.id = ct.teacher_id WHERE ct.course_id = c.id LIMIT 1) as lead_instructor
+    FROM courses c
+    LEFT JOIN subjects s ON c.subject_id = s.id
+    ORDER BY c.created_at DESC
+  `);
+
+  // 3. Attendance Analytics
+  const attStats = await getOne<any>(`
+    SELECT 
+      COUNT(*) as total_records,
+      SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present_count,
+      SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) as late_count,
+      SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as absent_count
+    FROM attendance_records
+  `);
+
+  const totalAtt = Number(attStats?.total_records || 0);
+  const presentAtt = Number(attStats?.present_count || 0);
+  const lateAtt = Number(attStats?.late_count || 0);
+  const absentAtt = Number(attStats?.absent_count || 0);
+  const overallAttendancePct = totalAtt > 0 ? Math.round(((presentAtt + lateAtt) / totalAtt) * 100) : 95;
+
+  // 4. Assessment Performance
+  const assessments = await getOne<any>(`
+    SELECT 
+      (SELECT COUNT(*) FROM submissions) as submissions_count,
+      (SELECT COUNT(*) FROM grades) as graded_count,
+      (SELECT AVG(score) FROM grades) as avg_grade,
+      (SELECT COUNT(*) FROM quiz_attempts) as quiz_attempts_count,
+      (SELECT AVG(score) FROM quiz_attempts) as avg_quiz_score
+  `);
+
+  // 5. Student Cohort Retention & Due Audit
+  const studentCohort = await query<any>(`
+    SELECT p.id, p.full_name, p.student_id, p.email, p.department, p.status,
+           (SELECT COUNT(*) FROM enrollments WHERE student_id = p.id AND status = 'active') as enrolled_courses,
+           (SELECT COALESCE(SUM(due_amount), 0) FROM student_payments WHERE student_id = p.id) as total_due,
+           (SELECT COALESCE(SUM(paid_amount), 0) FROM student_payments WHERE student_id = p.id) as total_paid,
+           (SELECT AVG(CASE WHEN status = 'present' THEN 100.0 WHEN status = 'late' THEN 50.0 ELSE 0.0 END) FROM attendance_records WHERE student_id = p.id) as attendance_pct
+    FROM profiles p
+    WHERE p.role = 'student'
+    ORDER BY total_due DESC, p.created_at DESC
+  `);
+
+  // 6. Faculty Workload & Compensation Audit
+  const facultyWorkload = await query<any>(`
+    SELECT p.id, p.full_name, p.email, p.department, p.status,
+           (SELECT COUNT(*) FROM course_teachers WHERE teacher_id = p.id) as assigned_courses_count,
+           (SELECT COUNT(e.id) FROM course_teachers ct JOIN enrollments e ON ct.course_id = e.course_id WHERE ct.teacher_id = p.id AND e.status = 'active') as active_students_taught,
+           (SELECT COALESCE(SUM(amount), 0) FROM teacher_salaries WHERE teacher_id = p.id AND status = 'paid') as total_salary_paid,
+           (SELECT pay_period FROM teacher_salaries WHERE teacher_id = p.id ORDER BY payment_date DESC LIMIT 1) as last_pay_period
+    FROM profiles p
+    WHERE p.role = 'teacher'
+    ORDER BY total_salary_paid DESC
+  `);
+
+  // 7. Fiscal Governance Summary
+  const finance = await getOne<any>(`
+    SELECT 
+      (SELECT COALESCE(SUM(total_amount), 0) FROM student_payments) as total_invoiced,
+      (SELECT COALESCE(SUM(paid_amount), 0) FROM student_payments) as total_collected,
+      (SELECT COALESCE(SUM(due_amount), 0) FROM student_payments) as total_outstanding_due,
+      (SELECT COALESCE(SUM(amount), 0) FROM teacher_salaries WHERE status = 'paid') as total_salary_disbursed
+  `);
+
   res.json({
     success: true,
     data: {
@@ -182,6 +262,30 @@ export async function getAdminAnalytics(req: AuthRequest, res: Response): Promis
       total_submissions: totalSubmissions?.count || 0,
       total_quizzes: totalQuizzes?.count || 0,
       total_attendance_records: totalAttendance?.count || 0,
+      departments,
+      course_performance: coursePerformance,
+      attendance_metrics: {
+        total_sessions_logged: totalAtt,
+        present_count: presentAtt,
+        late_count: lateAtt,
+        absent_count: absentAtt,
+        overall_attendance_pct: overallAttendancePct,
+      },
+      assessment_metrics: {
+        submissions_count: Number(assessments?.submissions_count || 0),
+        graded_count: Number(assessments?.graded_count || 0),
+        avg_grade: assessments?.avg_grade ? Math.round(Number(assessments.avg_grade) * 10) / 10 : 0,
+        quiz_attempts_count: Number(assessments?.quiz_attempts_count || 0),
+        avg_quiz_score: assessments?.avg_quiz_score ? Math.round(Number(assessments.avg_quiz_score) * 10) / 10 : 0,
+      },
+      student_cohort: studentCohort,
+      faculty_workload: facultyWorkload,
+      fiscal_summary: {
+        total_invoiced: Number(finance?.total_invoiced || 0),
+        total_collected: Number(finance?.total_collected || 0),
+        total_outstanding_due: Number(finance?.total_outstanding_due || 0),
+        total_salary_disbursed: Number(finance?.total_salary_disbursed || 0),
+      },
     },
   });
 }

@@ -15,6 +15,8 @@ import {
   Sparkles,
   Settings,
   HelpCircle,
+  Wallet,
+  CreditCard,
 } from 'lucide-react';
 import { useAuth } from '../../app/providers';
 
@@ -57,8 +59,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const adminLinks: NavItem[] = [
     { label: 'Overview', to: '/admin', icon: LayoutDashboard },
     { label: 'User Directory', to: '/admin/users', icon: Users },
-    { label: 'Courses Management', to: '/admin/courses', icon: BookOpen },
-    { label: 'Subject Catalog', to: '/admin/subjects', icon: FolderTree },
+    { label: 'Course Management', to: '/admin/courses', icon: BookOpen },
+    { label: 'Teachers Salaries', to: '/admin/salaries', icon: Wallet },
+    { label: 'Students Payments', to: '/admin/student-payments', icon: CreditCard },
     { label: 'Reports & Analytics', to: '/admin/reports', icon: TrendingUp },
     { label: 'Settings', to: '/admin/settings', icon: Settings },
   ];

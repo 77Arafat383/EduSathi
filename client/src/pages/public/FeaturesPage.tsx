@@ -23,11 +23,11 @@ export const FeaturesPage: React.FC = () => {
       badge: 'Course Studio & Delivery',
       title: 'Structured Curriculum & Modular Lesson Engine',
       description:
-        'Built for academic clarity and deep student engagement. Instructors organize subjects into comprehensive courses, learning modules, and rich Markdown lessons.',
+        'Built for academic clarity and deep student engagement. Instructors deliver comprehensive courses organized into structured learning tracks, modular syllabi, and rich Markdown lessons.',
       icon: BookOpen,
       iconColor: 'text-brand-600 bg-brand-50 border-brand-200',
       highlights: [
-        'Hierarchical curriculum taxonomy: Subject → Course → Modules → Lessons.',
+        'Hierarchical curriculum taxonomy: Course Track → Course Offering → Modules → Lessons.',
         'Rich lesson reader with full Markdown parsing, code formatting, and asset embeds.',
         'Automated student lesson completion tracking and progress calculation.',
         'Course broadcast announcements with instantaneous in-app notification dispatch.',
@@ -109,7 +109,7 @@ export const FeaturesPage: React.FC = () => {
       description: 'Centralized oversight for managing academic catalogs, user permissions, and compliance.',
       features: [
         'User management and role provisioning (Student, Teacher, Admin).',
-        'Academic subject catalog creation and department mapping.',
+        'Course catalog governance and curriculum track management.',
         'Platform-wide audit metrics and active system health statistics.',
         'Granular database governance and security compliance checks.',
       ],

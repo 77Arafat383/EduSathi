@@ -28,6 +28,7 @@ import * as announcementController from '../controllers/announcementController';
 import * as commentController from '../controllers/commentController';
 import * as notificationController from '../controllers/notificationController';
 import * as aiController from '../controllers/aiController';
+import * as financeController from '../controllers/financeController';
 
 const router = Router();
 
@@ -52,8 +53,14 @@ router.get('/courses', authenticate, courseController.listCourses);
 router.post('/courses', authenticate, requireRole(['teacher', 'admin']), validateBody(createCourseSchema), courseController.createCourse);
 router.get('/courses/:courseId', authenticate, courseController.getCourse);
 router.patch('/courses/:courseId', authenticate, requireRole(['teacher', 'admin']), courseController.updateCourse);
+router.delete('/courses/:courseId', authenticate, requireRole(['teacher', 'admin']), courseController.deleteCourse);
 router.post('/courses/:courseId/enroll', authenticate, courseController.enrollCourse);
 router.post('/courses/:courseId/enrollments', authenticate, courseController.enrollCourse);
+router.get('/courses/:courseId/teachers', authenticate, courseController.getCourseTeachers);
+router.post('/courses/:courseId/teachers', authenticate, requireRole(['teacher', 'admin']), courseController.assignCourseTeacher);
+router.delete('/courses/:courseId/teachers/:teacherId', authenticate, requireRole(['teacher', 'admin']), courseController.removeCourseTeacher);
+router.get('/courses/:courseId/students', authenticate, requireRole(['teacher', 'admin']), courseController.getCourseStudents);
+router.delete('/courses/:courseId/students/:studentId', authenticate, requireRole(['teacher', 'admin']), courseController.unenrollCourseStudent);
 router.get('/me/courses', authenticate, courseController.getMyCourses);
 
 router.post('/courses/:courseId/modules', authenticate, requireRole(['teacher', 'admin']), courseController.addModule);
@@ -100,5 +107,20 @@ router.post('/notifications/read-all', authenticate, notificationController.mark
 
 // --- 11. AI Study Assistant ---
 router.post('/ai/study-assistant', authenticate, validateBody(aiAssistantPromptSchema), aiController.askStudyAssistant);
+
+// --- 12. Finance & Salaries & Payments ---
+router.get('/finance/salaries', authenticate, requireRole(['admin']), financeController.listTeacherSalaries);
+router.get('/finance/salaries/summary', authenticate, requireRole(['admin']), financeController.getTeacherSalariesSummary);
+router.post('/finance/salaries', authenticate, requireRole(['admin']), financeController.recordTeacherSalary);
+router.get('/finance/teachers/:teacherId/compensation', authenticate, requireRole(['admin']), financeController.getTeacherFinanceDetails);
+
+router.get('/finance/student-payments', authenticate, requireRole(['admin']), financeController.listStudentPayments);
+router.get('/finance/student-payments/summary', authenticate, requireRole(['admin']), financeController.getStudentPaymentsSummary);
+router.post('/finance/student-payments', authenticate, requireRole(['admin']), financeController.recordStudentPayment);
+router.patch('/finance/student-payments/:paymentId/pay', authenticate, requireRole(['admin']), financeController.settleStudentPayment);
+router.get('/finance/students/:studentId/ledger', authenticate, requireRole(['admin']), financeController.getStudentFinanceDetails);
+
+router.get('/me/payments', authenticate, requireRole(['student']), financeController.getMyStudentPayments);
+router.get('/me/salaries', authenticate, requireRole(['teacher']), financeController.getMyTeacherSalaries);
 
 export default router;

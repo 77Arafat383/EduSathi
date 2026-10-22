@@ -70,7 +70,7 @@ export const TeacherCreateCoursePage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Subject / Department</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Course Category / Delivery Track</label>
             <select
               value={formData.subject_id}
               onChange={(e) => setFormData({ ...formData, subject_id: e.target.value })}

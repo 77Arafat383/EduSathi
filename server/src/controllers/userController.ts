@@ -6,25 +6,35 @@ import { AuthRequest } from '../middleware/auth';
 export async function listUsers(req: AuthRequest, res: Response): Promise<void> {
   const { role, status, search } = req.query;
 
-  let sql = 'SELECT id, full_name, email, role, status, avatar_url, student_id, department, created_at FROM profiles WHERE 1=1';
+  let sql = `
+    SELECT p.id, p.full_name, p.email, p.role, p.status, p.avatar_url, p.student_id, p.department, p.created_at,
+           (SELECT COUNT(*) FROM course_teachers WHERE teacher_id = p.id) as assigned_courses_count,
+           (SELECT COUNT(*) FROM enrollments WHERE student_id = p.id AND status = 'active') as enrolled_courses_count,
+           (SELECT COALESCE(SUM(amount), 0) FROM teacher_salaries WHERE teacher_id = p.id AND status = 'paid') as total_salary_paid,
+           (SELECT COALESCE(SUM(due_amount), 0) FROM student_payments WHERE student_id = p.id AND status != 'paid') as total_due_amount,
+           (SELECT COALESCE(SUM(paid_amount), 0) FROM student_payments WHERE student_id = p.id) as total_tuition_paid,
+           (SELECT COALESCE(SUM(total_amount), 0) FROM student_payments WHERE student_id = p.id) as total_tuition_invoiced
+    FROM profiles p
+    WHERE 1=1
+  `;
   const params: any[] = [];
 
   if (role) {
-    sql += ' AND role = ?';
+    sql += ' AND p.role = ?';
     params.push(role);
   }
 
   if (status) {
-    sql += ' AND status = ?';
+    sql += ' AND p.status = ?';
     params.push(status);
   }
 
   if (search) {
-    sql += ' AND (full_name LIKE ? OR email LIKE ? OR student_id LIKE ?)';
+    sql += ' AND (p.full_name LIKE ? OR p.email LIKE ? OR p.student_id LIKE ?)';
     params.push(`%${search}%`, `%${search}%`, `%${search}%`);
   }
 
-  sql += ' ORDER BY created_at DESC';
+  sql += ' ORDER BY p.created_at DESC';
 
   const users = await query(sql, params);
   res.json({

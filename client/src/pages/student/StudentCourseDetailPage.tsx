@@ -88,7 +88,7 @@ export const StudentCourseDetailPage: React.FC = () => {
       <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div>
           <span className="text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-brand-50 text-brand-700 border border-brand-200">
-            {course.subject_name || 'Academic Course'}
+            {course.subject_name || 'Curriculum Track'}
           </span>
           <h1 className="text-2xl font-extrabold text-slate-900 mt-2">{course.title}</h1>
           <p className="text-xs text-slate-500 mt-1 max-w-2xl">{course.description}</p>

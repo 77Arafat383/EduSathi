@@ -7,9 +7,19 @@ export async function listCourses(req: AuthRequest, res: Response): Promise<void
 
   let sql = `
     SELECT c.*, s.name as subject_name, s.code as subject_code,
-           p.full_name as teacher_name, p.avatar_url as teacher_avatar,
+           COALESCE(
+             (SELECT p2.full_name FROM course_teachers ct JOIN profiles p2 ON ct.teacher_id = p2.id WHERE ct.course_id = c.id AND p2.role = 'teacher' LIMIT 1),
+             p.full_name
+           ) as teacher_name,
+           COALESCE(
+             (SELECT p2.avatar_url FROM course_teachers ct JOIN profiles p2 ON ct.teacher_id = p2.id WHERE ct.course_id = c.id AND p2.role = 'teacher' LIMIT 1),
+             p.avatar_url
+           ) as teacher_avatar,
            (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id AND status = 'active') as student_count,
-           (SELECT COUNT(*) FROM lessons l JOIN modules m ON l.module_id = m.id WHERE m.course_id = c.id) as lesson_count
+           (SELECT COUNT(*) FROM lessons l JOIN modules m ON l.module_id = m.id WHERE m.course_id = c.id) as lesson_count,
+           (SELECT COUNT(*) FROM quizzes WHERE course_id = c.id) as quiz_count,
+           (SELECT COUNT(*) FROM assignments WHERE course_id = c.id) as assignment_count,
+           (SELECT COUNT(*) FROM course_teachers ct JOIN profiles p3 ON ct.teacher_id = p3.id WHERE ct.course_id = c.id AND p3.role = 'teacher') as teacher_count
     FROM courses c
     LEFT JOIN subjects s ON c.subject_id = s.id
     LEFT JOIN profiles p ON c.created_by = p.id
@@ -220,6 +230,23 @@ export async function enrollCourse(req: AuthRequest, res: Response): Promise<voi
 }
 
 export async function getMyCourses(req: AuthRequest, res: Response): Promise<void> {
+  if (req.user?.role === 'admin') {
+    const courses = await query<any>(`
+      SELECT c.*, s.name as subject_name, s.code as subject_code,
+             p.full_name as teacher_name, p.avatar_url as teacher_avatar,
+             (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id AND status = 'active') as student_count,
+             (SELECT COUNT(*) FROM assignments WHERE course_id = c.id) as assignment_count,
+             (SELECT COUNT(*) FROM quizzes WHERE course_id = c.id) as quiz_count,
+             (SELECT COUNT(*) FROM lessons l JOIN modules m ON l.module_id = m.id WHERE m.course_id = c.id) as lesson_count
+      FROM courses c
+      LEFT JOIN subjects s ON c.subject_id = s.id
+      LEFT JOIN profiles p ON c.created_by = p.id
+      ORDER BY c.created_at DESC
+    `);
+    res.json({ success: true, data: courses });
+    return;
+  }
+
   if (req.user?.role === 'teacher') {
     const courses = await query<any>(`
       SELECT c.*, s.name as subject_name,
@@ -317,4 +344,111 @@ export async function markLessonProgress(req: AuthRequest, res: Response): Promi
     success: true,
     message: 'Lesson marked as complete',
   });
+}
+
+export async function deleteCourse(req: AuthRequest, res: Response): Promise<void> {
+  const { courseId } = req.params;
+
+  if (req.user?.role !== 'admin') {
+    const isTeacher = await getOne<{ teacher_id: string }>(
+      'SELECT teacher_id FROM course_teachers WHERE course_id = ? AND teacher_id = ?',
+      [courseId, req.user?.id]
+    );
+    if (!isTeacher) {
+      res.status(403).json({ success: false, message: 'You are not authorized to delete this course' });
+      return;
+    }
+  }
+
+  await run('DELETE FROM courses WHERE id = ?', [courseId]);
+
+  res.json({
+    success: true,
+    message: 'Course deleted successfully',
+  });
+}
+
+export async function getCourseTeachers(req: AuthRequest, res: Response): Promise<void> {
+  const { courseId } = req.params;
+  const teachers = await query<any>(`
+    SELECT p.id, p.full_name, p.email, p.avatar_url, p.department, p.status, ct.assigned_at
+    FROM course_teachers ct
+    JOIN profiles p ON ct.teacher_id = p.id
+    WHERE ct.course_id = ? AND p.role = 'teacher'
+    ORDER BY ct.assigned_at ASC
+  `, [courseId]);
+
+  res.json({ success: true, data: teachers });
+}
+
+export async function assignCourseTeacher(req: AuthRequest, res: Response): Promise<void> {
+  const { courseId } = req.params;
+  const { teacher_id } = req.body;
+
+  if (!teacher_id) {
+    res.status(400).json({ success: false, message: 'Teacher ID is required' });
+    return;
+  }
+
+  const course = await getOne<{ id: string }>('SELECT id FROM courses WHERE id = ?', [courseId]);
+  if (!course) {
+    res.status(404).json({ success: false, message: 'Course not found' });
+    return;
+  }
+
+  const teacher = await getOne<{ id: string; role: string }>('SELECT id, role FROM profiles WHERE id = ?', [teacher_id]);
+  if (!teacher || teacher.role !== 'teacher') {
+    res.status(404).json({ success: false, message: 'Teacher profile not found' });
+    return;
+  }
+
+  const existing = await getOne<{ teacher_id: string }>(
+    'SELECT teacher_id FROM course_teachers WHERE course_id = ? AND teacher_id = ?',
+    [courseId, teacher_id]
+  );
+  if (existing) {
+    res.status(409).json({ success: false, message: 'Teacher already assigned to this course' });
+    return;
+  }
+
+  await run('INSERT INTO course_teachers (course_id, teacher_id) VALUES (?, ?)', [courseId, teacher_id]);
+  res.status(201).json({ success: true, message: 'Teacher assigned to course successfully' });
+}
+
+export async function removeCourseTeacher(req: AuthRequest, res: Response): Promise<void> {
+  const { courseId, teacherId } = req.params;
+  await run('DELETE FROM course_teachers WHERE course_id = ? AND teacher_id = ?', [courseId, teacherId]);
+  res.json({ success: true, message: 'Teacher removed from course successfully' });
+}
+
+export async function getCourseStudents(req: AuthRequest, res: Response): Promise<void> {
+  const { courseId } = req.params;
+  const students = await query<any>(`
+    SELECT p.id, p.full_name, p.email, p.avatar_url, p.student_id, p.department,
+           e.id as enrollment_id, e.status as enrollment_status, e.enrolled_at,
+           (SELECT COUNT(*) FROM lesson_progress lp 
+            JOIN lessons l ON lp.lesson_id = l.id 
+            JOIN modules m ON l.module_id = m.id 
+            WHERE m.course_id = ? AND lp.student_id = p.id) as completed_lessons,
+           (SELECT COUNT(*) FROM lessons l JOIN modules m ON l.module_id = m.id WHERE m.course_id = ?) as total_lessons
+    FROM enrollments e
+    JOIN profiles p ON e.student_id = p.id
+    WHERE e.course_id = ?
+    ORDER BY e.enrolled_at DESC
+  `, [courseId, courseId, courseId]);
+
+  const mapped = students.map(s => {
+    const total = s.total_lessons || 0;
+    const completed = s.completed_lessons || 0;
+    const progress_pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return { ...s, progress_pct };
+  });
+
+  res.json({ success: true, data: mapped });
+}
+
+export async function unenrollCourseStudent(req: AuthRequest, res: Response): Promise<void> {
+  const { courseId, studentId } = req.params;
+  await run('DELETE FROM enrollments WHERE course_id = ? AND student_id = ?', [courseId, studentId]);
+  res.json({ success: true, message: 'Student removed from course' });
 }

@@ -304,6 +304,36 @@ export async function initDb(): Promise<void> {
       due_at TIMESTAMP,
       status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'completed')),
       position INTEGER DEFAULT 1
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS teacher_salaries (
+      id TEXT PRIMARY KEY,
+      teacher_id TEXT REFERENCES profiles(id) ON DELETE CASCADE,
+      amount REAL NOT NULL,
+      payment_date DATE NOT NULL,
+      pay_period TEXT NOT NULL,
+      payment_method TEXT NOT NULL DEFAULT 'Bank Transfer',
+      transaction_ref TEXT,
+      status TEXT DEFAULT 'paid' CHECK (status IN ('paid', 'pending', 'processing')),
+      note TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS student_payments (
+      id TEXT PRIMARY KEY,
+      student_id TEXT REFERENCES profiles(id) ON DELETE CASCADE,
+      course_id TEXT REFERENCES courses(id) ON DELETE SET NULL,
+      title TEXT NOT NULL,
+      total_amount REAL NOT NULL,
+      paid_amount REAL NOT NULL DEFAULT 0.0,
+      due_amount REAL NOT NULL DEFAULT 0.0,
+      payment_date TIMESTAMP,
+      due_date DATE,
+      payment_method TEXT DEFAULT 'Bank Transfer',
+      transaction_ref TEXT,
+      status TEXT DEFAULT 'due' CHECK (status IN ('paid', 'partial', 'due', 'overdue')),
+      note TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`
   ];
 
@@ -313,6 +343,7 @@ export async function initDb(): Promise<void> {
 
   // Seed default demonstration records if not already populated
   await seedDefaults();
+  await seedFinanceDefaults();
   console.log('[DB] Schema and seed verification complete.');
 }
 
@@ -497,4 +528,48 @@ async function seedDefaults(): Promise<void> {
 
   console.log('[DB] Synthetic demonstration data successfully seeded.');
 }
+
+async function seedFinanceDefaults(): Promise<void> {
+  const existingSalary = await getOne<{ id: string }>('SELECT id FROM teacher_salaries LIMIT 1');
+  if (!existingSalary) {
+    console.log('[DB] Seeding teacher salaries in Bangla Taka (BDT)...');
+    await run(`INSERT INTO teacher_salaries (id, teacher_id, amount, payment_date, pay_period, payment_method, transaction_ref, status, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['sal_1', 'usr_teacher_1', 45000.00, '2026-09-30', 'September 2026', 'BEFTN / Bank Transfer', 'TRX-839201', 'paid', 'Monthly faculty payroll disbarment']);
+    await run(`INSERT INTO teacher_salaries (id, teacher_id, amount, payment_date, pay_period, payment_method, transaction_ref, status, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['sal_2', 'usr_teacher_1', 45000.00, '2026-10-31', 'October 2026', 'BEFTN / Bank Transfer', 'TRX-914820', 'paid', 'Monthly faculty payroll disbarment']);
+    await run(`INSERT INTO teacher_salaries (id, teacher_id, amount, payment_date, pay_period, payment_method, transaction_ref, status, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['sal_3', 'usr_teacher_2', 50000.00, '2026-09-30', 'September 2026', 'City Bank Direct', 'TRX-839202', 'paid', 'Monthly faculty payroll disbarment']);
+    await run(`INSERT INTO teacher_salaries (id, teacher_id, amount, payment_date, pay_period, payment_method, transaction_ref, status, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['sal_4', 'usr_teacher_2', 50000.00, '2026-10-31', 'October 2026', 'City Bank Direct', 'TRX-914821', 'paid', 'Monthly faculty payroll disbarment']);
+  } else {
+    // Migrate any legacy USD sample amounts to Bangla Taka amounts
+    await run(`UPDATE teacher_salaries SET amount = 45000.00, payment_method = 'BEFTN / Bank Transfer' WHERE id IN ('sal_1', 'sal_2') AND amount < 10000`);
+    await run(`UPDATE teacher_salaries SET amount = 50000.00, payment_method = 'City Bank Direct' WHERE id IN ('sal_3', 'sal_4') AND amount < 10000`);
+  }
+
+  const existingPayment = await getOne<{ id: string }>('SELECT id FROM student_payments LIMIT 1');
+  if (!existingPayment) {
+    console.log('[DB] Seeding student tuition and dues records in Bangla Taka (BDT)...');
+    // Arafat - Fully Paid (৳0 due)
+    await run(`INSERT INTO student_payments (id, student_id, course_id, title, total_amount, paid_amount, due_amount, payment_date, due_date, payment_method, transaction_ref, status, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['pay_1', 'usr_student_1', 'crs_web_dev', 'Fall 2026 Full-Stack Course Tuition', 18000.00, 18000.00, 0.00, '2026-09-05 10:30:00', '2026-09-15', 'bKash Merchant', 'INV-2026-001', 'paid', 'Full semester course tuition cleared.']);
+    await run(`INSERT INTO student_payments (id, student_id, course_id, title, total_amount, paid_amount, due_amount, payment_date, due_date, payment_method, transaction_ref, status, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['pay_2', 'usr_student_1', 'crs_ai_eng', 'Applied AI Cloud Sandbox Fee', 4500.00, 4500.00, 0.00, '2026-09-20 14:15:00', '2026-09-25', 'Nagad', 'INV-2026-002', 'paid', 'GPU compute pass & institutional sandbox fee.']);
+
+    // Tanvir - Partial payment (৳6,000 due)
+    await run(`INSERT INTO student_payments (id, student_id, course_id, title, total_amount, paid_amount, due_amount, payment_date, due_date, payment_method, transaction_ref, status, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['pay_3', 'usr_student_2', 'crs_web_dev', 'Fall 2026 Core Tuition Fee', 18000.00, 12000.00, 6000.00, '2026-09-10 11:00:00', '2026-11-05', 'bKash', 'INV-2026-003', 'partial', 'First installment cleared; 2nd installment due by Nov 5.']);
+
+    // Sarah - Unpaid (৳18,000 due)
+    await run(`INSERT INTO student_payments (id, student_id, course_id, title, total_amount, paid_amount, due_amount, payment_date, due_date, payment_method, transaction_ref, status, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['pay_4', 'usr_student_3', 'crs_web_dev', 'Fall 2026 Core Tuition Fee', 18000.00, 0.00, 18000.00, null, '2026-10-30', 'Bank Challan Pending', 'INV-2026-004', 'due', 'Semester tuition invoice issued, awaiting payment settlement.']);
+  } else {
+    // Migrate legacy USD sample fees to Bangla Taka
+    await run(`UPDATE student_payments SET total_amount = 18000.00, paid_amount = 18000.00, due_amount = 0.00, payment_method = 'bKash Merchant' WHERE id = 'pay_1' AND total_amount < 5000`);
+    await run(`UPDATE student_payments SET total_amount = 4500.00, paid_amount = 4500.00, due_amount = 0.00, payment_method = 'Nagad' WHERE id = 'pay_2' AND total_amount < 5000`);
+    await run(`UPDATE student_payments SET total_amount = 18000.00, paid_amount = 12000.00, due_amount = 6000.00, payment_method = 'bKash' WHERE id = 'pay_3' AND total_amount < 5000`);
+    await run(`UPDATE student_payments SET total_amount = 18000.00, paid_amount = 0.00, due_amount = 18000.00, payment_method = 'Bank Challan Pending' WHERE id = 'pay_4' AND total_amount < 5000`);
+  }
+}
+
 

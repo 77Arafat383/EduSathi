@@ -161,17 +161,66 @@ export async function updateProfile(req: AuthRequest, res: Response): Promise<vo
     return;
   }
 
-  const { full_name, avatar_url, department, student_id } = req.body;
+  const { full_name, avatar_url, department, student_id, email, current_password, new_password } = req.body;
 
-  await run(
-    `UPDATE profiles SET full_name = COALESCE(?, full_name),
-                         avatar_url = COALESCE(?, avatar_url),
-                         department = COALESCE(?, department),
-                         student_id = COALESCE(?, student_id),
-                         updated_at = CURRENT_TIMESTAMP
-     WHERE id = ?`,
-    [full_name, avatar_url, department, student_id, req.user.id]
-  );
+  // 1. Email update
+  if (email && typeof email === 'string') {
+    const cleanEmail = email.toLowerCase().trim();
+    if (!cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+      res.status(400).json({ success: false, message: 'Please provide a valid email address' });
+      return;
+    }
+    const existing = await getOne<{ id: string }>(
+      'SELECT id FROM profiles WHERE email = ? AND id != ?',
+      [cleanEmail, req.user.id]
+    );
+    if (existing) {
+      res.status(409).json({ success: false, message: 'Email is already registered with another account' });
+      return;
+    }
+    await run('UPDATE profiles SET email = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [cleanEmail, req.user.id]);
+  }
+
+  // 2. Password update
+  if (new_password && typeof new_password === 'string') {
+    if (new_password.length < 6) {
+      res.status(400).json({ success: false, message: 'New password must be at least 6 characters long' });
+      return;
+    }
+
+    const currentRecord = await getOne<{ password_hash: string }>(
+      'SELECT password_hash FROM profiles WHERE id = ?',
+      [req.user.id]
+    );
+    if (!currentRecord) {
+      res.status(404).json({ success: false, message: 'User record not found' });
+      return;
+    }
+
+    if (current_password) {
+      const match = await bcrypt.compare(current_password, currentRecord.password_hash);
+      if (!match) {
+        res.status(400).json({ success: false, message: 'Current password is incorrect' });
+        return;
+      }
+    }
+
+    const passwordHash = await bcrypt.hash(new_password, 10);
+    await run('UPDATE profiles SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [passwordHash, req.user.id]);
+  }
+
+  // 3. Name, Avatar & metadata update
+  if (full_name !== undefined || avatar_url !== undefined || department !== undefined || student_id !== undefined) {
+    await run(
+      `UPDATE profiles SET full_name = COALESCE(?, full_name),
+                           avatar_url = COALESCE(?, avatar_url),
+                           department = COALESCE(?, department),
+                           student_id = COALESCE(?, student_id),
+                           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [full_name ?? null, avatar_url ?? null, department ?? null, student_id ?? null, req.user.id]
+    );
+  }
 
   const updated = await getOne<any>(
     'SELECT id, full_name, email, role, status, avatar_url, student_id, department FROM profiles WHERE id = ?',

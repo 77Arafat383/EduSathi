@@ -12,6 +12,52 @@ export interface User {
   department?: string;
   created_at?: string;
   unread_notifications?: number;
+  assigned_courses_count?: number;
+  enrolled_courses_count?: number;
+  total_salary_paid?: number;
+  total_due_amount?: number;
+  total_tuition_paid?: number;
+  total_tuition_invoiced?: number;
+}
+
+export interface TeacherSalary {
+  id: string;
+  teacher_id: string;
+  teacher_name?: string;
+  teacher_email?: string;
+  teacher_avatar?: string;
+  teacher_department?: string;
+  amount: number;
+  payment_date: string;
+  pay_period: string;
+  payment_method: string;
+  transaction_ref?: string;
+  status: 'paid' | 'pending' | 'processing';
+  note?: string;
+  created_at?: string;
+}
+
+export interface StudentPayment {
+  id: string;
+  student_id: string;
+  student_name?: string;
+  student_identifier?: string;
+  student_email?: string;
+  student_avatar?: string;
+  student_department?: string;
+  course_id?: string;
+  course_title?: string;
+  title: string;
+  total_amount: number;
+  paid_amount: number;
+  due_amount: number;
+  payment_date?: string;
+  due_date?: string;
+  payment_method?: string;
+  transaction_ref?: string;
+  status: 'paid' | 'partial' | 'due' | 'overdue';
+  note?: string;
+  created_at?: string;
 }
 
 export interface Subject {
@@ -22,6 +68,8 @@ export interface Subject {
   status: string;
   course_count?: number;
 }
+
+export type CourseCategory = Subject;
 
 export interface Course {
   id: string;
@@ -37,6 +85,7 @@ export interface Course {
   teacher_email?: string;
   banner_url?: string;
   student_count?: number;
+  teacher_count?: number;
   lesson_count?: number;
   quiz_count?: number;
   assignment_count?: number;
@@ -48,6 +97,31 @@ export interface Course {
   assignments?: Assignment[];
   announcements?: Announcement[];
   created_at?: string;
+}
+
+export interface CourseTeacher {
+  id: string;
+  full_name: string;
+  email: string;
+  avatar_url?: string;
+  department?: string;
+  status: string;
+  assigned_at?: string;
+}
+
+export interface CourseStudent {
+  id: string;
+  full_name: string;
+  email: string;
+  avatar_url?: string;
+  student_id?: string;
+  department?: string;
+  enrollment_id: string;
+  enrollment_status: string;
+  enrolled_at: string;
+  completed_lessons?: number;
+  total_lessons?: number;
+  progress_pct?: number;
 }
 
 export interface Module {

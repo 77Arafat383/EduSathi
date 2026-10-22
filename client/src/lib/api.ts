@@ -65,7 +65,13 @@ export const api = {
   getCourse: (courseId: string) => request<any>(`/courses/${courseId}`),
   createCourse: (course: any) => request<any>('/courses', { method: 'POST', body: JSON.stringify(course) }),
   updateCourse: (courseId: string, payload: any) => request<any>(`/courses/${courseId}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  deleteCourse: (courseId: string) => request<any>(`/courses/${courseId}`, { method: 'DELETE' }),
   enrollCourse: (courseId: string, studentId?: string) => request<any>(`/courses/${courseId}/enroll`, { method: 'POST', body: JSON.stringify({ student_id: studentId }) }),
+  getCourseTeachers: (courseId: string) => request<any[]>(`/courses/${courseId}/teachers`),
+  assignCourseTeacher: (courseId: string, teacherId: string) => request<any>(`/courses/${courseId}/teachers`, { method: 'POST', body: JSON.stringify({ teacher_id: teacherId }) }),
+  removeCourseTeacher: (courseId: string, teacherId: string) => request<any>(`/courses/${courseId}/teachers/${teacherId}`, { method: 'DELETE' }),
+  getCourseStudents: (courseId: string) => request<any[]>(`/courses/${courseId}/students`),
+  unenrollCourseStudent: (courseId: string, studentId: string) => request<any>(`/courses/${courseId}/students/${studentId}`, { method: 'DELETE' }),
   getMyCourses: () => request<any[]>('/me/courses'),
 
   // Modules & Lessons
@@ -119,4 +125,27 @@ export const api = {
 
   // AI Assistant
   askAiAssistant: (payload: { prompt: string; course_id?: string; mode?: string }) => request<any>('/ai/study-assistant', { method: 'POST', body: JSON.stringify(payload) }),
+
+  // Finance & Salaries
+  getTeacherSalaries: (params?: Record<string, string>) => {
+    const q = params ? '?' + new URLSearchParams(params).toString() : '';
+    return request<any[]>(`/finance/salaries${q}`);
+  },
+  getTeacherSalariesSummary: () => request<any>('/finance/salaries/summary'),
+  recordTeacherSalary: (payload: any) => request<any>('/finance/salaries', { method: 'POST', body: JSON.stringify(payload) }),
+  getTeacherFinanceDetails: (teacherId: string) => request<any>(`/finance/teachers/${teacherId}/compensation`),
+
+  // Student Payments & Dues
+  getStudentPayments: (params?: Record<string, string>) => {
+    const q = params ? '?' + new URLSearchParams(params).toString() : '';
+    return request<any[]>(`/finance/student-payments${q}`);
+  },
+  getStudentPaymentsSummary: () => request<any>('/finance/student-payments/summary'),
+  recordStudentPayment: (payload: any) => request<any>('/finance/student-payments', { method: 'POST', body: JSON.stringify(payload) }),
+  settleStudentPayment: (paymentId: string, payload: any) => request<any>(`/finance/student-payments/${paymentId}/pay`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  getStudentFinanceDetails: (studentId: string) => request<any>(`/finance/students/${studentId}/ledger`),
+
+  // Self-Service Finance
+  getMyStudentPayments: () => request<any>('/me/payments'),
+  getMyTeacherSalaries: () => request<any>('/me/salaries'),
 };
