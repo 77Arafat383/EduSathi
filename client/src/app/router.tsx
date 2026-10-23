@@ -60,6 +60,7 @@ export const router = createBrowserRouter([
           { path: 'assignments/:assignmentId', element: lazyWrap(import('../pages/student/StudentAssignmentDetailPage'), 'StudentAssignmentDetailPage') },
           { path: 'progress', element: lazyWrap(import('../pages/student/StudentProgressPage'), 'StudentProgressPage') },
           { path: 'attendance', element: lazyWrap(import('../pages/student/StudentAttendancePage'), 'StudentAttendancePage') },
+          { path: 'payments', element: lazyWrap(import('../pages/student/StudentPaymentsPage'), 'StudentPaymentsPage') },
           { path: 'ai-assistant', element: lazyWrap(import('../pages/student/StudentAiAssistantPage'), 'StudentAiAssistantPage') },
           { path: 'notifications', element: lazyWrap(import('../pages/student/StudentNotificationsPage'), 'StudentNotificationsPage') },
         ],

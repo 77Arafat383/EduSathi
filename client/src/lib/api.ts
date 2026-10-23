@@ -94,6 +94,10 @@ export const api = {
   // Assignments
   createAssignment: (courseId: string, asg: any) => request<any>(`/courses/${courseId}/assignments`, { method: 'POST', body: JSON.stringify(asg) }),
   getCourseAssignments: (courseId: string) => request<any[]>(`/courses/${courseId}/assignments`),
+  getStudentAssignments: (params?: Record<string, string>) => {
+    const q = params ? '?' + new URLSearchParams(params).toString() : '';
+    return request<any[]>(`/student/assignments${q}`);
+  },
   getTeacherAssignments: (params?: Record<string, string>) => {
     const q = params ? '?' + new URLSearchParams(params).toString() : '';
     return request<any[]>(`/teacher/assignments${q}`);
@@ -161,5 +165,9 @@ export const api = {
 
   // Self-Service Finance
   getMyStudentPayments: () => request<any>('/me/payments'),
+  settleMyStudentDue: (payload: { payment_id: string; amount?: number; payment_method?: string; transaction_ref?: string; note?: string }) =>
+    request<any>('/me/payments/settle', { method: 'POST', body: JSON.stringify(payload) }),
+  purchaseCoursePayment: (payload: { course_id: string; amount_to_pay?: number; payment_method?: string; transaction_ref?: string; note?: string }) =>
+    request<any>('/me/payments/buy-course', { method: 'POST', body: JSON.stringify(payload) }),
   getMyTeacherSalaries: () => request<any>('/me/salaries'),
 };

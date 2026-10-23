@@ -108,6 +108,7 @@ export async function initDb(): Promise<void> {
       status TEXT DEFAULT 'published' CHECK (status IN ('draft', 'published', 'archived')),
       created_by TEXT REFERENCES profiles(id) ON DELETE CASCADE,
       banner_url TEXT,
+      price REAL DEFAULT 15000.00,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
@@ -377,6 +378,14 @@ export async function initDb(): Promise<void> {
   } catch {}
   try {
     await run('ALTER TABLE teacher_salaries ADD COLUMN course_id TEXT REFERENCES courses(id) ON DELETE SET NULL');
+  } catch {}
+  try {
+    await run('ALTER TABLE courses ADD COLUMN price REAL DEFAULT 15000.00');
+  } catch {}
+  try {
+    await run(`UPDATE courses SET price = 18000.00 WHERE id = 'crs_web_dev' AND (price IS NULL OR price = 0)`);
+    await run(`UPDATE courses SET price = 22000.00 WHERE id = 'crs_ai_eng' AND (price IS NULL OR price = 0)`);
+    await run(`UPDATE courses SET price = 16000.00 WHERE id = 'crs_db_design' AND (price IS NULL OR price = 0)`);
   } catch {}
 
   // Seed default demonstration records if not already populated

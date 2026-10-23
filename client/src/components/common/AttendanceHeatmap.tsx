@@ -143,8 +143,31 @@ export const AttendanceHeatmap: React.FC<AttendanceHeatmapProps> = ({
       }
     }
 
+    // Direct fallback from dayMap if dayDetails or records did not populate a date
+    if (dayMap && typeof dayMap === 'object') {
+      for (const [dStr, st] of Object.entries(dayMap)) {
+        if (!map[dStr] && st && st !== 'none') {
+          map[dStr] = {
+            date: dStr,
+            status: st,
+            presentCount: st === 'present' ? 1 : 0,
+            absentCount: st === 'absent' ? 1 : 0,
+            lateCount: st === 'late' ? 1 : 0,
+            totalClasses: 1,
+            sessions: [
+              {
+                courseTitle: 'Academic Session',
+                sessionTitle: `Class Session (${st.toUpperCase()})`,
+                status: st,
+              },
+            ],
+          };
+        }
+      }
+    }
+
     return map;
-  }, [dayDetails, records]);
+  }, [dayDetails, records, dayMap]);
 
   // 52 weeks leading up to today (Sun=0 to Sat=6)
   const { today, todayFormatted, gridStartDate, weeks } = useMemo(() => {

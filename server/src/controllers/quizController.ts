@@ -66,7 +66,12 @@ export async function createQuiz(req: AuthRequest, res: Response): Promise<void>
 export async function getQuiz(req: AuthRequest, res: Response): Promise<void> {
   const { quizId } = req.params;
 
-  const quiz = await getOne<any>('SELECT * FROM quizzes WHERE id = ?', [quizId]);
+  const quiz = await getOne<any>(`
+    SELECT q.*, c.title as course_title, c.id as course_id
+    FROM quizzes q
+    JOIN courses c ON q.course_id = c.id
+    WHERE q.id = ?
+  `, [quizId]);
   if (!quiz) {
     res.status(404).json({ success: false, message: 'Quiz not found' });
     return;

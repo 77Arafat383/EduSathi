@@ -97,6 +97,54 @@ export async function listTeacherAssignments(req: AuthRequest, res: Response): P
   });
 }
 
+export async function getStudentAssignments(req: AuthRequest, res: Response): Promise<void> {
+  const studentId = req.user!.id;
+  const { status, courseId } = req.query;
+
+  let sql = `
+    SELECT a.id, a.course_id, a.title, a.instructions, a.due_at, a.max_score, a.file_url, a.file_name, a.created_at,
+           c.title as course_title, s.name as subject_name,
+           p.full_name as teacher_name,
+           sub.id as submission_id, sub.status as submission_status, sub.submitted_at, sub.content as submission_content, sub.file_url as submission_file_url,
+           g.score as grade_score, g.feedback as grade_feedback, g.released_at as grade_released_at
+    FROM enrollments e
+    JOIN courses c ON e.course_id = c.id
+    LEFT JOIN subjects s ON c.subject_id = s.id
+    LEFT JOIN profiles p ON c.created_by = p.id
+    JOIN assignments a ON c.id = a.course_id
+    LEFT JOIN submissions sub ON a.id = sub.assignment_id AND sub.student_id = e.student_id
+    LEFT JOIN grades g ON sub.id = g.submission_id
+    WHERE e.student_id = ? AND e.status = 'active'
+  `;
+  const params: any[] = [studentId];
+
+  if (courseId && courseId !== 'all') {
+    sql += ` AND a.course_id = ?`;
+    params.push(courseId);
+  }
+
+  if (status === 'pending') {
+    sql += ` AND (sub.status IS NULL OR sub.status = 'not_submitted')`;
+  } else if (status === 'submitted') {
+    sql += ` AND sub.status = 'submitted'`;
+  } else if (status === 'graded') {
+    sql += ` AND sub.status = 'graded'`;
+  }
+
+  sql += `
+    ORDER BY 
+      CASE WHEN a.due_at IS NOT NULL AND a.due_at > CURRENT_TIMESTAMP THEN 0 ELSE 1 END,
+      a.due_at ASC,
+      a.created_at DESC
+  `;
+
+  const assignments = await query<any>(sql, params);
+  res.json({
+    success: true,
+    data: assignments,
+  });
+}
+
 export async function getAssignment(req: AuthRequest, res: Response): Promise<void> {
   const { assignmentId } = req.params;
 
@@ -282,7 +330,7 @@ export async function getStudentGrades(req: AuthRequest, res: Response): Promise
 
   const grades = await query<any>(`
     SELECT g.*, a.title as assignment_title, a.max_score, c.title as course_title,
-           p.full_name as graded_by_name
+           p.full_name as graded_by_name, a.id as assignment_id
     FROM grades g
     JOIN submissions s ON g.submission_id = s.id
     JOIN assignments a ON s.assignment_id = a.id

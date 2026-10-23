@@ -82,6 +82,7 @@ router.get('/me/quiz-results', authenticate, requireRole(['student']), quizContr
 // --- 6. Assignments & Grading ---
 router.post('/courses/:courseId/assignments', authenticate, requireRole(['teacher', 'admin']), validateBody(createAssignmentSchema), assignmentController.createAssignment);
 router.get('/courses/:courseId/assignments', authenticate, assignmentController.listAssignments);
+router.get('/student/assignments', authenticate, requireRole(['student']), assignmentController.getStudentAssignments);
 router.get('/teacher/assignments', authenticate, requireRole(['teacher', 'admin']), assignmentController.listTeacherAssignments);
 router.get('/assignments/:assignmentId', authenticate, assignmentController.getAssignment);
 router.post('/assignments/:assignmentId/submissions', authenticate, requireRole(['student']), validateBody(submitAssignmentSchema), assignmentController.submitAssignment);
@@ -132,6 +133,8 @@ router.patch('/finance/student-payments/:paymentId/pay', authenticate, requireRo
 router.get('/finance/students/:studentId/ledger', authenticate, requireRole(['admin']), financeController.getStudentFinanceDetails);
 
 router.get('/me/payments', authenticate, requireRole(['student']), financeController.getMyStudentPayments);
+router.post('/me/payments/settle', authenticate, requireRole(['student']), financeController.settleMyStudentPayment);
+router.post('/me/payments/buy-course', authenticate, requireRole(['student']), financeController.purchaseCoursePayment);
 router.get('/me/salaries', authenticate, requireRole(['teacher']), financeController.getMyTeacherSalaries);
 
 export default router;

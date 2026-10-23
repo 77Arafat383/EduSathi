@@ -104,17 +104,39 @@ export async function getCourse(req: AuthRequest, res: Response): Promise<void> 
     );
   }
 
-  // Fetch quizzes
-  const quizzes = await query<any>(
-    `SELECT id, title, instructions, max_score, due_at, status FROM quizzes WHERE course_id = ? AND status != 'draft' ORDER BY created_at DESC`,
-    [courseId]
-  );
+  // Fetch quizzes with duration and student attempt if student
+  const quizzes = req.user?.role === 'student'
+    ? await query<any>(
+        `SELECT q.id, q.course_id, q.title, q.instructions, q.max_score, q.duration_minutes, q.due_at, q.status,
+                qa.id as attempt_id, qa.score as attempt_score, qa.status as attempt_status, qa.submitted_at as attempt_submitted_at
+         FROM quizzes q
+         LEFT JOIN quiz_attempts qa ON q.id = qa.quiz_id AND qa.student_id = ?
+         WHERE q.course_id = ? AND q.status != 'draft'
+         ORDER BY q.created_at DESC`,
+        [req.user.id, courseId]
+      )
+    : await query<any>(
+        `SELECT id, course_id, title, instructions, max_score, duration_minutes, due_at, status FROM quizzes WHERE course_id = ? AND status != 'draft' ORDER BY created_at DESC`,
+        [courseId]
+      );
 
-  // Fetch assignments
-  const assignments = await query<any>(
-    `SELECT id, title, instructions, max_score, due_at, submission_type, status FROM assignments WHERE course_id = ? AND status != 'draft' ORDER BY created_at DESC`,
-    [courseId]
-  );
+  // Fetch assignments with teacher attached file and student submission status
+  const assignments = req.user?.role === 'student'
+    ? await query<any>(
+        `SELECT a.id, a.course_id, a.title, a.instructions, a.max_score, a.due_at, a.submission_type, a.file_url, a.file_name, a.status,
+                s.id as submission_id, s.status as submission_status, s.submitted_at, s.file_url as student_file_url,
+                g.score as grade_score, g.feedback as grade_feedback, g.released_at as graded_at
+         FROM assignments a
+         LEFT JOIN submissions s ON a.id = s.assignment_id AND s.student_id = ?
+         LEFT JOIN grades g ON s.id = g.submission_id
+         WHERE a.course_id = ? AND a.status != 'draft'
+         ORDER BY a.created_at DESC`,
+        [req.user.id, courseId]
+      )
+    : await query<any>(
+        `SELECT id, course_id, title, instructions, max_score, due_at, submission_type, file_url, file_name, status FROM assignments WHERE course_id = ? AND status != 'draft' ORDER BY created_at DESC`,
+        [courseId]
+      );
 
   // Fetch announcements
   const announcements = await query<any>(
@@ -126,6 +148,49 @@ export async function getCourse(req: AuthRequest, res: Response): Promise<void> 
     [courseId]
   );
 
+  // Fetch student attendance summary and records if enrolled student
+  let attendanceSummary: any = null;
+  if (req.user?.role === 'student' && isEnrolled) {
+    const attendanceStats = await getOne<any>(`
+      SELECT 
+        COUNT(s.id) as total_sessions,
+        SUM(CASE WHEN ar.status = 'present' THEN 1 ELSE 0 END) as present_count,
+        SUM(CASE WHEN ar.status = 'late' THEN 1 ELSE 0 END) as late_count,
+        SUM(CASE WHEN ar.status = 'absent' THEN 1 ELSE 0 END) as absent_count
+      FROM attendance_sessions s
+      LEFT JOIN attendance_records ar ON s.id = ar.session_id AND ar.student_id = ?
+      WHERE s.course_id = ?
+    `, [req.user.id, courseId]);
+
+    const attendanceRecords = await query<any>(`
+      SELECT s.id as session_id, s.session_date, s.title as session_title, s.status as session_status,
+             s.present_until, s.late_until,
+             ar.status as my_status
+      FROM attendance_sessions s
+      LEFT JOIN attendance_records ar ON s.id = ar.session_id AND ar.student_id = ?
+      WHERE s.course_id = ?
+      ORDER BY s.session_date DESC, s.created_at DESC
+    `, [req.user.id, courseId]);
+
+    const totalSessions = Number(attendanceStats?.total_sessions) || 0;
+    const presentCount = Number(attendanceStats?.present_count) || 0;
+    const lateCount = Number(attendanceStats?.late_count) || 0;
+    const absentCount = Number(attendanceStats?.absent_count) || 0;
+    const attendancePct = totalSessions > 0
+      ? Math.round(((presentCount + lateCount) / totalSessions) * 100)
+      : 100;
+
+    attendanceSummary = {
+      total_sessions: totalSessions,
+      present_count: presentCount,
+      late_count: lateCount,
+      absent_count: absentCount,
+      attendance_pct: attendancePct,
+      sessions: attendanceRecords,
+      active_session: attendanceRecords.find((r: any) => r.session_status === 'active' && r.my_status !== 'present') || null,
+    };
+  }
+
   res.json({
     success: true,
     data: {
@@ -136,6 +201,7 @@ export async function getCourse(req: AuthRequest, res: Response): Promise<void> 
       quizzes,
       assignments,
       announcements,
+      attendance_summary: attendanceSummary,
     },
   });
 }
@@ -266,13 +332,17 @@ export async function getMyCourses(req: AuthRequest, res: Response): Promise<voi
 
   // Student courses with completion calculation
   const courses = await query<any>(`
-    SELECT c.*, s.name as subject_name, p.full_name as teacher_name,
+    SELECT c.*, s.name as subject_name, s.code as subject_code,
+           p.full_name as teacher_name, p.avatar_url as teacher_avatar, p.email as teacher_email,
            e.enrolled_at,
            (SELECT COUNT(*) FROM lessons l JOIN modules m ON l.module_id = m.id WHERE m.course_id = c.id) as total_lessons,
            (SELECT COUNT(*) FROM lesson_progress lp 
             JOIN lessons l ON lp.lesson_id = l.id 
             JOIN modules m ON l.module_id = m.id 
-            WHERE m.course_id = c.id AND lp.student_id = ?) as completed_lessons
+            WHERE m.course_id = c.id AND lp.student_id = ?) as completed_lessons,
+           (SELECT COUNT(*) FROM assignments WHERE course_id = c.id AND status != 'draft') as assignment_count,
+           (SELECT COUNT(*) FROM quizzes WHERE course_id = c.id AND status != 'draft') as quiz_count,
+           (SELECT COUNT(*) FROM announcements WHERE course_id = c.id) as announcement_count
     FROM enrollments e
     JOIN courses c ON e.course_id = c.id
     LEFT JOIN subjects s ON c.subject_id = s.id
@@ -287,6 +357,7 @@ export async function getMyCourses(req: AuthRequest, res: Response): Promise<voi
     const progress_pct = total > 0 ? Math.round((completed / total) * 100) : 0;
     return {
       ...c,
+      lesson_count: total,
       progress_pct,
     };
   });

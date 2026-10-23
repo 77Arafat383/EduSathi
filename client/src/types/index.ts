@@ -88,6 +88,7 @@ export interface Course {
   teacher_avatar?: string;
   teacher_email?: string;
   banner_url?: string;
+  price?: number;
   student_count?: number;
   teacher_count?: number;
   lesson_count?: number;

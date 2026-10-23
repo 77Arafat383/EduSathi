@@ -353,7 +353,7 @@ export async function getMyStudentPayments(req: AuthRequest, res: Response): Pro
   const studentId = req.user!.id;
 
   const payments = await query<any>(`
-    SELECT sp.*, c.title as course_title
+    SELECT sp.*, c.title as course_title, c.banner_url as course_banner, c.price as course_price
     FROM student_payments sp
     LEFT JOIN courses c ON sp.course_id = c.id
     WHERE sp.student_id = ?
@@ -363,15 +363,209 @@ export async function getMyStudentPayments(req: AuthRequest, res: Response): Pro
   const totalInvoiced = payments.reduce((sum, p) => sum + (Number(p.total_amount) || 0), 0);
   const totalPaid = payments.reduce((sum, p) => sum + (Number(p.paid_amount) || 0), 0);
   const totalDue = payments.reduce((sum, p) => sum + (Number(p.due_amount) || 0), 0);
+  const duePayments = payments.filter((p: any) => Number(p.due_amount) > 0);
+
+  // Also fetch all available published courses with enrollment status and pricing for self-service purchase
+  const availableCourses = await query<any>(`
+    SELECT c.*, s.name as subject_name, s.code as subject_code,
+           COALESCE(
+             (SELECT p2.full_name FROM course_teachers ct JOIN profiles p2 ON ct.teacher_id = p2.id WHERE ct.course_id = c.id AND p2.role = 'teacher' LIMIT 1),
+             p.full_name
+           ) as teacher_name,
+           COALESCE(
+             (SELECT p2.avatar_url FROM course_teachers ct JOIN profiles p2 ON ct.teacher_id = p2.id WHERE ct.course_id = c.id AND p2.role = 'teacher' LIMIT 1),
+             p.avatar_url
+           ) as teacher_avatar,
+           (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id AND student_id = ? AND status = 'active') as is_enrolled,
+           (SELECT COUNT(*) FROM lessons l JOIN modules m ON l.module_id = m.id WHERE m.course_id = c.id) as lesson_count,
+           (SELECT COUNT(*) FROM quizzes WHERE course_id = c.id) as quiz_count,
+           (SELECT COUNT(*) FROM assignments WHERE course_id = c.id) as assignment_count
+    FROM courses c
+    LEFT JOIN subjects s ON c.subject_id = s.id
+    LEFT JOIN profiles p ON c.created_by = p.id
+    WHERE c.status = 'published'
+    ORDER BY c.created_at DESC
+  `, [studentId]);
 
   res.json({
     success: true,
     data: {
       payments,
+      due_payments: duePayments,
       total_invoiced: totalInvoiced,
       total_paid: totalPaid,
       total_due_available: totalDue,
       has_due: totalDue > 0,
+      available_courses: availableCourses.map(c => ({
+        ...c,
+        is_enrolled: Boolean(c.is_enrolled),
+        price: Number(c.price || 15000.00),
+      })),
+    },
+  });
+}
+
+export async function settleMyStudentPayment(req: AuthRequest, res: Response): Promise<void> {
+  const studentId = req.user!.id;
+  const { payment_id, amount, payment_method, transaction_ref, note } = req.body;
+
+  if (!payment_id) {
+    res.status(400).json({ success: false, message: 'Payment ID is required' });
+    return;
+  }
+
+  const existing = await getOne<any>('SELECT * FROM student_payments WHERE id = ? AND student_id = ?', [payment_id, studentId]);
+  if (!existing) {
+    res.status(404).json({ success: false, message: 'Payment invoice not found or unauthorized' });
+    return;
+  }
+
+  const currentDue = Number(existing.due_amount || 0);
+  if (currentDue <= 0) {
+    res.status(400).json({ success: false, message: 'This invoice has already been fully paid and has no outstanding due' });
+    return;
+  }
+
+  const payAmount = amount !== undefined && Number(amount) > 0 ? Math.min(Number(amount), currentDue) : currentDue;
+  const newPaid = Number(existing.paid_amount || 0) + payAmount;
+  const newDue = Math.max(0, Number(existing.total_amount) - newPaid);
+
+  let status = 'due';
+  if (newDue <= 0) {
+    status = 'paid';
+  } else if (newPaid > 0) {
+    status = 'partial';
+  }
+
+  const txRef = transaction_ref || `TRX-${Date.now().toString().slice(-6)}`;
+  const pMethod = payment_method || existing.payment_method || 'bKash';
+
+  await run(
+    `UPDATE student_payments SET
+       paid_amount = ?,
+       due_amount = ?,
+       status = ?,
+       payment_date = CURRENT_TIMESTAMP,
+       payment_method = ?,
+       transaction_ref = ?,
+       note = COALESCE(?, note)
+     WHERE id = ?`,
+    [newPaid, newDue, status, pMethod, txRef, note || null, payment_id]
+  );
+
+  res.json({
+    success: true,
+    message: `Payment of ৳${payAmount.toLocaleString()} processed successfully. Outstanding due is now ৳${newDue.toLocaleString()}.`,
+    data: {
+      id: payment_id,
+      paid_amount: newPaid,
+      due_amount: newDue,
+      status,
+      payment_method: pMethod,
+      transaction_ref: txRef,
+    },
+  });
+}
+
+export async function purchaseCoursePayment(req: AuthRequest, res: Response): Promise<void> {
+  const studentId = req.user!.id;
+  const { course_id, amount_to_pay, payment_method, transaction_ref, note } = req.body;
+
+  if (!course_id) {
+    res.status(400).json({ success: false, message: 'Course ID is required' });
+    return;
+  }
+
+  const course = await getOne<any>('SELECT * FROM courses WHERE id = ?', [course_id]);
+  if (!course) {
+    res.status(404).json({ success: false, message: 'Course not found' });
+    return;
+  }
+
+  // Check existing active enrollment
+  const existingEnrollment = await getOne<any>(
+    'SELECT id, status FROM enrollments WHERE course_id = ? AND student_id = ?',
+    [course_id, studentId]
+  );
+
+  if (existingEnrollment && existingEnrollment.status === 'active') {
+    // Check if there is already a payment or if user already owns it
+    const existingPayment = await getOne<any>(
+      'SELECT id, due_amount, status FROM student_payments WHERE course_id = ? AND student_id = ? ORDER BY created_at DESC LIMIT 1',
+      [course_id, studentId]
+    );
+    if (existingPayment && Number(existingPayment.due_amount) === 0) {
+      res.status(400).json({ success: false, message: 'You are already actively enrolled and fully paid for this course.' });
+      return;
+    }
+  }
+
+  const coursePrice = Number(course.price || 15000.00);
+  const paidAmount = amount_to_pay !== undefined && Number(amount_to_pay) >= 0 ? Math.min(Number(amount_to_pay), coursePrice) : coursePrice;
+  const dueAmount = Math.max(0, coursePrice - paidAmount);
+
+  let status = 'due';
+  if (dueAmount <= 0) {
+    status = 'paid';
+  } else if (paidAmount > 0) {
+    status = 'partial';
+  }
+
+  const paymentId = `pay_${Date.now()}`;
+  const txRef = transaction_ref || `ENR-${Date.now().toString().slice(-6)}`;
+  const pMethod = payment_method || 'bKash';
+  const pDate = paidAmount > 0 ? new Date().toISOString() : null;
+  const title = `Tuition Fee: ${course.title}`;
+
+  // 1. Record in student_payments (Updates Admin Panel instantly!)
+  await run(
+    `INSERT INTO student_payments (
+       id, student_id, course_id, title, total_amount, paid_amount, due_amount,
+       payment_date, due_date, payment_method, transaction_ref, status, note
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      paymentId,
+      studentId,
+      course_id,
+      title,
+      coursePrice,
+      paidAmount,
+      dueAmount,
+      pDate,
+      dueAmount > 0 ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : null,
+      pMethod,
+      txRef,
+      status,
+      note || `Direct student enrollment & fee clearance for ${course.title}.`,
+    ]
+  );
+
+  // 2. Ensure student is actively enrolled
+  let enrollmentId = existingEnrollment?.id;
+  if (!existingEnrollment) {
+    enrollmentId = `enr_${Date.now()}`;
+    await run(
+      `INSERT INTO enrollments (id, course_id, student_id, status) VALUES (?, ?, ?, 'active')`,
+      [enrollmentId, course_id, studentId]
+    );
+  } else if (existingEnrollment.status !== 'active') {
+    await run('UPDATE enrollments SET status = ? WHERE id = ?', ['active', existingEnrollment.id]);
+  }
+
+  res.status(201).json({
+    success: true,
+    message: `Enrollment and payment completed successfully for ${course.title}!`,
+    data: {
+      payment_id: paymentId,
+      enrollment_id: enrollmentId,
+      course_id,
+      course_title: course.title,
+      total_amount: coursePrice,
+      paid_amount: paidAmount,
+      due_amount: dueAmount,
+      status,
+      transaction_ref: txRef,
+      payment_method: pMethod,
     },
   });
 }
