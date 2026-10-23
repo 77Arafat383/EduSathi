@@ -52,8 +52,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { label: 'Quiz Builder', to: '/teacher/quizzes', icon: HelpCircle },
     { label: 'Assignments', to: '/teacher/assignments', icon: FileText },
     { label: 'Gradebook', to: '/teacher/gradebook', icon: FileCheck2 },
-    { label: 'Attendance Register', to: '/teacher/attendance', icon: CalendarCheck2 },
+    { label: 'Attendance', to: '/teacher/attendance', icon: CalendarCheck2 },
     { label: 'Class Analytics', to: '/teacher/analytics', icon: TrendingUp },
+    { label: 'Salary & Compensation', to: '/teacher/salary', icon: Wallet },
   ];
 
   const adminLinks: NavItem[] = [

@@ -21,6 +21,7 @@ export const AdminTeacherSalariesPage: React.FC = () => {
   const [salaries, setSalaries] = useState<TeacherSalary[]>([]);
   const [summary, setSummary] = useState<any>(null);
   const [teachers, setTeachers] = useState<User[]>([]);
+  const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -34,6 +35,7 @@ export const AdminTeacherSalariesPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     teacher_id: '',
+    course_id: '',
     amount: '',
     pay_period: 'October 2026',
     payment_date: new Date().toISOString().split('T')[0],
@@ -49,14 +51,16 @@ export const AdminTeacherSalariesPage: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [salariesData, summaryData, teachersData] = await Promise.all([
+      const [salariesData, summaryData, teachersData, coursesData] = await Promise.all([
         api.getTeacherSalaries(),
         api.getTeacherSalariesSummary(),
         api.getUsers({ role: 'teacher' }),
+        api.getCourses().catch(() => []),
       ]);
       setSalaries(salariesData || []);
       setSummary(summaryData || null);
       setTeachers(teachersData || []);
+      setCourses(coursesData || []);
 
       if (teachersData && teachersData.length > 0 && !formData.teacher_id) {
         setFormData(prev => ({ ...prev, teacher_id: teachersData[0].id }));
@@ -82,6 +86,7 @@ export const AdminTeacherSalariesPage: React.FC = () => {
       setShowModal(false);
       setFormData({
         teacher_id: teachers[0]?.id || '',
+        course_id: '',
         amount: '',
         pay_period: 'October 2026',
         payment_date: new Date().toISOString().split('T')[0],
@@ -459,6 +464,7 @@ export const AdminTeacherSalariesPage: React.FC = () => {
                   <th className="py-2.5 px-4 font-bold">Faculty Member</th>
                   <th className="py-2.5 px-4 font-bold">Department</th>
                   <th className="py-2.5 px-4 font-bold">Pay Period</th>
+                  <th className="py-2.5 px-4 font-bold">Course(s) Mentioned</th>
                   <th className="py-2.5 px-4 font-bold">Disbursement Date</th>
                   <th className="py-2.5 px-4 font-bold">Payment Rail</th>
                   <th className="py-2.5 px-4 font-bold">Transaction Ref</th>
@@ -505,6 +511,24 @@ export const AdminTeacherSalariesPage: React.FC = () => {
                     {/* Pay Period */}
                     <td className="py-3 px-4 whitespace-nowrap font-mono font-semibold text-slate-800">
                       {sal.pay_period}
+                    </td>
+
+                    {/* Course(s) Mentioned */}
+                    <td className="py-3 px-4">
+                      {sal.course_title ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            {sal.subject_code || 'CRS'}
+                          </span>
+                          <span className="font-semibold text-slate-800 line-clamp-1 max-w-[160px]">
+                            {sal.course_title}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] font-mono text-slate-500">
+                          All Assigned Courses
+                        </span>
+                      )}
                     </td>
 
                     {/* Disbursement Date */}
@@ -642,6 +666,28 @@ export const AdminTeacherSalariesPage: React.FC = () => {
                     className="w-full px-3 py-2 text-xs border border-slate-300 focus:outline-none focus:border-slate-900 font-medium"
                   />
                 </div>
+              </div>
+
+              {/* Course Allocation Selector */}
+              <div>
+                <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1">
+                  Course Mention / Curriculum Allocation (Optional)
+                </label>
+                <select
+                  value={formData.course_id}
+                  onChange={(e) => setFormData({ ...formData, course_id: e.target.value })}
+                  className="w-full px-3 py-2 text-xs border border-slate-300 bg-white font-medium focus:outline-none focus:border-slate-900"
+                >
+                  <option value="">All Assigned Courses (General Faculty Load)</option>
+                  {courses.map((c: any) => (
+                    <option key={c.id} value={c.id}>
+                      {c.title} ({c.subject_code || 'CRS'})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                  Select a specific course or leave as General Load to cover all courses taught by the instructor.
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -805,6 +851,9 @@ export const AdminTeacherSalariesPage: React.FC = () => {
                     <div className="font-bold text-slate-900">Monthly Teaching &amp; Academic Base</div>
                     <div className="text-[11px] text-slate-500">
                       Term Pay Period: {viewingVoucher.pay_period}
+                    </div>
+                    <div className="text-[11px] text-indigo-700 font-semibold mt-0.5">
+                      Course Allocation: {viewingVoucher.course_title ? `${viewingVoucher.course_title} (${viewingVoucher.subject_code || 'CRS'})` : 'All Assigned Courses (General Faculty Load)'}
                     </div>
                     {viewingVoucher.note && (
                       <div className="text-[10px] text-slate-400 font-mono mt-0.5">

@@ -83,6 +83,7 @@ export const router = createBrowserRouter([
           { path: 'gradebook', element: lazyWrap(import('../pages/teacher/TeacherGradebookPage'), 'TeacherGradebookPage') },
           { path: 'attendance', element: lazyWrap(import('../pages/teacher/TeacherAttendancePage'), 'TeacherAttendancePage') },
           { path: 'analytics', element: lazyWrap(import('../pages/teacher/TeacherAnalyticsPage'), 'TeacherAnalyticsPage') },
+          { path: 'salary', element: lazyWrap(import('../pages/teacher/TeacherSalaryPage'), 'TeacherSalaryPage') },
           { path: 'announcements', element: lazyWrap(import('../pages/teacher/TeacherCoursesPage'), 'TeacherCoursesPage') },
           { path: 'notifications', element: lazyWrap(import('../pages/student/StudentNotificationsPage'), 'StudentNotificationsPage') },
         ],

@@ -73,10 +73,13 @@ export const gradeSubmissionSchema = z.object({
 export const createAttendanceSessionSchema = z.object({
   session_date: z.string(),
   title: z.string().optional(),
+  present_minutes: z.number().optional(),
+  late_minutes: z.number().optional(),
+  is_live: z.boolean().optional(),
   records: z.array(z.object({
     student_id: z.string(),
     status: z.enum(['present', 'absent', 'late']),
-  })),
+  })).optional(),
 });
 
 export const createAnnouncementSchema = z.object({

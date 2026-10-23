@@ -24,6 +24,7 @@ import {
   FileText,
   AlertCircle
 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { StatusBadge } from '../../components/common/StatusBadge';
 
@@ -135,9 +136,12 @@ interface CoursePerformanceData {
 }
 
 export const TeacherGradebookPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const queryCourseId = searchParams.get('courseId');
+
   // Course listing state
   const [courses, setCourses] = useState<CourseItem[]>([]);
-  const [selectedCourseId, setSelectedCourseId] = useState<string>('');
+  const [selectedCourseId, setSelectedCourseId] = useState<string>(queryCourseId || '');
   const [loadingCourses, setLoadingCourses] = useState(true);
 
   // Performance data state

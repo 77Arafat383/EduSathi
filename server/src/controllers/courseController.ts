@@ -823,3 +823,87 @@ export async function getCourseStudentsPerformance(req: AuthRequest, res: Respon
   });
 }
 
+export async function getCourseRoadmap(req: AuthRequest, res: Response): Promise<void> {
+  const { courseId } = req.params;
+
+  const course = await getOne<any>('SELECT id, title FROM courses WHERE id = ?', [courseId]);
+  if (!course) {
+    res.status(404).json({ success: false, message: 'Course not found' });
+    return;
+  }
+
+  // Check existing saved roadmap
+  try {
+    const existing = await getOne<{ roadmap_data: string }>('SELECT roadmap_data FROM course_roadmaps WHERE course_id = ?', [courseId]);
+    if (existing && existing.roadmap_data) {
+      const parsed = JSON.parse(existing.roadmap_data);
+      res.json({ success: true, data: parsed });
+      return;
+    }
+  } catch (err) {
+    console.error('Error fetching course roadmap:', err);
+  }
+
+  // Generate default roadmap from syllabus modules and lessons
+  const modules = await query<any>('SELECT id, title, position FROM modules WHERE course_id = ? ORDER BY position ASC', [courseId]);
+  const lessons = await query<any>(`
+    SELECT l.id, l.module_id, l.title, l.position,
+           CAST((SELECT COUNT(*) FROM lesson_progress lp WHERE lp.lesson_id = l.id) AS INTEGER) as completed_count
+    FROM lessons l
+    JOIN modules m ON l.module_id = m.id
+    WHERE m.course_id = ?
+    ORDER BY m.position ASC, l.position ASC
+  `, [courseId]);
+
+  const defaultPhases = modules.map((m, mIdx) => {
+    const modLessons = lessons.filter(l => l.module_id === m.id);
+    return {
+      id: `phase_${m.id}`,
+      module_id: m.id,
+      title: m.title,
+      target_week: `Weeks ${(mIdx * 3) + 1} - ${(mIdx * 3) + 3}`,
+      description: `Core topics and delivery goals for ${m.title}`,
+      items: modLessons.map(l => ({
+        id: `chk_${l.id}`,
+        title: l.title,
+        completed: (Number(l.completed_count) || 0) > 0,
+        completed_at: (Number(l.completed_count) || 0) > 0 ? new Date().toISOString() : null,
+        type: 'lesson',
+      })),
+    };
+  });
+
+  const generatedRoadmap = {
+    course_id: courseId,
+    course_title: course.title,
+    phases: defaultPhases,
+    updated_at: new Date().toISOString(),
+  };
+
+  res.json({ success: true, data: generatedRoadmap });
+}
+
+export async function saveCourseRoadmap(req: AuthRequest, res: Response): Promise<void> {
+  const { courseId } = req.params;
+  const teacherId = req.user!.id;
+  const { roadmap_data } = req.body;
+
+  if (!roadmap_data) {
+    res.status(400).json({ success: false, message: 'roadmap_data is required' });
+    return;
+  }
+
+  const strData = typeof roadmap_data === 'string' ? roadmap_data : JSON.stringify(roadmap_data);
+  const roadmapId = `rdm_${Date.now()}`;
+
+  await run(
+    `INSERT INTO course_roadmaps (id, course_id, created_by, roadmap_data, updated_at)
+     VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+     ON CONFLICT (course_id)
+     DO UPDATE SET roadmap_data = EXCLUDED.roadmap_data, updated_at = CURRENT_TIMESTAMP`,
+    [roadmapId, courseId, teacherId, strData]
+  );
+
+  res.json({ success: true, message: 'Roadmap and checklist updated successfully' });
+}
+

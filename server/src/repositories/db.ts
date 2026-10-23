@@ -246,6 +246,8 @@ export async function initDb(): Promise<void> {
       created_by TEXT REFERENCES profiles(id) ON DELETE SET NULL,
       title TEXT,
       status TEXT DEFAULT 'completed',
+      present_until TIMESTAMP,
+      late_until TIMESTAMP,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
 
@@ -310,9 +312,18 @@ export async function initDb(): Promise<void> {
       position INTEGER DEFAULT 1
     )`,
 
+    `CREATE TABLE IF NOT EXISTS course_roadmaps (
+      id TEXT PRIMARY KEY,
+      course_id TEXT REFERENCES courses(id) ON DELETE CASCADE UNIQUE,
+      created_by TEXT REFERENCES profiles(id) ON DELETE SET NULL,
+      roadmap_data TEXT NOT NULL,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+
     `CREATE TABLE IF NOT EXISTS teacher_salaries (
       id TEXT PRIMARY KEY,
       teacher_id TEXT REFERENCES profiles(id) ON DELETE CASCADE,
+      course_id TEXT REFERENCES courses(id) ON DELETE SET NULL,
       amount REAL NOT NULL,
       payment_date DATE NOT NULL,
       pay_period TEXT NOT NULL,
@@ -357,6 +368,15 @@ export async function initDb(): Promise<void> {
   } catch {}
   try {
     await run('ALTER TABLE assignments ADD COLUMN file_name TEXT');
+  } catch {}
+  try {
+    await run('ALTER TABLE attendance_sessions ADD COLUMN present_until TIMESTAMP');
+  } catch {}
+  try {
+    await run('ALTER TABLE attendance_sessions ADD COLUMN late_until TIMESTAMP');
+  } catch {}
+  try {
+    await run('ALTER TABLE teacher_salaries ADD COLUMN course_id TEXT REFERENCES courses(id) ON DELETE SET NULL');
   } catch {}
 
   // Seed default demonstration records if not already populated
@@ -551,18 +571,20 @@ async function seedFinanceDefaults(): Promise<void> {
   const existingSalary = await getOne<{ id: string }>('SELECT id FROM teacher_salaries LIMIT 1');
   if (!existingSalary) {
     console.log('[DB] Seeding teacher salaries in Bangla Taka (BDT)...');
-    await run(`INSERT INTO teacher_salaries (id, teacher_id, amount, payment_date, pay_period, payment_method, transaction_ref, status, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ['sal_1', 'usr_teacher_1', 45000.00, '2026-09-30', 'September 2026', 'BEFTN / Bank Transfer', 'TRX-839201', 'paid', 'Monthly faculty payroll disbarment']);
-    await run(`INSERT INTO teacher_salaries (id, teacher_id, amount, payment_date, pay_period, payment_method, transaction_ref, status, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ['sal_2', 'usr_teacher_1', 45000.00, '2026-10-31', 'October 2026', 'BEFTN / Bank Transfer', 'TRX-914820', 'paid', 'Monthly faculty payroll disbarment']);
-    await run(`INSERT INTO teacher_salaries (id, teacher_id, amount, payment_date, pay_period, payment_method, transaction_ref, status, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ['sal_3', 'usr_teacher_2', 50000.00, '2026-09-30', 'September 2026', 'City Bank Direct', 'TRX-839202', 'paid', 'Monthly faculty payroll disbarment']);
-    await run(`INSERT INTO teacher_salaries (id, teacher_id, amount, payment_date, pay_period, payment_method, transaction_ref, status, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ['sal_4', 'usr_teacher_2', 50000.00, '2026-10-31', 'October 2026', 'City Bank Direct', 'TRX-914821', 'paid', 'Monthly faculty payroll disbarment']);
+    await run(`INSERT INTO teacher_salaries (id, teacher_id, course_id, amount, payment_date, pay_period, payment_method, transaction_ref, status, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['sal_1', 'usr_teacher_1', 'crs_web_dev', 45000.00, '2026-09-30', 'September 2026', 'BEFTN / Bank Transfer', 'TRX-839201', 'paid', 'Monthly faculty payroll - Web & Cloud Systems track']);
+    await run(`INSERT INTO teacher_salaries (id, teacher_id, course_id, amount, payment_date, pay_period, payment_method, transaction_ref, status, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['sal_2', 'usr_teacher_1', 'crs_web_dev', 45000.00, '2026-10-31', 'October 2026', 'BEFTN / Bank Transfer', 'TRX-914820', 'paid', 'Monthly faculty payroll - Web & Cloud Systems track']);
+    await run(`INSERT INTO teacher_salaries (id, teacher_id, course_id, amount, payment_date, pay_period, payment_method, transaction_ref, status, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['sal_3', 'usr_teacher_2', 'crs_ai_eng', 50000.00, '2026-09-30', 'September 2026', 'City Bank Direct', 'TRX-839202', 'paid', 'Monthly faculty payroll - AI Engineering curriculum']);
+    await run(`INSERT INTO teacher_salaries (id, teacher_id, course_id, amount, payment_date, pay_period, payment_method, transaction_ref, status, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['sal_4', 'usr_teacher_2', 'crs_ai_eng', 50000.00, '2026-10-31', 'October 2026', 'City Bank Direct', 'TRX-914821', 'paid', 'Monthly faculty payroll - AI Engineering curriculum']);
   } else {
-    // Migrate any legacy USD sample amounts to Bangla Taka amounts
+    // Migrate any legacy USD sample amounts to Bangla Taka amounts and backfill course_id
     await run(`UPDATE teacher_salaries SET amount = 45000.00, payment_method = 'BEFTN / Bank Transfer' WHERE id IN ('sal_1', 'sal_2') AND amount < 10000`);
     await run(`UPDATE teacher_salaries SET amount = 50000.00, payment_method = 'City Bank Direct' WHERE id IN ('sal_3', 'sal_4') AND amount < 10000`);
+    await run(`UPDATE teacher_salaries SET course_id = 'crs_web_dev', note = 'Monthly faculty payroll - Web & Cloud Systems track' WHERE id IN ('sal_1', 'sal_2') AND course_id IS NULL`).catch(() => {});
+    await run(`UPDATE teacher_salaries SET course_id = 'crs_ai_eng', note = 'Monthly faculty payroll - AI Engineering curriculum' WHERE id IN ('sal_3', 'sal_4') AND course_id IS NULL`).catch(() => {});
   }
 
   const existingPayment = await getOne<{ id: string }>('SELECT id FROM student_payments LIMIT 1');

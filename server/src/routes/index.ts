@@ -62,6 +62,8 @@ router.delete('/courses/:courseId/teachers/:teacherId', authenticate, requireRol
 router.get('/courses/:courseId/students', authenticate, requireRole(['teacher', 'admin']), courseController.getCourseStudents);
 router.get('/courses/:courseId/students-performance', authenticate, requireRole(['teacher', 'admin']), courseController.getCourseStudentsPerformance);
 router.delete('/courses/:courseId/students/:studentId', authenticate, requireRole(['teacher', 'admin']), courseController.unenrollCourseStudent);
+router.get('/courses/:courseId/roadmap', authenticate, courseController.getCourseRoadmap);
+router.put('/courses/:courseId/roadmap', authenticate, requireRole(['teacher', 'admin']), courseController.saveCourseRoadmap);
 router.get('/me/courses', authenticate, courseController.getMyCourses);
 
 router.post('/courses/:courseId/modules', authenticate, requireRole(['teacher', 'admin']), courseController.addModule);
@@ -91,11 +93,15 @@ router.get('/teacher/gradebook', authenticate, requireRole(['teacher', 'admin'])
 // --- 7. Attendance Management ---
 router.post('/courses/:courseId/attendance-sessions', authenticate, requireRole(['teacher', 'admin']), validateBody(createAttendanceSessionSchema), attendanceController.createAttendanceSession);
 router.get('/courses/:courseId/attendance', authenticate, requireRole(['teacher', 'admin']), attendanceController.getCourseAttendance);
+router.patch('/attendance-sessions/:sessionId', authenticate, requireRole(['teacher', 'admin']), attendanceController.updateAttendanceSession);
+router.post('/attendance/check-in', authenticate, requireRole(['student']), attendanceController.studentCheckIn);
+router.get('/me/active-attendance-sessions', authenticate, requireRole(['student']), attendanceController.getMyActiveAttendanceSessions);
 router.get('/me/attendance', authenticate, requireRole(['student']), attendanceController.getMyAttendance);
 
 // --- 8. Academic Analytics ---
 router.get('/analytics/student', authenticate, requireRole(['student']), analyticsController.getStudentAnalytics);
 router.get('/analytics/teacher', authenticate, requireRole(['teacher', 'admin']), analyticsController.getTeacherAnalytics);
+router.get('/analytics/teacher/course/:courseId', authenticate, requireRole(['teacher', 'admin']), analyticsController.getTeacherCourseAnalytics);
 router.get('/analytics/admin', authenticate, requireRole(['admin']), analyticsController.getAdminAnalytics);
 
 // --- 9. Announcements & Discussions ---

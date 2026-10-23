@@ -73,6 +73,8 @@ export const api = {
   getCourseStudents: (courseId: string) => request<any[]>(`/courses/${courseId}/students`),
   getCourseStudentsPerformance: (courseId: string) => request<any>(`/courses/${courseId}/students-performance`),
   unenrollCourseStudent: (courseId: string, studentId: string) => request<any>(`/courses/${courseId}/students/${studentId}`, { method: 'DELETE' }),
+  getCourseRoadmap: (courseId: string) => request<any>(`/courses/${courseId}/roadmap`),
+  saveCourseRoadmap: (courseId: string, roadmapData: any) => request<any>(`/courses/${courseId}/roadmap`, { method: 'PUT', body: JSON.stringify({ roadmap_data: roadmapData }) }),
   getMyCourses: () => request<any[]>('/me/courses'),
 
   // Modules & Lessons
@@ -109,11 +111,15 @@ export const api = {
   // Attendance
   createAttendanceSession: (courseId: string, session: any) => request<any>(`/courses/${courseId}/attendance-sessions`, { method: 'POST', body: JSON.stringify(session) }),
   getCourseAttendance: (courseId: string) => request<any>(`/courses/${courseId}/attendance`),
+  updateAttendanceSession: (sessionId: string, payload: any) => request<any>(`/attendance-sessions/${sessionId}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  studentCheckIn: (sessionId: string) => request<any>('/attendance/check-in', { method: 'POST', body: JSON.stringify({ session_id: sessionId }) }),
+  getMyActiveAttendanceSessions: () => request<any[]>('/me/active-attendance-sessions'),
   getMyAttendance: () => request<any>('/me/attendance'),
 
   // Analytics
   getStudentAnalytics: () => request<any>('/analytics/student'),
-  getTeacherAnalytics: () => request<any>('/analytics/teacher'),
+  getTeacherAnalytics: (courseId?: string) => request<any>(`/analytics/teacher${courseId ? `?courseId=${courseId}` : ''}`),
+  getTeacherCourseAnalytics: (courseId: string) => request<any>(`/analytics/teacher/course/${courseId}`),
   getAdminAnalytics: () => request<any>('/analytics/admin'),
 
   // Announcements & Discussions

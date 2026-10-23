@@ -61,6 +61,7 @@ export const AdminUsersPage: React.FC = () => {
   const [teacherPayAmount, setTeacherPayAmount] = useState('45000.00');
   const [teacherPayPeriod, setTeacherPayPeriod] = useState('October 2026');
   const [teacherPayMethod, setTeacherPayMethod] = useState('BEFTN / Bank Transfer');
+  const [teacherPayCourseId, setTeacherPayCourseId] = useState('');
 
   const [showStudentPayModal, setShowStudentPayModal] = useState(false);
   const [studentPayAmount, setStudentPayAmount] = useState('');
@@ -119,6 +120,7 @@ export const AdminUsersPage: React.FC = () => {
     try {
       await api.recordTeacherSalary({
         teacher_id: selectedTeacher.id,
+        course_id: teacherPayCourseId || undefined,
         amount: Number(teacherPayAmount),
         pay_period: teacherPayPeriod,
         payment_method: teacherPayMethod,
@@ -740,6 +742,7 @@ export const AdminUsersPage: React.FC = () => {
                           <thead>
                             <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
                               <th className="py-3 px-4">Pay Period</th>
+                              <th className="py-3 px-4">Course Mention</th>
                               <th className="py-3 px-4">Date</th>
                               <th className="py-3 px-4">Amount</th>
                               <th className="py-3 px-4">Method</th>
@@ -751,6 +754,15 @@ export const AdminUsersPage: React.FC = () => {
                             {teacherFinanceData?.salary_history?.map((sal: any) => (
                               <tr key={sal.id} className="hover:bg-slate-50/60">
                                 <td className="py-3 px-4 font-bold text-slate-800">{sal.pay_period}</td>
+                                <td className="py-3 px-4 font-medium text-slate-700">
+                                  {sal.course_title ? (
+                                    <span className="text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded text-[11px] border border-indigo-200">
+                                      {sal.course_title}
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-400 text-[11px]">All Assigned Courses</span>
+                                  )}
+                                </td>
                                 <td className="py-3 px-4 text-slate-500">
                                   {sal.payment_date ? new Date(sal.payment_date).toLocaleDateString() : 'N/A'}
                                 </td>
@@ -1077,6 +1089,22 @@ export const AdminUsersPage: React.FC = () => {
                   placeholder="e.g. October 2026"
                   className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Course Allocation (Optional)</label>
+                <select
+                  value={teacherPayCourseId}
+                  onChange={(e) => setTeacherPayCourseId(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white"
+                >
+                  <option value="">All Assigned Courses (General Faculty Load)</option>
+                  {teacherFinanceData?.assigned_courses?.map((c: any) => (
+                    <option key={c.id} value={c.id}>
+                      {c.title} ({c.subject_code || 'CRS'})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>

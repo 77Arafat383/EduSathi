@@ -9,9 +9,12 @@ export async function listTeacherSalaries(req: AuthRequest, res: Response): Prom
 
   let sql = `
     SELECT s.*, p.full_name as teacher_name, p.email as teacher_email,
-           p.avatar_url as teacher_avatar, p.department as teacher_department
+           p.avatar_url as teacher_avatar, p.department as teacher_department,
+           c.title as course_title, s2.name as subject_name, s2.code as subject_code
     FROM teacher_salaries s
     JOIN profiles p ON s.teacher_id = p.id
+    LEFT JOIN courses c ON s.course_id = c.id
+    LEFT JOIN subjects s2 ON c.subject_id = s2.id
     WHERE 1=1
   `;
   const params: any[] = [];
@@ -56,7 +59,7 @@ export async function getTeacherSalariesSummary(req: AuthRequest, res: Response)
 }
 
 export async function recordTeacherSalary(req: AuthRequest, res: Response): Promise<void> {
-  const { teacher_id, amount, pay_period, payment_date, payment_method, transaction_ref, status, note } = req.body;
+  const { teacher_id, course_id, amount, pay_period, payment_date, payment_method, transaction_ref, status, note } = req.body;
 
   if (!teacher_id || !amount || !pay_period) {
     res.status(400).json({ success: false, message: 'Teacher ID, amount, and pay period are required' });
@@ -76,9 +79,9 @@ export async function recordTeacherSalary(req: AuthRequest, res: Response): Prom
   const txRef = transaction_ref || `TRX-${Date.now().toString().slice(-6)}`;
 
   await run(
-    `INSERT INTO teacher_salaries (id, teacher_id, amount, payment_date, pay_period, payment_method, transaction_ref, status, note)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, teacher_id, Number(amount), pDate, pay_period, pMethod, txRef, pStatus, note || null]
+    `INSERT INTO teacher_salaries (id, teacher_id, course_id, amount, payment_date, pay_period, payment_method, transaction_ref, status, note)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, teacher_id, course_id || null, Number(amount), pDate, pay_period, pMethod, txRef, pStatus, note || null]
   );
 
   res.status(201).json({
@@ -376,8 +379,35 @@ export async function getMyStudentPayments(req: AuthRequest, res: Response): Pro
 export async function getMyTeacherSalaries(req: AuthRequest, res: Response): Promise<void> {
   const teacherId = req.user!.id;
 
-  const salaries = await query<any>(
-    'SELECT * FROM teacher_salaries WHERE teacher_id = ? ORDER BY payment_date DESC',
+  // 1. Fetch all salary records with course and subject details
+  const salaries = await query<any>(`
+    SELECT s.*, 
+           c.title as course_title, 
+           s2.name as subject_name, 
+           s2.code as subject_code
+    FROM teacher_salaries s
+    LEFT JOIN courses c ON s.course_id = c.id
+    LEFT JOIN subjects s2 ON c.subject_id = s2.id
+    WHERE s.teacher_id = ?
+    ORDER BY s.payment_date DESC, s.created_at DESC
+  `, [teacherId]);
+
+  // 2. Fetch all assigned courses for this teacher
+  const assignedCourses = await query<any>(`
+    SELECT c.id, c.title, c.description, c.status, c.banner_url, s.name as subject_name, s.code as subject_code,
+           (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id AND status = 'active') as student_count,
+           (SELECT COUNT(*) FROM lessons l JOIN modules m ON l.module_id = m.id WHERE m.course_id = c.id) as lesson_count,
+           (SELECT COUNT(*) FROM quizzes q WHERE q.course_id = c.id) as quiz_count,
+           (SELECT COUNT(*) FROM assignments a WHERE a.course_id = c.id) as assignment_count
+    FROM courses c
+    JOIN course_teachers ct ON c.id = ct.course_id
+    LEFT JOIN subjects s ON c.subject_id = s.id
+    WHERE ct.teacher_id = ?
+    ORDER BY c.created_at DESC
+  `, [teacherId]);
+
+  const teacher = await getOne<any>(
+    "SELECT id, full_name, email, avatar_url, department, status, created_at FROM profiles WHERE id = ?",
     [teacherId]
   );
 
@@ -385,11 +415,20 @@ export async function getMyTeacherSalaries(req: AuthRequest, res: Response): Pro
     .filter(s => s.status === 'paid')
     .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
 
+  const pendingAmount = salaries
+    .filter(s => s.status === 'pending')
+    .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+
   res.json({
     success: true,
     data: {
+      profile: teacher,
       salaries,
+      assigned_courses: assignedCourses,
       total_paid: totalPaid,
+      pending_amount: pendingAmount,
+      total_disbursements: salaries.length,
+      latest_disbursement: salaries.length > 0 ? salaries[0] : null,
     },
   });
 }

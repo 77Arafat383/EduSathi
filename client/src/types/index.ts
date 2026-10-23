@@ -27,6 +27,10 @@ export interface TeacherSalary {
   teacher_email?: string;
   teacher_avatar?: string;
   teacher_department?: string;
+  course_id?: string;
+  course_title?: string;
+  subject_name?: string;
+  subject_code?: string;
   amount: number;
   payment_date: string;
   pay_period: string;
