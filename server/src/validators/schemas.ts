@@ -95,7 +95,14 @@ export const createCommentSchema = z.object({
 });
 
 export const aiAssistantPromptSchema = z.object({
-  prompt: z.string().min(2, 'Prompt is required').max(2000, 'Prompt too long'),
+  prompt: z.string().min(1, 'Prompt is required').max(10000, 'Prompt too long'),
   course_id: z.string().optional(),
-  mode: z.enum(['explain', 'practice_questions', 'revision_plan', 'chat']).default('chat'),
+  mode: z.enum(['explain', 'practice_questions', 'revision_plan', 'chat']).default('chat').optional(),
+  model: z.string().optional(),
+  provider: z.string().optional(),
+  history: z.array(z.object({
+    role: z.enum(['user', 'assistant', 'model', 'ai']),
+    text: z.string().optional(),
+    content: z.string().optional(),
+  })).optional(),
 });

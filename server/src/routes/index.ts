@@ -116,6 +116,7 @@ router.patch('/notifications/:notificationId/read', authenticate, notificationCo
 router.post('/notifications/read-all', authenticate, notificationController.markAllNotificationsAsRead);
 
 // --- 11. AI Study Assistant ---
+router.get('/ai/models', authenticate, aiController.listAvailableModels);
 router.post('/ai/study-assistant', authenticate, validateBody(aiAssistantPromptSchema), aiController.askStudyAssistant);
 
 // --- 12. Finance & Salaries & Payments ---

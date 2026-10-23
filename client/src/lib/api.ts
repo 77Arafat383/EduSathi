@@ -137,7 +137,8 @@ export const api = {
   markAllNotificationsRead: () => request<any>('/notifications/read-all', { method: 'POST' }),
 
   // AI Assistant
-  askAiAssistant: (payload: { prompt: string; course_id?: string; mode?: string }) => request<any>('/ai/study-assistant', { method: 'POST', body: JSON.stringify(payload) }),
+  getAiModels: () => request<{ models: any[]; defaultModel: string }>('/ai/models'),
+  askAiAssistant: (payload: { prompt: string; course_id?: string; mode?: string; history?: Array<{ role: string; text: string }>; model?: string; provider?: string }) => request<any>('/ai/study-assistant', { method: 'POST', body: JSON.stringify(payload) }),
 
   // Finance & Salaries
   getTeacherSalaries: (params?: Record<string, string>) => {
