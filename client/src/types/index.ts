@@ -246,7 +246,8 @@ export interface AttendanceSummary {
   absent_count: number;
   percentage: number;
   records: AttendanceRecord[];
-  day_map: Record<string, 'present' | 'absent' | 'late'>;
+  day_map: Record<string, 'present' | 'absent' | 'late' | string>;
+  day_details?: Record<string, any>;
 }
 
 export interface AttendanceRecord {

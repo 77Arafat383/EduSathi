@@ -273,6 +273,28 @@ export async function getMyActiveAttendanceSessions(req: AuthRequest, res: Respo
   });
 }
 
+function formatDateToYMD(val: any): string {
+  if (!val) return '';
+  if (val instanceof Date) {
+    const y = val.getFullYear();
+    const m = String(val.getMonth() + 1).padStart(2, '0');
+    const d = String(val.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  const str = String(val);
+  if (str.includes('T')) {
+    const dObj = new Date(str);
+    if (!isNaN(dObj.getTime())) {
+      const y = dObj.getFullYear();
+      const m = String(dObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dObj.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    return str.split('T')[0];
+  }
+  return str.slice(0, 10);
+}
+
 export async function getMyAttendance(req: AuthRequest, res: Response): Promise<void> {
   const studentId = req.user!.id;
 
@@ -285,16 +307,82 @@ export async function getMyAttendance(req: AuthRequest, res: Response): Promise<
     ORDER BY s.session_date DESC
   `, [studentId]);
 
-  const total = records.length;
-  const present = records.filter(r => r.status === 'present').length;
-  const late = records.filter(r => r.status === 'late').length;
-  const absent = records.filter(r => r.status === 'absent').length;
+  const sanitizedRecords = records.map(r => ({
+    ...r,
+    session_date: formatDateToYMD(r.session_date),
+  }));
+
+  const total = sanitizedRecords.length;
+  const present = sanitizedRecords.filter(r => r.status === 'present').length;
+  const late = sanitizedRecords.filter(r => r.status === 'late').length;
+  const absent = sanitizedRecords.filter(r => r.status === 'absent').length;
 
   const percentage = total > 0 ? Math.round(((present + late) / total) * 100) : 100;
 
   const dayMap: Record<string, string> = {};
-  for (const r of records) {
-    dayMap[r.session_date] = r.status;
+  const dayDetails: Record<string, {
+    date: string;
+    status: string;
+    presentCount: number;
+    absentCount: number;
+    lateCount: number;
+    totalClasses: number;
+    sessions: Array<{
+      courseTitle: string;
+      courseId: string;
+      sessionTitle: string;
+      status: string;
+    }>;
+  }> = {};
+
+  for (const r of sanitizedRecords) {
+    const dStr = r.session_date;
+    if (!dStr) continue;
+
+    if (!dayDetails[dStr]) {
+      dayDetails[dStr] = {
+        date: dStr,
+        status: 'none',
+        presentCount: 0,
+        absentCount: 0,
+        lateCount: 0,
+        totalClasses: 0,
+        sessions: [],
+      };
+    }
+
+    const day = dayDetails[dStr];
+    day.totalClasses += 1;
+    if (r.status === 'present') day.presentCount += 1;
+    else if (r.status === 'late') day.lateCount += 1;
+    else if (r.status === 'absent') day.absentCount += 1;
+
+    day.sessions.push({
+      courseTitle: r.course_title,
+      courseId: r.course_id,
+      sessionTitle: r.session_title,
+      status: r.status,
+    });
+  }
+
+  for (const dStr of Object.keys(dayDetails)) {
+    const day = dayDetails[dStr];
+    if (day.totalClasses === 0) {
+      day.status = 'none';
+    } else if (day.presentCount === day.totalClasses) {
+      day.status = 'present';
+    } else if (day.absentCount === day.totalClasses) {
+      day.status = 'absent';
+    } else if (day.lateCount === day.totalClasses) {
+      day.status = 'late';
+    } else if (day.presentCount > day.absentCount) {
+      day.status = 'present_leaning';
+    } else if (day.absentCount > day.presentCount) {
+      day.status = 'absent_leaning';
+    } else {
+      day.status = 'balanced';
+    }
+    dayMap[dStr] = day.status;
   }
 
   res.json({
@@ -305,8 +393,9 @@ export async function getMyAttendance(req: AuthRequest, res: Response): Promise<
       late_count: late,
       absent_count: absent,
       percentage,
-      records,
+      records: sanitizedRecords,
       day_map: dayMap,
+      day_details: dayDetails,
     },
   });
 }

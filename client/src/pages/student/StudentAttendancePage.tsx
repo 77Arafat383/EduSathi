@@ -81,25 +81,23 @@ export const StudentAttendancePage: React.FC = () => {
             return (
               <div
                 key={sess.id}
-                className={`p-5 rounded-3xl border transition-all ${
-                  alreadyMarked
+                className={`p-5 rounded-3xl border transition-all ${alreadyMarked
                     ? 'bg-emerald-50 border-emerald-200'
                     : isPresentPhase
-                    ? 'bg-gradient-to-r from-blue-50/90 via-indigo-50/80 to-blue-50/90 border-blue-200 shadow-md'
-                    : isLatePhase
-                    ? 'bg-gradient-to-r from-amber-50/90 via-orange-50/80 to-amber-50/90 border-amber-200 shadow-md'
-                    : 'bg-slate-50 border-slate-200'
-                }`}
+                      ? 'bg-gradient-to-r from-blue-50/90 via-indigo-50/80 to-blue-50/90 border-blue-200 shadow-md'
+                      : isLatePhase
+                        ? 'bg-gradient-to-r from-amber-50/90 via-orange-50/80 to-amber-50/90 border-amber-200 shadow-md'
+                        : 'bg-slate-50 border-slate-200'
+                  }`}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-3.5">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-white shadow-md ${
-                      alreadyMarked
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-white shadow-md ${alreadyMarked
                         ? 'bg-emerald-600'
                         : isPresentPhase
-                        ? 'bg-blue-600 ring-4 ring-blue-100'
-                        : 'bg-amber-500 ring-4 ring-amber-100'
-                    }`}>
+                          ? 'bg-blue-600 ring-4 ring-blue-100'
+                          : 'bg-amber-500 ring-4 ring-amber-100'
+                      }`}>
                       <CalendarCheck2 className="w-6 h-6 animate-pulse" />
                     </div>
                     <div>
@@ -114,32 +112,30 @@ export const StudentAttendancePage: React.FC = () => {
                         {alreadyMarked
                           ? `You are checked in as ${sess.my_status.toUpperCase()}!`
                           : isPresentPhase
-                          ? `Mark attendance now to be counted PRESENT (${formatCountdown(diffPresent)} left).`
-                          : isLatePhase
-                          ? `Late buffer active. Check-ins now will be recorded as LATE (${formatCountdown(diffLate)} left).`
-                          : 'Attendance timer expired.'}
+                            ? `Mark attendance now to be counted PRESENT (${formatCountdown(diffPresent)} left).`
+                            : isLatePhase
+                              ? `Late buffer active. Check-ins now will be recorded as LATE (${formatCountdown(diffLate)} left).`
+                              : 'Attendance timer expired.'}
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-3">
                     {alreadyMarked ? (
-                      <span className={`px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-1.5 ${
-                        sess.my_status === 'present'
+                      <span className={`px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-1.5 ${sess.my_status === 'present'
                           ? 'bg-emerald-600 text-white'
                           : 'bg-amber-500 text-white'
-                      }`}>
+                        }`}>
                         <CheckCircle2 className="w-4 h-4" /> Marked {sess.my_status.toUpperCase()}
                       </span>
                     ) : (
                       <button
                         onClick={() => handleCheckIn(sess.id)}
                         disabled={checkingInId === sess.id}
-                        className={`px-5 py-2.5 rounded-xl text-xs font-black text-white shadow-md transition active:scale-95 flex items-center gap-2 disabled:opacity-50 ${
-                          isPresentPhase
+                        className={`px-5 py-2.5 rounded-xl text-xs font-black text-white shadow-md transition active:scale-95 flex items-center gap-2 disabled:opacity-50 ${isPresentPhase
                             ? 'bg-blue-600 hover:bg-blue-700 ring-4 ring-blue-200'
                             : 'bg-amber-500 hover:bg-amber-600 ring-4 ring-amber-200'
-                        }`}
+                          }`}
                       >
                         <CheckCircle2 className="w-4 h-4" />
                         {checkingInId === sess.id ? 'Recording...' : 'Mark Me Present'}
@@ -149,9 +145,8 @@ export const StudentAttendancePage: React.FC = () => {
                 </div>
 
                 {checkInMsg && checkInMsg.id === sess.id && (
-                  <div className={`mt-3 p-2.5 rounded-xl text-xs font-bold ${
-                    checkInMsg.isError ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
-                  }`}>
+                  <div className={`mt-3 p-2.5 rounded-xl text-xs font-bold ${checkInMsg.isError ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
+                    }`}>
                     {checkInMsg.text}
                   </div>
                 )}
@@ -199,41 +194,10 @@ export const StudentAttendancePage: React.FC = () => {
       {/* Heatmap Grid */}
       <AttendanceHeatmap
         dayMap={data?.day_map || {}}
+        dayDetails={data?.day_details || {}}
+        records={data?.records || []}
         title="365-Day Academic Attendance Grid"
       />
-
-      {/* History table */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
-        <h3 className="text-sm font-bold text-slate-900 mb-4">Historical Class Sessions</h3>
-        {!data?.records || data.records.length === 0 ? (
-          <p className="text-xs text-slate-400 py-6 text-center">No attendance sessions logged yet.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px]">
-                <tr>
-                  <th className="pb-3">Session Date</th>
-                  <th className="pb-3">Session Title</th>
-                  <th className="pb-3">Course</th>
-                  <th className="pb-3 text-right">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
-                {data.records.map((r) => (
-                  <tr key={r.id} className="hover:bg-slate-50/80">
-                    <td className="py-3 font-semibold text-slate-900">{r.session_date}</td>
-                    <td className="py-3 text-slate-700">{r.session_title}</td>
-                    <td className="py-3 text-slate-500">{r.course_title}</td>
-                    <td className="py-3 text-right">
-                      <StatusBadge status={r.status} size="sm" />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
     </div>
   );
 };
