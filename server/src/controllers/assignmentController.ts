@@ -4,7 +4,7 @@ import { AuthRequest } from '../middleware/auth';
 
 export async function createAssignment(req: AuthRequest, res: Response): Promise<void> {
   const { courseId } = req.params;
-  const { title, instructions, max_score, due_at, submission_type, status } = req.body;
+  const { title, instructions, max_score, due_at, submission_type, status, file_url, file_name } = req.body;
 
   if (req.user?.role !== 'admin') {
     const isTeacher = await getOne<{ teacher_id: string }>(
@@ -19,9 +19,9 @@ export async function createAssignment(req: AuthRequest, res: Response): Promise
 
   const id = `asg_${Date.now()}`;
   await run(
-    `INSERT INTO assignments (id, course_id, title, instructions, max_score, due_at, submission_type, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, courseId, title, instructions, max_score || 100, due_at || null, submission_type || 'text_or_link', status || 'published']
+    `INSERT INTO assignments (id, course_id, title, instructions, max_score, due_at, submission_type, status, file_url, file_name)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, courseId, title, instructions, max_score || 100, due_at || null, submission_type || 'text_or_link', status || 'published', file_url || null, file_name || null]
   );
 
   // Notify enrolled students
@@ -62,6 +62,41 @@ export async function listAssignments(req: AuthRequest, res: Response): Promise<
   });
 }
 
+export async function listTeacherAssignments(req: AuthRequest, res: Response): Promise<void> {
+  const { courseId } = req.query;
+  let sql = `
+    SELECT a.*, c.title as course_title,
+           (SELECT COUNT(*) FROM submissions WHERE assignment_id = a.id) as submission_count,
+           (SELECT COUNT(*) FROM submissions WHERE assignment_id = a.id AND status = 'graded') as graded_count
+    FROM assignments a
+    JOIN courses c ON a.course_id = c.id
+  `;
+  const params: any[] = [];
+  const conditions: string[] = [];
+
+  if (req.user?.role === 'teacher') {
+    conditions.push(`(c.id IN (SELECT course_id FROM course_teachers WHERE teacher_id = ?) OR c.created_by = ?)`);
+    params.push(req.user.id, req.user.id);
+  }
+
+  if (courseId && courseId !== 'all') {
+    conditions.push(`a.course_id = ?`);
+    params.push(courseId);
+  }
+
+  if (conditions.length > 0) {
+    sql += ` WHERE ` + conditions.join(' AND ');
+  }
+
+  sql += ` ORDER BY a.created_at DESC`;
+
+  const assignments = await query<any>(sql, params);
+  res.json({
+    success: true,
+    data: assignments,
+  });
+}
+
 export async function getAssignment(req: AuthRequest, res: Response): Promise<void> {
   const { assignmentId } = req.params;
 
@@ -80,7 +115,7 @@ export async function getAssignment(req: AuthRequest, res: Response): Promise<vo
   let submission: any = null;
   if (req.user?.role === 'student') {
     submission = await getOne<any>(`
-      SELECT s.*, g.score as grade_score, g.feedback as grade_feedback, g.released_at as grade_released_at
+      SELECT s.*, g.score, g.feedback, g.score as grade_score, g.feedback as grade_feedback, g.released_at as grade_released_at
       FROM submissions s
       LEFT JOIN grades g ON s.id = g.submission_id
       WHERE s.assignment_id = ? AND s.student_id = ?
@@ -200,8 +235,10 @@ export async function gradeSubmission(req: AuthRequest, res: Response): Promise<
   // Check teacher assignment authorization
   if (req.user?.role !== 'admin') {
     const isTeacher = await getOne<{ teacher_id: string }>(
-      'SELECT teacher_id FROM course_teachers WHERE course_id = ? AND teacher_id = ?',
-      [submission.course_id, teacherId]
+      `SELECT teacher_id FROM course_teachers WHERE course_id = ? AND teacher_id = ?
+       UNION
+       SELECT created_by as teacher_id FROM courses WHERE id = ? AND created_by = ?`,
+      [submission.course_id, teacherId, submission.course_id, teacherId]
     );
     if (!isTeacher) {
       res.status(403).json({ success: false, message: 'You are not authorized to grade this submission' });

@@ -24,14 +24,16 @@ export const createCourseSchema = z.object({
 export const createQuizSchema = z.object({
   title: z.string().min(3, 'Quiz title is required'),
   instructions: z.string().optional(),
-  max_score: z.number().positive().default(100),
+  max_score: z.number().positive().optional(),
+  duration_minutes: z.number().min(0).optional().default(0),
   due_at: z.string().optional(),
   status: z.enum(['draft', 'published', 'closed']).default('published'),
   results_released: z.boolean().default(true),
   questions: z.array(z.object({
     question_text: z.string().min(1, 'Question text is required'),
     question_type: z.enum(['single', 'multiple']).default('single'),
-    marks: z.number().positive().default(10),
+    marks: z.number().positive().default(1),
+    image_url: z.string().optional().nullable(),
     options: z.array(z.object({
       option_text: z.string().min(1, 'Option text is required'),
       is_correct: z.boolean(),
@@ -54,6 +56,8 @@ export const createAssignmentSchema = z.object({
   due_at: z.string().optional(),
   submission_type: z.string().default('text_or_link'),
   status: z.enum(['draft', 'published', 'closed']).default('published'),
+  file_url: z.string().optional(),
+  file_name: z.string().optional(),
 });
 
 export const submitAssignmentSchema = z.object({

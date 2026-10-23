@@ -159,6 +159,7 @@ export async function initDb(): Promise<void> {
       title TEXT NOT NULL,
       instructions TEXT,
       max_score INTEGER DEFAULT 100,
+      duration_minutes INTEGER DEFAULT 0,
       due_at TIMESTAMP,
       status TEXT DEFAULT 'published' CHECK (status IN ('draft', 'published', 'closed')),
       results_released BOOLEAN DEFAULT TRUE,
@@ -170,7 +171,8 @@ export async function initDb(): Promise<void> {
       quiz_id TEXT REFERENCES quizzes(id) ON DELETE CASCADE,
       question_text TEXT NOT NULL,
       question_type TEXT DEFAULT 'single' CHECK (question_type IN ('single', 'multiple')),
-      marks INTEGER DEFAULT 10,
+      marks INTEGER DEFAULT 1,
+      image_url TEXT,
       position INTEGER DEFAULT 1
     )`,
 
@@ -210,6 +212,8 @@ export async function initDb(): Promise<void> {
       max_score INTEGER DEFAULT 100,
       due_at TIMESTAMP,
       submission_type TEXT DEFAULT 'text_or_link',
+      file_url TEXT,
+      file_name TEXT,
       status TEXT DEFAULT 'published' CHECK (status IN ('draft', 'published', 'closed')),
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
@@ -340,6 +344,20 @@ export async function initDb(): Promise<void> {
   for (const stmt of schemaStatements) {
     await run(stmt);
   }
+
+  // Safe migrations for newly added quiz & assignment attributes
+  try {
+    await run('ALTER TABLE quizzes ADD COLUMN duration_minutes INTEGER DEFAULT 0');
+  } catch {}
+  try {
+    await run('ALTER TABLE quiz_questions ADD COLUMN image_url TEXT');
+  } catch {}
+  try {
+    await run('ALTER TABLE assignments ADD COLUMN file_url TEXT');
+  } catch {}
+  try {
+    await run('ALTER TABLE assignments ADD COLUMN file_name TEXT');
+  } catch {}
 
   // Seed default demonstration records if not already populated
   await seedDefaults();

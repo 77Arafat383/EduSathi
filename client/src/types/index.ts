@@ -147,6 +147,7 @@ export interface Quiz {
   title: string;
   instructions?: string;
   max_score: number;
+  duration_minutes?: number;
   due_at?: string;
   status: 'draft' | 'published' | 'closed';
   results_released: boolean;
@@ -160,6 +161,7 @@ export interface QuizQuestion {
   question_text: string;
   question_type: 'single' | 'multiple';
   marks: number;
+  image_url?: string;
   position: number;
   options?: QuizOption[];
 }
@@ -181,10 +183,17 @@ export interface QuizAttempt {
   avatar_url?: string;
   score: number;
   max_score: number;
+  percentage?: number;
   status: string;
   submitted_at: string;
   quiz_title?: string;
   course_title?: string;
+  answers?: Array<{
+    question_id: string;
+    selected_option_ids: string[];
+    is_correct?: boolean;
+    score_awarded?: number;
+  }>;
 }
 
 export interface Assignment {
@@ -199,6 +208,8 @@ export interface Assignment {
   status: 'draft' | 'published' | 'closed';
   submission_count?: number;
   my_submission?: Submission;
+  file_url?: string;
+  file_name?: string;
 }
 
 export interface Submission {
@@ -219,6 +230,8 @@ export interface Submission {
   status: 'submitted' | 'graded' | 'resubmitted';
   score?: number;
   feedback?: string;
+  grade_score?: number;
+  grade_feedback?: string;
   released_at?: string;
 }
 

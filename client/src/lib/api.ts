@@ -71,6 +71,7 @@ export const api = {
   assignCourseTeacher: (courseId: string, teacherId: string) => request<any>(`/courses/${courseId}/teachers`, { method: 'POST', body: JSON.stringify({ teacher_id: teacherId }) }),
   removeCourseTeacher: (courseId: string, teacherId: string) => request<any>(`/courses/${courseId}/teachers/${teacherId}`, { method: 'DELETE' }),
   getCourseStudents: (courseId: string) => request<any[]>(`/courses/${courseId}/students`),
+  getCourseStudentsPerformance: (courseId: string) => request<any>(`/courses/${courseId}/students-performance`),
   unenrollCourseStudent: (courseId: string, studentId: string) => request<any>(`/courses/${courseId}/students/${studentId}`, { method: 'DELETE' }),
   getMyCourses: () => request<any[]>('/me/courses'),
 
@@ -81,14 +82,20 @@ export const api = {
 
   // Quizzes
   createQuiz: (courseId: string, quiz: any) => request<any>(`/courses/${courseId}/quizzes`, { method: 'POST', body: JSON.stringify(quiz) }),
+  getCourseQuizzes: (courseId: string) => request<any[]>(`/courses/${courseId}/quizzes`),
+  getTeacherQuizzes: () => request<any[]>('/teacher/quizzes'),
   getQuiz: (quizId: string) => request<any>(`/quizzes/${quizId}`),
   submitQuizAttempt: (quizId: string, answers: any) => request<any>(`/quizzes/${quizId}/attempts`, { method: 'POST', body: JSON.stringify({ answers }) }),
-  getQuizAttempts: (quizId: string) => request<any[]>(`/quizzes/${quizId}/attempts`),
+  getQuizAttempts: (quizId: string) => request<any>(`/quizzes/${quizId}/attempts`),
   getMyQuizResults: () => request<any[]>('/me/quiz-results'),
 
   // Assignments
   createAssignment: (courseId: string, asg: any) => request<any>(`/courses/${courseId}/assignments`, { method: 'POST', body: JSON.stringify(asg) }),
   getCourseAssignments: (courseId: string) => request<any[]>(`/courses/${courseId}/assignments`),
+  getTeacherAssignments: (params?: Record<string, string>) => {
+    const q = params ? '?' + new URLSearchParams(params).toString() : '';
+    return request<any[]>(`/teacher/assignments${q}`);
+  },
   getAssignment: (assignmentId: string) => request<any>(`/assignments/${assignmentId}`),
   submitAssignment: (assignmentId: string, payload: any) => request<any>(`/assignments/${assignmentId}/submissions`, { method: 'POST', body: JSON.stringify(payload) }),
   getAssignmentSubmissions: (assignmentId: string) => request<any[]>(`/assignments/${assignmentId}/submissions`),

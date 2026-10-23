@@ -13,12 +13,28 @@ export const TeacherAttendancePage: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState(false);
 
   useEffect(() => {
-    api.getMyCourses().then((data) => {
-      setCourses(data);
-      if (data.length > 0) {
-        setSelectedCourseId(data[0].id);
-      }
-    });
+    api.getMyCourses()
+      .then((data) => {
+        if (data && data.length > 0) {
+          setCourses(data);
+          setSelectedCourseId(data[0].id);
+        } else {
+          api.getCourses()
+            .then((all) => {
+              setCourses(all || []);
+              if (all && all.length > 0) setSelectedCourseId(all[0].id);
+            })
+            .catch(() => {});
+        }
+      })
+      .catch(() => {
+        api.getCourses()
+          .then((all) => {
+            setCourses(all || []);
+            if (all && all.length > 0) setSelectedCourseId(all[0].id);
+          })
+          .catch(() => {});
+      });
   }, []);
 
   useEffect(() => {
@@ -82,16 +98,22 @@ export const TeacherAttendancePage: React.FC = () => {
       {/* Select Course & Date */}
       <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
+          <div className="relative z-20">
             <label className="block text-xs font-bold text-slate-700 mb-1">Select Course</label>
             <select
               value={selectedCourseId}
               onChange={(e) => setSelectedCourseId(e.target.value)}
-              className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-white"
+              className="w-full px-3.5 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 relative z-20 cursor-pointer shadow-xs"
             >
-              {courses.map((c) => (
-                <option key={c.id} value={c.id}>{c.title}</option>
-              ))}
+              {courses.length === 0 ? (
+                <option value="" disabled>No courses available</option>
+              ) : (
+                courses.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.title}{c.subject_name ? ` (${c.subject_name})` : ''}
+                  </option>
+                ))
+              )}
             </select>
           </div>
 

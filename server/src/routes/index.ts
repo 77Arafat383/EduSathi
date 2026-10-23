@@ -60,6 +60,7 @@ router.get('/courses/:courseId/teachers', authenticate, courseController.getCour
 router.post('/courses/:courseId/teachers', authenticate, requireRole(['teacher', 'admin']), courseController.assignCourseTeacher);
 router.delete('/courses/:courseId/teachers/:teacherId', authenticate, requireRole(['teacher', 'admin']), courseController.removeCourseTeacher);
 router.get('/courses/:courseId/students', authenticate, requireRole(['teacher', 'admin']), courseController.getCourseStudents);
+router.get('/courses/:courseId/students-performance', authenticate, requireRole(['teacher', 'admin']), courseController.getCourseStudentsPerformance);
 router.delete('/courses/:courseId/students/:studentId', authenticate, requireRole(['teacher', 'admin']), courseController.unenrollCourseStudent);
 router.get('/me/courses', authenticate, courseController.getMyCourses);
 
@@ -69,6 +70,8 @@ router.post('/lessons/:lessonId/progress', authenticate, requireRole(['student']
 
 // --- 5. Quizzes & Assessments ---
 router.post('/courses/:courseId/quizzes', authenticate, requireRole(['teacher', 'admin']), validateBody(createQuizSchema), quizController.createQuiz);
+router.get('/courses/:courseId/quizzes', authenticate, quizController.listCourseQuizzes);
+router.get('/teacher/quizzes', authenticate, requireRole(['teacher', 'admin']), quizController.listTeacherQuizzes);
 router.get('/quizzes/:quizId', authenticate, quizController.getQuiz);
 router.post('/quizzes/:quizId/attempts', authenticate, requireRole(['student']), validateBody(submitQuizAttemptSchema), quizController.submitQuizAttempt);
 router.get('/quizzes/:quizId/attempts', authenticate, requireRole(['teacher', 'admin']), quizController.getQuizAttempts);
@@ -77,6 +80,7 @@ router.get('/me/quiz-results', authenticate, requireRole(['student']), quizContr
 // --- 6. Assignments & Grading ---
 router.post('/courses/:courseId/assignments', authenticate, requireRole(['teacher', 'admin']), validateBody(createAssignmentSchema), assignmentController.createAssignment);
 router.get('/courses/:courseId/assignments', authenticate, assignmentController.listAssignments);
+router.get('/teacher/assignments', authenticate, requireRole(['teacher', 'admin']), assignmentController.listTeacherAssignments);
 router.get('/assignments/:assignmentId', authenticate, assignmentController.getAssignment);
 router.post('/assignments/:assignmentId/submissions', authenticate, requireRole(['student']), validateBody(submitAssignmentSchema), assignmentController.submitAssignment);
 router.get('/assignments/:assignmentId/submissions', authenticate, requireRole(['teacher', 'admin']), assignmentController.listSubmissions);
