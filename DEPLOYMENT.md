@@ -69,7 +69,8 @@ AI_PROVIDER=gemini
 # Build and start the containers in detached mode
 docker compose up -d --build
 ```
-
+Web Application : Open http://localhost:8080 in your browser.
+Backend  API: Available through Nginx at http://localhost/api/health
 ### Step 6: Verify Deployment
 Check the running containers and logs:
 ```bash
