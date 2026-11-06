@@ -6,9 +6,6 @@
 FROM node:22-bookworm-slim AS builder
 WORKDIR /app
 
-# Install build tools if compilation is needed
-RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
-
 # Install all dependencies
 COPY package*.json ./
 RUN npm ci
@@ -17,6 +14,9 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
+# Remove devDependencies to keep production footprint minimal
+RUN npm prune --omit=dev
+
 # 2. Production Runner Stage
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app
@@ -24,13 +24,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=5000
 
-# Install production dependencies only
+# Copy pruned production dependencies & compiled dist from builder
 COPY package*.json ./
-RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && \
-    npm ci --omit=dev && \
-    apt-get purge -y python3 make g++ && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
-
-# Copy compiled code from builder stage
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 
 # Create data storage folder and set ownership

@@ -1,4 +1,4 @@
-const API_BASE = '/api';
+const API_BASE = (import.meta as any).env?.VITE_API_URL || '/api';
 
 export function getToken(): string | null {
   return localStorage.getItem('edusathi_token');
@@ -34,13 +34,26 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     throw new Error(data.message || `Request failed with status ${response.status}`);
   }
 
-  return data.data as T;
+  if (data.data !== undefined) {
+    if (typeof data.data === 'object' && data.data !== null && !Array.isArray(data.data)) {
+      return { ...data, ...data.data } as T;
+    }
+    return data.data as T;
+  }
+
+  return data as T;
 }
 
 export const api = {
   // Auth
   login: (credentials: any) => request<any>('/auth/login', { method: 'POST', body: JSON.stringify(credentials) }),
   register: (payload: any) => request<any>('/auth/register', { method: 'POST', body: JSON.stringify(payload) }),
+  forgotPassword: (payload: { email: string; new_password: string }) =>
+    request<any>('/auth/forgot-password', { method: 'POST', body: JSON.stringify(payload) }),
+  sendPasswordResetCode: (payload: { email: string }) =>
+    request<any>('/auth/forgot-password/send-code', { method: 'POST', body: JSON.stringify(payload) }),
+  verifyAndResetPassword: (payload: { email: string; code: string; new_password: string }) =>
+    request<any>('/auth/forgot-password/verify', { method: 'POST', body: JSON.stringify(payload) }),
   logout: () => request<any>('/auth/logout', { method: 'POST' }),
   getMe: () => request<any>('/auth/me'),
   updateProfile: (profile: any) => request<any>('/me/profile', { method: 'PATCH', body: JSON.stringify(profile) }),

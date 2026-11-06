@@ -5,6 +5,22 @@ export const loginSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
+export const forgotPasswordSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  code: z.string().optional(),
+  new_password: z.string().min(6, 'Password must be at least 6 characters').optional(),
+});
+
+export const sendResetCodeSchema = z.object({
+  email: z.string().email('Invalid email address'),
+});
+
+export const verifyAndResetPasswordSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  code: z.string().min(4, 'Verification code is required'),
+  new_password: z.string().min(6, 'Password must be at least 6 characters'),
+});
+
 export const registerSchema = z.object({
   full_name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),

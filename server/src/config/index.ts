@@ -13,7 +13,9 @@ export const config = {
   databaseUrl: process.env.DATABASE_URL || '',
   ai: {
     provider: process.env.AI_PROVIDER || 'gemini',
-    apiKey: process.env.AI_API_KEY || '',
+    apiKey: process.env.AI_API_KEY || process.env.GEMINI_API_KEY || '',
+    openaiKey: process.env.OPENAI_API_KEY || process.env.OpenAI_API || '',
+    groqKey: process.env.GROQ_API_KEY || process.env.Groq_API || '',
     model: process.env.AI_MODEL || 'gemini-3.5-flash-lite',
   },
 };

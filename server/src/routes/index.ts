@@ -4,6 +4,9 @@ import { validateBody } from '../middleware/validate';
 import {
   loginSchema,
   registerSchema,
+  forgotPasswordSchema,
+  sendResetCodeSchema,
+  verifyAndResetPasswordSchema,
   createCourseSchema,
   createQuizSchema,
   submitQuizAttemptSchema,
@@ -35,6 +38,9 @@ const router = Router();
 // --- 1. Authentication & Profile ---
 router.post('/auth/login', validateBody(loginSchema), authController.login);
 router.post('/auth/register', validateBody(registerSchema), authController.register);
+router.post('/auth/forgot-password', validateBody(forgotPasswordSchema), authController.forgotPassword);
+router.post('/auth/forgot-password/send-code', validateBody(sendResetCodeSchema), authController.sendPasswordResetCode);
+router.post('/auth/forgot-password/verify', validateBody(verifyAndResetPasswordSchema), authController.verifyAndResetPassword);
 router.post('/auth/logout', authController.logout);
 router.get('/auth/me', authenticate, authController.getMe);
 router.patch('/me/profile', authenticate, authController.updateProfile);

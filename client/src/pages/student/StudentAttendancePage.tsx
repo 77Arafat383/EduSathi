@@ -40,6 +40,8 @@ export const StudentAttendancePage: React.FC = () => {
     try {
       const res = await api.studentCheckIn(sessionId);
       setCheckInMsg({ id: sessionId, text: res.message || 'Checked in successfully!' });
+      // Optimistically mark this session as present so it vanishes immediately
+      setActiveSessions(prev => prev.map(s => s.id === sessionId ? { ...s, my_status: 'present' } : s));
       fetchAttendance();
     } catch (err: any) {
       setCheckInMsg({ id: sessionId, text: err.message || 'Check-in failed', isError: true });
@@ -47,6 +49,18 @@ export const StudentAttendancePage: React.FC = () => {
       setCheckingInId(null);
     }
   };
+
+  // Only show live attendance calls where timer is active and student has not yet marked attendance
+  const validLiveSessions = (activeSessions || []).filter((sess) => {
+    if (sess.my_status === 'present' || sess.my_status === 'late') {
+      return false;
+    }
+    const presentMs = sess.present_until ? new Date(sess.present_until).getTime() : 0;
+    const lateMs = sess.late_until ? new Date(sess.late_until).getTime() : 0;
+    const diffPresent = Math.max(0, presentMs - nowTime);
+    const diffLate = Math.max(0, lateMs - nowTime);
+    return diffPresent > 0 || diffLate > 0;
+  });
 
   return (
     <div className="space-y-8 pb-16">
@@ -57,17 +71,16 @@ export const StudentAttendancePage: React.FC = () => {
         </p>
       </div>
 
-      {/* Live Self-Check-in Banners */}
-      {activeSessions && activeSessions.length > 0 && (
-        <div className="space-y-3">
-          {activeSessions.map((sess) => {
+      {/* Sleek Live Attendance Alert (Only shows when timer is on; vanishes when marked present or timer expires) */}
+      {validLiveSessions.length > 0 && (
+        <div className="space-y-2">
+          {validLiveSessions.map((sess) => {
             const presentMs = sess.present_until ? new Date(sess.present_until).getTime() : 0;
             const lateMs = sess.late_until ? new Date(sess.late_until).getTime() : 0;
             const diffPresent = Math.max(0, presentMs - nowTime);
             const diffLate = Math.max(0, lateMs - nowTime);
-
             const isPresentPhase = diffPresent > 0;
-            const isLatePhase = !isPresentPhase && diffLate > 0;
+            const remaining = isPresentPhase ? diffPresent : diffLate;
 
             const formatCountdown = (ms: number) => {
               const sec = Math.floor(ms / 1000);
@@ -76,80 +89,38 @@ export const StudentAttendancePage: React.FC = () => {
               return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
             };
 
-            const alreadyMarked = sess.my_status === 'present' || sess.my_status === 'late';
-
             return (
               <div
                 key={sess.id}
-                className={`p-5 rounded-3xl border transition-all ${alreadyMarked
-                    ? 'bg-emerald-50 border-emerald-200'
-                    : isPresentPhase
-                      ? 'bg-gradient-to-r from-blue-50/90 via-indigo-50/80 to-blue-50/90 border-blue-200 shadow-md'
-                      : isLatePhase
-                        ? 'bg-gradient-to-r from-amber-50/90 via-orange-50/80 to-amber-50/90 border-amber-200 shadow-md'
-                        : 'bg-slate-50 border-slate-200'
-                  }`}
+                className="p-3 sm:px-4 bg-gradient-to-r from-blue-50/90 via-indigo-50/80 to-blue-50/90 border border-blue-200/90 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs animate-fade-in"
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3.5">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-white shadow-md ${alreadyMarked
-                        ? 'bg-emerald-600'
-                        : isPresentPhase
-                          ? 'bg-blue-600 ring-4 ring-blue-100'
-                          : 'bg-amber-500 ring-4 ring-amber-100'
-                      }`}>
-                      <CalendarCheck2 className="w-6 h-6 animate-pulse" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-white text-slate-700 border">
-                          {sess.course_title}
-                        </span>
-                        <span className="text-xs font-bold text-brand-600">Live Call</span>
-                      </div>
-                      <h3 className="text-base font-extrabold text-slate-900 mt-0.5">{sess.title}</h3>
-                      <p className="text-xs text-slate-600 mt-0.5">
-                        {alreadyMarked
-                          ? `You are checked in as ${sess.my_status.toUpperCase()}!`
-                          : isPresentPhase
-                            ? `Mark attendance now to be counted PRESENT (${formatCountdown(diffPresent)} left).`
-                            : isLatePhase
-                              ? `Late buffer active. Check-ins now will be recorded as LATE (${formatCountdown(diffLate)} left).`
-                              : 'Attendance timer expired.'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    {alreadyMarked ? (
-                      <span className={`px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-1.5 ${sess.my_status === 'present'
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-amber-500 text-white'
-                        }`}>
-                        <CheckCircle2 className="w-4 h-4" /> Marked {sess.my_status.toUpperCase()}
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => handleCheckIn(sess.id)}
-                        disabled={checkingInId === sess.id}
-                        className={`px-5 py-2.5 rounded-xl text-xs font-black text-white shadow-md transition active:scale-95 flex items-center gap-2 disabled:opacity-50 ${isPresentPhase
-                            ? 'bg-blue-600 hover:bg-blue-700 ring-4 ring-blue-200'
-                            : 'bg-amber-500 hover:bg-amber-600 ring-4 ring-amber-200'
-                          }`}
-                      >
-                        <CheckCircle2 className="w-4 h-4" />
-                        {checkingInId === sess.id ? 'Recording...' : 'Mark Me Present'}
-                      </button>
-                    )}
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="relative flex h-2.5 w-2.5 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-600"></span>
+                  </span>
+                  <div className="truncate">
+                    <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-blue-600 text-white mr-2">Live Call</span>
+                    <span className="font-bold text-slate-800">{sess.course_title}</span>
+                    <span className="text-slate-400 mx-1.5">•</span>
+                    <span className="text-slate-600">{sess.title}</span>
+                    <span className="text-slate-400 mx-1.5">•</span>
+                    <span className="font-mono font-bold text-blue-700">
+                      {formatCountdown(remaining)} left ({isPresentPhase ? 'Present' : 'Late'})
+                    </span>
                   </div>
                 </div>
 
-                {checkInMsg && checkInMsg.id === sess.id && (
-                  <div className={`mt-3 p-2.5 rounded-xl text-xs font-bold ${checkInMsg.isError ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
-                    }`}>
-                    {checkInMsg.text}
-                  </div>
-                )}
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => handleCheckIn(sess.id)}
+                    disabled={checkingInId === sess.id}
+                    className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-xs transition active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>{checkingInId === sess.id ? 'Recording...' : 'Mark Present'}</span>
+                  </button>
+                </div>
               </div>
             );
           })}

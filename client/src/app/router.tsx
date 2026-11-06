@@ -62,7 +62,7 @@ export const router = createBrowserRouter([
           { path: 'attendance', element: lazyWrap(import('../pages/student/StudentAttendancePage'), 'StudentAttendancePage') },
           { path: 'payments', element: lazyWrap(import('../pages/student/StudentPaymentsPage'), 'StudentPaymentsPage') },
           { path: 'ai-assistant', element: lazyWrap(import('../pages/student/StudentAiAssistantPage'), 'StudentAiAssistantPage') },
-          { path: 'notifications', element: lazyWrap(import('../pages/student/StudentNotificationsPage'), 'StudentNotificationsPage') },
+          { path: 'notifications', element: <Navigate to="/student" replace /> },
         ],
       },
     ],

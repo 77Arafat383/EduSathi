@@ -50,6 +50,142 @@ describe('2. Authentication & Authorization Security', () => {
     expect(res.body.success).toBe(false);
   });
 
+  it('should reject forgot password for non-existent email with 404', async () => {
+    const res = await request(app)
+      .post('/api/auth/forgot-password')
+      .send({
+        email: 'nobody_exists_12345@edusathi.edu',
+        new_password: 'NewSecurePassword@123',
+      });
+    expect(res.status).toBe(404);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('should allow user to reset password via verification code and log in with new password', async () => {
+    // 1. Create a dedicated test user
+    const resetTestEmail = `verify_reset_user_${Date.now()}@edusathi.edu`;
+    const origPassword = 'OriginalPass@123';
+    const newPassword = 'BrandNewPassword@456';
+
+    const regRes = await request(app)
+      .post('/api/auth/register')
+      .send({
+        full_name: 'Verification Reset User',
+        email: resetTestEmail,
+        password: origPassword,
+      });
+    expect(regRes.status).toBe(201);
+
+    // 2. Request password reset code
+    const sendCodeRes = await request(app)
+      .post('/api/auth/forgot-password/send-code')
+      .send({ email: resetTestEmail });
+    expect(sendCodeRes.status).toBe(200);
+    expect(sendCodeRes.body.success).toBe(true);
+    expect(sendCodeRes.body.preview_code).toBeDefined();
+    const verificationCode = sendCodeRes.body.preview_code;
+
+    // 3. Test invalid verification code rejection
+    const invalidVerifyRes = await request(app)
+      .post('/api/auth/forgot-password/verify')
+      .send({
+        email: resetTestEmail,
+        code: '000000',
+        new_password: newPassword,
+      });
+    expect(invalidVerifyRes.status).toBe(400);
+    expect(invalidVerifyRes.body.code).toBe('INVALID_CODE');
+
+    // 4. Verify with correct code and set new password
+    const validVerifyRes = await request(app)
+      .post('/api/auth/forgot-password/verify')
+      .send({
+        email: resetTestEmail,
+        code: verificationCode,
+        new_password: newPassword,
+      });
+    expect(validVerifyRes.status).toBe(200);
+    expect(validVerifyRes.body.success).toBe(true);
+
+    // 5. Old password must fail
+    const oldLoginRes = await request(app)
+      .post('/api/auth/login')
+      .send({
+        email: resetTestEmail,
+        password: origPassword,
+      });
+    expect(oldLoginRes.status).toBe(401);
+
+    // 6. New password must succeed
+    const newLoginRes = await request(app)
+      .post('/api/auth/login')
+      .send({
+        email: resetTestEmail,
+        password: newPassword,
+      });
+    expect(newLoginRes.status).toBe(200);
+    expect(newLoginRes.body.success).toBe(true);
+    expect(newLoginRes.body.data.user.email).toBe(resetTestEmail);
+  });
+
+  it('should allow user to reset password via forgot-password route with verification code', async () => {
+    // 1. Create a dedicated test user
+    const resetTestEmail = `reset_user_${Date.now()}@edusathi.edu`;
+    const origPassword = 'OriginalPass@123';
+    const newPassword = 'BrandNewPassword@456';
+
+    const regRes = await request(app)
+      .post('/api/auth/register')
+      .send({
+        full_name: 'Reset Test User',
+        email: resetTestEmail,
+        password: origPassword,
+      });
+    expect(regRes.status).toBe(201);
+
+    // 2. Request code via /api/auth/forgot-password without code
+    const requestCodeRes = await request(app)
+      .post('/api/auth/forgot-password')
+      .send({
+        email: resetTestEmail,
+      });
+    expect(requestCodeRes.status).toBe(200);
+    expect(requestCodeRes.body.success).toBe(true);
+    expect(requestCodeRes.body.preview_code).toBeDefined();
+    const code = requestCodeRes.body.preview_code;
+
+    // 3. Complete password reset via /api/auth/forgot-password with code
+    const resetRes = await request(app)
+      .post('/api/auth/forgot-password')
+      .send({
+        email: resetTestEmail,
+        code,
+        new_password: newPassword,
+      });
+    expect(resetRes.status).toBe(200);
+    expect(resetRes.body.success).toBe(true);
+
+    // 4. Log in with old password (must fail)
+    const oldLoginRes = await request(app)
+      .post('/api/auth/login')
+      .send({
+        email: resetTestEmail,
+        password: origPassword,
+      });
+    expect(oldLoginRes.status).toBe(401);
+
+    // 5. Log in with new password (must succeed)
+    const newLoginRes = await request(app)
+      .post('/api/auth/login')
+      .send({
+        email: resetTestEmail,
+        password: newPassword,
+      });
+    expect(newLoginRes.status).toBe(200);
+    expect(newLoginRes.body.success).toBe(true);
+    expect(newLoginRes.body.data.user.email).toBe(resetTestEmail);
+  });
+
   it('should enforce student role during public registration (prevent privilege escalation)', async () => {
     const newEmail = `hacker_${Date.now()}@test.edu`;
     const res = await request(app)

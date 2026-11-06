@@ -73,6 +73,157 @@ export async function login(req: Request, res: Response): Promise<void> {
   });
 }
 
+export async function sendPasswordResetCode(req: Request, res: Response): Promise<void> {
+  const { email } = req.body;
+  const cleanEmail = String(email || '').toLowerCase().trim();
+
+  if (!cleanEmail) {
+    res.status(400).json({ success: false, message: 'Email address is required' });
+    return;
+  }
+
+  const user = await getOne<{ id: string; full_name: string; email: string; status: string }>(
+    'SELECT id, full_name, email, status FROM profiles WHERE email = ?',
+    [cleanEmail]
+  );
+
+  if (!user) {
+    res.status(404).json({
+      success: false,
+      message: 'No registered account found with this email address',
+      code: 'USER_NOT_FOUND',
+    });
+    return;
+  }
+
+  if (user.status !== 'active') {
+    res.status(403).json({
+      success: false,
+      message: 'Account is deactivated. Please contact an administrator.',
+      code: 'ACCOUNT_DEACTIVATED',
+    });
+    return;
+  }
+
+  // Generate 6-digit numeric verification code
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const codeId = `prc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
+
+  // Invalidate any existing unused codes for this email
+  await run('UPDATE password_reset_codes SET used = TRUE WHERE email = ? AND used = FALSE', [cleanEmail]);
+
+  // Insert new verification code
+  await run(
+    'INSERT INTO password_reset_codes (id, email, code, expires_at, used) VALUES (?, ?, ?, ?, ?)',
+    [codeId, cleanEmail, code, expiresAt, false]
+  );
+
+  // Send security notification to user account
+  const notifId = `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+  await run(
+    `INSERT INTO notifications (id, recipient_id, type, title, message)
+     VALUES (?, ?, 'system_alert', 'Password Reset Verification Code', ?)`,
+    [notifId, user.id, `Your password recovery verification code is: ${code}. It expires in 10 minutes.`]
+  ).catch(() => {});
+
+  console.log(`[Security] Password reset verification code for ${cleanEmail}: ${code}`);
+
+  res.json({
+    success: true,
+    message: `Verification code sent to ${cleanEmail}. Please enter the 6-digit code to reset your password.`,
+    preview_code: code,
+    data: {
+      message: `Verification code sent to ${cleanEmail}. Please enter the 6-digit code to reset your password.`,
+      preview_code: code,
+    },
+  });
+}
+
+export async function verifyAndResetPassword(req: Request, res: Response): Promise<void> {
+  const { email, code, new_password } = req.body;
+  const cleanEmail = String(email || '').toLowerCase().trim();
+  const cleanCode = String(code || '').trim();
+
+  if (!cleanEmail || !cleanCode || !new_password) {
+    res.status(400).json({ success: false, message: 'Email, verification code, and new password are required' });
+    return;
+  }
+
+  const user = await getOne<{ id: string; full_name: string; email: string; status: string }>(
+    'SELECT id, full_name, email, status FROM profiles WHERE email = ?',
+    [cleanEmail]
+  );
+
+  if (!user) {
+    res.status(404).json({
+      success: false,
+      message: 'No registered account found with this email address',
+      code: 'USER_NOT_FOUND',
+    });
+    return;
+  }
+
+  // Find matching active code
+  const resetRecord = await getOne<{ id: string; expires_at: string }>(
+    'SELECT id, expires_at FROM password_reset_codes WHERE email = ? AND code = ? AND used = FALSE ORDER BY created_at DESC LIMIT 1',
+    [cleanEmail, cleanCode]
+  );
+
+  if (!resetRecord) {
+    res.status(400).json({
+      success: false,
+      message: 'Invalid verification code. Please check your code or request a new one.',
+      code: 'INVALID_CODE',
+    });
+    return;
+  }
+
+  // Check expiration
+  if (new Date(resetRecord.expires_at).getTime() < Date.now()) {
+    res.status(400).json({
+      success: false,
+      message: 'Verification code has expired. Please request a new code.',
+      code: 'EXPIRED_CODE',
+    });
+    return;
+  }
+
+  // Mark code as used
+  await run('UPDATE password_reset_codes SET used = TRUE WHERE id = ?', [resetRecord.id]);
+
+  // Hash new password and update user profile
+  const passwordHash = await bcrypt.hash(new_password, 10);
+  await run('UPDATE profiles SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [
+    passwordHash,
+    user.id,
+  ]);
+
+  // Insert security alert notification
+  const notifId = `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+  await run(
+    `INSERT INTO notifications (id, recipient_id, type, title, message)
+     VALUES (?, ?, 'system_alert', 'Security Alert: Password Updated', 'Your account password was successfully updated.')`,
+    [notifId, user.id]
+  ).catch(() => {});
+
+  res.json({
+    success: true,
+    message: 'Password reset successful! You can now log in with your new password.',
+    data: {
+      message: 'Password reset successful! You can now log in with your new password.',
+    },
+  });
+}
+
+export async function forgotPassword(req: Request, res: Response): Promise<void> {
+  const { code } = req.body;
+  if (code) {
+    return verifyAndResetPassword(req, res);
+  }
+  return sendPasswordResetCode(req, res);
+}
+
 export async function register(req: Request, res: Response): Promise<void> {
   const { full_name, email, password, student_id, department } = req.body;
   const cleanEmail = email.toLowerCase().trim();

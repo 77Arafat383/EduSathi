@@ -11,7 +11,10 @@ import {
   ChevronRight,
   Wallet,
   CreditCard,
-  AlertCircle
+  AlertCircle,
+  CalendarCheck2,
+  Clock,
+  CheckCircle2,
 } from 'lucide-react';
 import { useAuth } from '../../app/providers';
 import { api } from '../../lib/api';
@@ -51,6 +54,9 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [activeAttendanceSessions, setActiveAttendanceSessions] = useState<any[]>([]);
+  const [nowTime, setNowTime] = useState(Date.now());
+  const [checkingInSessionId, setCheckingInSessionId] = useState<string | null>(null);
 
   // Profile management modal
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -66,6 +72,39 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
         .catch(() => { });
     }
   }, [user]);
+
+  // Periodic check for live attendance sessions for students
+  useEffect(() => {
+    if (user?.role === 'student') {
+      const fetchActiveSessions = () => {
+        api.getMyActiveAttendanceSessions()
+          .then(data => setActiveAttendanceSessions(data || []))
+          .catch(() => { });
+      };
+      fetchActiveSessions();
+      const interval = setInterval(fetchActiveSessions, 8000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
+  // Live timer interval for attendance countdown
+  useEffect(() => {
+    const timer = setInterval(() => setNowTime(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Filter live attendance calls: only show when timer is active and student has not yet checked in
+  const liveAttendanceCalls = React.useMemo(() => {
+    if (user?.role !== 'student') return [];
+    return (activeAttendanceSessions || []).filter((sess) => {
+      if (sess.my_status === 'present' || sess.my_status === 'late') return false;
+      const presentMs = sess.present_until ? new Date(sess.present_until).getTime() : 0;
+      const lateMs = sess.late_until ? new Date(sess.late_until).getTime() : 0;
+      const diffPresent = Math.max(0, presentMs - nowTime);
+      const diffLate = Math.max(0, lateMs - nowTime);
+      return diffPresent > 0 || diffLate > 0;
+    });
+  }, [activeAttendanceSessions, nowTime, user]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -91,13 +130,27 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
     ? notifications.filter(n => TEACHER_ALLOWED_TYPES.includes(n.type))
     : notifications;
 
-  const unreadCount = displayNotifications.filter(n => !n.read_at).length;
+  const unreadCount = displayNotifications.filter(n => !n.read_at).length + liveAttendanceCalls.length;
 
   const handleMarkAllRead = async () => {
     try {
       await api.markAllNotificationsRead();
       setNotifications(prev => prev.map(n => ({ ...n, read_at: new Date().toISOString() })));
     } catch (err) { }
+  };
+
+  const handleAttendanceCheckIn = async (sessionId: string) => {
+    setCheckingInSessionId(sessionId);
+    try {
+      await api.studentCheckIn(sessionId);
+      // Immediately remove from active sessions so it vanishes without delay
+      setActiveAttendanceSessions(prev => prev.filter(s => s.id !== sessionId));
+      api.getNotifications().then(data => setNotifications(data || [])).catch(() => {});
+    } catch (err) {
+      console.error('Attendance check-in failed:', err);
+    } finally {
+      setCheckingInSessionId(null);
+    }
   };
 
   const handleNotificationClick = async (n: Notification) => {
@@ -124,6 +177,13 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
       return (
         <div className="w-7 h-7 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center shrink-0">
           <Wallet className="w-3.5 h-3.5" />
+        </div>
+      );
+    }
+    if (type === 'attendance') {
+      return (
+        <div className="w-7 h-7 rounded-xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center shrink-0">
+          <CalendarCheck2 className="w-3.5 h-3.5" />
         </div>
       );
     }
@@ -195,7 +255,55 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
               </div>
 
               <div className="max-h-80 overflow-y-auto divide-y divide-slate-50">
-                {displayNotifications.length === 0 ? (
+                {/* Live Attendance Calls (Only shows when timer is on; vanishes when marked present or timer expires) */}
+                {liveAttendanceCalls.map((sess) => {
+                  const presentMs = sess.present_until ? new Date(sess.present_until).getTime() : 0;
+                  const lateMs = sess.late_until ? new Date(sess.late_until).getTime() : 0;
+                  const diffPresent = Math.max(0, presentMs - nowTime);
+                  const diffLate = Math.max(0, lateMs - nowTime);
+                  const isPresentPhase = diffPresent > 0;
+                  const remaining = isPresentPhase ? diffPresent : diffLate;
+
+                  const sec = Math.floor(remaining / 1000);
+                  const m = Math.floor(sec / 60);
+                  const s = sec % 60;
+                  const countdown = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+
+                  return (
+                    <div
+                      key={sess.id}
+                      className="p-3 sm:px-4 bg-gradient-to-r from-blue-50/95 via-indigo-50/90 to-blue-50/95 border-b border-blue-200/80 flex items-start justify-between gap-3 animate-fade-in"
+                    >
+                      <div className="flex items-start gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+                          <CalendarCheck2 className="w-4 h-4 animate-pulse" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-blue-600 text-white">LIVE CALL</span>
+                            <span className="text-xs font-bold text-slate-900 truncate">{sess.course_title}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-600 truncate mt-0.5">{sess.title}</p>
+                          <div className="text-[11px] font-mono font-bold text-blue-700 mt-1 flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            <span>{countdown} left ({isPresentPhase ? 'Present' : 'Late buffer'})</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleAttendanceCheckIn(sess.id)}
+                        disabled={checkingInSessionId === sess.id}
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition active:scale-95 shrink-0 flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>{checkingInSessionId === sess.id ? 'Saving...' : 'Mark Present'}</span>
+                      </button>
+                    </div>
+                  );
+                })}
+
+                {displayNotifications.length === 0 && liveAttendanceCalls.length === 0 ? (
                   <div className="py-8 text-center text-xs text-slate-400">
                     {user?.role === 'admin'
                       ? 'No pending administrative alerts'
@@ -252,15 +360,19 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
                       <ChevronRight className="w-3.5 h-3.5" />
                     </Link>
                   </>
-                ) : (
+                ) : user?.role === 'teacher' ? (
                   <Link
-                    to={`/${user?.role}/notifications`}
+                    to="/teacher/notifications"
                     onClick={() => setShowNotifDropdown(false)}
                     className="text-brand-600 hover:text-brand-700 flex items-center gap-1"
                   >
                     <span>View Notification Center</span>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </Link>
+                ) : (
+                  <span className="text-[11px] text-slate-400 font-medium w-full text-center py-0.5">
+                    Live updates and notifications managed via bell icon
+                  </span>
                 )}
               </div>
             </div>

@@ -28,6 +28,12 @@ export interface GenerateResult {
   notice?: string;
 }
 
+// Clean quotes and whitespace from parsed environment values
+function cleanKey(val?: string | null): string {
+  if (!val) return '';
+  return val.trim().replace(/^["']|["']$/g, '').trim();
+}
+
 // Dynamically read fresh environment variables from .env files so updates become live instantly
 export function getLiveAiCredentials() {
   const envCandidates = [
@@ -48,14 +54,43 @@ export function getLiveAiCredentials() {
     }
   }
 
-  // Merge process.env with priority to newly parsed .env values
+  // Helper to find a value across case-insensitive and alternative variable names
+  const findKey = (names: string[]): string => {
+    for (const name of names) {
+      if (parsed[name]) return cleanKey(parsed[name]);
+      if (process.env[name]) return cleanKey(process.env[name]);
+      const lower = name.toLowerCase();
+      for (const [k, v] of Object.entries(parsed)) {
+        if (k.toLowerCase() === lower && v) return cleanKey(v);
+      }
+      for (const [k, v] of Object.entries(process.env)) {
+        if (k.toLowerCase() === lower && v) return cleanKey(v);
+      }
+    }
+    return '';
+  };
+
+  const geminiKey =
+    findKey(['AI_API_KEY', 'GEMINI_API_KEY', 'GEMINI_KEY', 'GOOGLE_API_KEY', 'gemini_api_key']) ||
+    cleanKey(config.ai.apiKey);
+  const geminiBackupKey = findKey(['AI_API_KEY_BACKUP', 'GEMINI_API_KEY_2', 'gemini_api_key_backup']);
+  const openaiKey =
+    findKey(['OPENAI_API_KEY', 'OpenAI_API', 'OPENAI_KEY', 'openai_api', 'openai_key']) ||
+    cleanKey(config.ai.openaiKey);
+  const groqKey =
+    findKey(['GROQ_API_KEY', 'Groq_API', 'GROQ_KEY', 'groq_api', 'groq_key']) ||
+    cleanKey(config.ai.groqKey);
+  const deepseekKey = findKey(['DEEPSEEK_API_KEY', 'DeepSeek_API', 'deepseek_key']);
+  const defaultModel =
+    findKey(['AI_MODEL', 'ai_model']) || config.ai.model || 'gemini-3.5-flash-lite';
+
   return {
-    geminiKey: parsed.AI_API_KEY || parsed.GEMINI_API_KEY || process.env.AI_API_KEY || process.env.GEMINI_API_KEY || config.ai.apiKey || '',
-    geminiBackupKey: parsed.AI_API_KEY_BACKUP || parsed.GEMINI_API_KEY_2 || process.env.AI_API_KEY_BACKUP || '',
-    openaiKey: parsed.OPENAI_API_KEY || process.env.OPENAI_API_KEY || '',
-    groqKey: parsed.GROQ_API_KEY || process.env.GROQ_API_KEY || '',
-    deepseekKey: parsed.DEEPSEEK_API_KEY || process.env.DEEPSEEK_API_KEY || '',
-    defaultModel: parsed.AI_MODEL || process.env.AI_MODEL || config.ai.model || 'gemini-3.5-flash-lite',
+    geminiKey,
+    geminiBackupKey,
+    openaiKey,
+    groqKey,
+    deepseekKey,
+    defaultModel,
   };
 }
 
@@ -68,8 +103,44 @@ export function getAvailableModelsList(): AiModelMetadata[] {
       id: 'gemini-3.5-flash-lite',
       name: 'Gemini 3.5 Flash Lite',
       provider: 'gemini',
-      description: 'Ultra-fast and efficient, ideal for quick academic Q&A',
+      description: 'Ultra-fast Google Gemini model, ideal for quick academic Q&A',
       badge: 'Recommended',
+      isConfigured: Boolean(creds.geminiKey),
+      envKeyHint: 'AI_API_KEY or GEMINI_API_KEY',
+    },
+    {
+      id: 'openai/gpt-oss-120b',
+      name: 'Groq LPU (GPT-OSS 120B)',
+      provider: 'groq',
+      description: 'Blazing fast inference on Groq LPU with 120B open weights',
+      badge: 'Groq Ultra Fast',
+      isConfigured: Boolean(creds.groqKey),
+      envKeyHint: 'GROQ_API_KEY or Groq_API',
+    },
+    {
+      id: 'qwen/qwen3.8-27b',
+      name: 'Groq LPU (Qwen 27B)',
+      provider: 'groq',
+      description: 'High performance mathematics and coding on Groq LPU',
+      badge: 'Groq Coding/Math',
+      isConfigured: Boolean(creds.groqKey),
+      envKeyHint: 'GROQ_API_KEY or Groq_API',
+    },
+    {
+      id: 'openai/gpt-oss-20b',
+      name: 'Groq LPU (GPT-OSS 20B)',
+      provider: 'groq',
+      description: 'Sub-second instant response for rapid study tutoring',
+      badge: 'Groq Instant',
+      isConfigured: Boolean(creds.groqKey),
+      envKeyHint: 'GROQ_API_KEY or Groq_API',
+    },
+    {
+      id: 'gemini-flash-latest',
+      name: 'Gemini Flash Latest',
+      provider: 'gemini',
+      description: 'Always points to the latest Google Gemini Flash model',
+      badge: 'Auto-Updated',
       isConfigured: Boolean(creds.geminiKey),
       envKeyHint: 'AI_API_KEY or GEMINI_API_KEY',
     },
@@ -83,31 +154,13 @@ export function getAvailableModelsList(): AiModelMetadata[] {
       envKeyHint: 'AI_API_KEY or GEMINI_API_KEY',
     },
     {
-      id: 'gemini-2.5-flash',
-      name: 'Gemini 2.5 Flash',
-      provider: 'gemini',
-      description: 'High-quality reasoning across STEM & coding',
-      badge: 'Stable',
-      isConfigured: Boolean(creds.geminiKey),
-      envKeyHint: 'AI_API_KEY or GEMINI_API_KEY',
-    },
-    {
-      id: 'gemini-flash-latest',
-      name: 'Gemini Flash Latest',
-      provider: 'gemini',
-      description: 'Always points to the latest Google Gemini Flash model',
-      badge: 'Auto-Updated',
-      isConfigured: Boolean(creds.geminiKey),
-      envKeyHint: 'AI_API_KEY or GEMINI_API_KEY',
-    },
-    {
       id: 'gpt-4o-mini',
       name: 'OpenAI GPT-4o Mini',
       provider: 'openai',
       description: 'Fast, cost-effective OpenAI model with broad knowledge',
       badge: 'OpenAI',
       isConfigured: Boolean(creds.openaiKey),
-      envKeyHint: 'OPENAI_API_KEY',
+      envKeyHint: 'OPENAI_API_KEY or OpenAI_API',
     },
     {
       id: 'gpt-4o',
@@ -116,25 +169,7 @@ export function getAvailableModelsList(): AiModelMetadata[] {
       description: 'OpenAI flagship model with highest multimodal intelligence',
       badge: 'OpenAI Pro',
       isConfigured: Boolean(creds.openaiKey),
-      envKeyHint: 'OPENAI_API_KEY',
-    },
-    {
-      id: 'llama-3.3-70b-versatile',
-      name: 'Groq LLaMA 3.3 70B',
-      provider: 'groq',
-      description: 'Blazing fast inference on Groq LPU with Meta LLaMA 3.3',
-      badge: 'Groq LPU',
-      isConfigured: Boolean(creds.groqKey),
-      envKeyHint: 'GROQ_API_KEY',
-    },
-    {
-      id: 'llama-3.1-8b-instant',
-      name: 'Groq LLaMA 3.1 8B',
-      provider: 'groq',
-      description: 'Ultra-low latency responses for instant study help',
-      badge: 'Ultra Fast',
-      isConfigured: Boolean(creds.groqKey),
-      envKeyHint: 'GROQ_API_KEY',
+      envKeyHint: 'OPENAI_API_KEY or OpenAI_API',
     },
     {
       id: 'deepseek-chat',
@@ -297,19 +332,21 @@ export async function executeAiQuery(params: {
   // Add available fallbacks in priority order
   if (creds.geminiKey) {
     addIfConfigured('gemini', 'gemini-3.5-flash-lite', creds.geminiKey);
+    addIfConfigured('gemini', 'gemini-flash-latest', creds.geminiKey);
     addIfConfigured('gemini', 'gemini-3.1-flash-lite', creds.geminiKey);
-    addIfConfigured('gemini', 'gemini-2.5-flash', creds.geminiKey);
   }
   if (creds.geminiBackupKey) {
     addIfConfigured('gemini', 'gemini-3.5-flash-lite', creds.geminiBackupKey);
-    addIfConfigured('gemini', 'gemini-3.1-flash-lite', creds.geminiBackupKey);
+    addIfConfigured('gemini', 'gemini-flash-latest', creds.geminiBackupKey);
   }
   if (creds.groqKey) {
-    addIfConfigured('groq', 'llama-3.3-70b-versatile', creds.groqKey);
-    addIfConfigured('groq', 'llama-3.1-8b-instant', creds.groqKey);
+    addIfConfigured('groq', 'openai/gpt-oss-120b', creds.groqKey);
+    addIfConfigured('groq', 'qwen/qwen3.8-27b', creds.groqKey);
+    addIfConfigured('groq', 'openai/gpt-oss-20b', creds.groqKey);
   }
   if (creds.openaiKey) {
     addIfConfigured('openai', 'gpt-4o-mini', creds.openaiKey);
+    addIfConfigured('openai', 'gpt-4o', creds.openaiKey);
   }
   if (creds.deepseekKey) {
     addIfConfigured('deepseek', 'deepseek-chat', creds.deepseekKey);

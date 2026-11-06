@@ -7,7 +7,6 @@ import {
   CalendarCheck2,
   TrendingUp,
   Bot,
-  Bell,
   Users,
   FolderTree,
   FileCheck2,
@@ -44,7 +43,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { label: 'Attendance', to: '/student/attendance', icon: CalendarCheck2 },
     { label: 'Tuition & Payments', to: '/student/payments', icon: CreditCard },
     { label: 'AI Study Assistant', to: '/student/ai-assistant', icon: Bot },
-    { label: 'Notifications', to: '/student/notifications', icon: Bell },
   ];
 
   const teacherLinks: NavItem[] = [

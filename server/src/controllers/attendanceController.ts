@@ -251,6 +251,18 @@ export async function studentCheckIn(req: AuthRequest, res: Response): Promise<v
     [recId, session_id, studentId, attendanceStatus, studentId]
   );
 
+  // Automatically mark the student's attendance notification as read so it clears from the bell icon
+  try {
+    await run(
+      `UPDATE notifications 
+       SET read_at = CURRENT_TIMESTAMP 
+       WHERE recipient_id = ? AND type = 'attendance' AND read_at IS NULL`,
+      [studentId]
+    );
+  } catch (err) {
+    console.error('Failed to update attendance notification read_at:', err);
+  }
+
   res.json({
     success: true,
     message: attendanceStatus === 'present'
@@ -265,6 +277,7 @@ export async function studentCheckIn(req: AuthRequest, res: Response): Promise<v
 
 export async function getMyActiveAttendanceSessions(req: AuthRequest, res: Response): Promise<void> {
   const studentId = req.user!.id;
+  const now = Date.now();
 
   const activeSessions = await query<any>(`
     SELECT s.id, s.course_id, s.session_date, s.title, s.status, s.present_until, s.late_until,
@@ -278,9 +291,25 @@ export async function getMyActiveAttendanceSessions(req: AuthRequest, res: Respo
     ORDER BY s.created_at DESC
   `, [studentId, studentId]);
 
+  // Keep only sessions where:
+  // 1. Student has not yet marked attendance (vanishes once marked as present or late)
+  // 2. Timer is active (vanishes once timer expires)
+  const validSessions = activeSessions.filter(sess => {
+    if (sess.my_status === 'present' || sess.my_status === 'late') {
+      return false;
+    }
+    const presentMs = parseUtcTimestamp(sess.present_until);
+    const lateMs = parseUtcTimestamp(sess.late_until);
+    const deadline = lateMs || presentMs;
+    if (deadline && now > deadline) {
+      return false;
+    }
+    return true;
+  });
+
   res.json({
     success: true,
-    data: activeSessions,
+    data: validSessions,
   });
 }
 
