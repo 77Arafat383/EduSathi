@@ -18,6 +18,7 @@ export const createCourseSchema = z.object({
   description: z.string().optional(),
   subject_id: z.string().optional(),
   banner_url: z.string().optional(),
+  price: z.union([z.number(), z.string().transform(v => Number(v))]).optional(),
   status: z.enum(['draft', 'published', 'archived']).default('published'),
 });
 
@@ -53,29 +54,29 @@ export const createAssignmentSchema = z.object({
   title: z.string().min(3, 'Assignment title is required'),
   instructions: z.string().min(5, 'Instructions are required'),
   max_score: z.number().positive().default(100),
-  due_at: z.string().optional(),
+  due_at: z.string().optional().nullable(),
   submission_type: z.string().default('text_or_link'),
   status: z.enum(['draft', 'published', 'closed']).default('published'),
-  file_url: z.string().optional(),
-  file_name: z.string().optional(),
+  file_url: z.string().optional().nullable(),
+  file_name: z.string().optional().nullable(),
 });
 
 export const submitAssignmentSchema = z.object({
   content: z.string().min(2, 'Submission content or link is required'),
-  file_url: z.string().optional(),
+  file_url: z.string().optional().nullable(),
 });
 
 export const gradeSubmissionSchema = z.object({
   score: z.number().min(0, 'Score cannot be negative'),
-  feedback: z.string().optional(),
+  feedback: z.string().optional().nullable(),
 });
 
 export const createAttendanceSessionSchema = z.object({
   session_date: z.string(),
-  title: z.string().optional(),
-  present_minutes: z.number().optional(),
-  late_minutes: z.number().optional(),
-  is_live: z.boolean().optional(),
+  title: z.string().optional().nullable(),
+  present_minutes: z.number().optional().nullable(),
+  late_minutes: z.number().optional().nullable(),
+  is_live: z.boolean().optional().nullable(),
   records: z.array(z.object({
     student_id: z.string(),
     status: z.enum(['present', 'absent', 'late']),
@@ -89,9 +90,10 @@ export const createAnnouncementSchema = z.object({
 
 export const createCommentSchema = z.object({
   body: z.string().min(1, 'Comment body cannot be empty'),
-  assignment_id: z.string().optional(),
-  quiz_id: z.string().optional(),
-  parent_id: z.string().optional(),
+  course_id: z.string().optional().nullable(),
+  assignment_id: z.string().optional().nullable(),
+  quiz_id: z.string().optional().nullable(),
+  parent_id: z.string().optional().nullable(),
 });
 
 export const aiAssistantPromptSchema = z.object({

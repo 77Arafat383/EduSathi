@@ -19,10 +19,12 @@ import {
   Users,
   ShieldCheck,
   Award,
+  Plus
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuth } from '../../app/providers';
 import { TeacherSalary } from '../../types';
+import { MonthYearPicker } from '../../components/common/MonthYearPicker';
 
 export const TeacherSalaryPage: React.FC = () => {
   const { user } = useAuth();
@@ -46,19 +48,61 @@ export const TeacherSalaryPage: React.FC = () => {
   // Modal voucher state
   const [viewingVoucher, setViewingVoucher] = useState<TeacherSalary | null>(null);
 
+  // Salary request state
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [requestSubmitting, setRequestSubmitting] = useState(false);
+  const [requestSuccessMsg, setRequestSuccessMsg] = useState('');
+  const [requestErrorMsg, setRequestErrorMsg] = useState('');
+  const [requestForm, setRequestForm] = useState({
+    course_id: '',
+    amount: 45000,
+    pay_period: `${new Date().toLocaleString('default', { month: 'long' })} ${new Date().getFullYear()}`,
+    note: '',
+  });
+
+  const handleSalaryRequestSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!requestForm.pay_period || !requestForm.amount) {
+      setRequestErrorMsg('Please select a pay period and amount.');
+      return;
+    }
+    setRequestSubmitting(true);
+    setRequestErrorMsg('');
+    try {
+      await api.requestTeacherSalary({
+        course_id: requestForm.course_id || undefined,
+        amount: Number(requestForm.amount),
+        pay_period: requestForm.pay_period,
+        note: requestForm.note || 'Faculty monthly compensation request',
+      });
+      setRequestSuccessMsg('Salary request submitted successfully! Administrator has been notified.');
+      setTimeout(() => {
+        setIsRequestModalOpen(false);
+        setRequestSuccessMsg('');
+        fetchSalaryData();
+      }, 1500);
+    } catch (err: any) {
+      setRequestErrorMsg(err?.message || 'Failed to submit salary request');
+    } finally {
+      setRequestSubmitting(false);
+    }
+  };
+
   const fetchSalaryData = async () => {
     setLoading(true);
     try {
-      const res = await api.getMyTeacherSalaries();
-      if (res?.data) {
-        setSalaries(res.data.salaries || []);
-        setAssignedCourses(res.data.assigned_courses || []);
-        setTeacherProfile(res.data.profile || null);
+      const res: any = await api.getMyTeacherSalaries();
+      // Handle both raw payload or nested data response
+      const payload = res?.salaries !== undefined ? res : (res?.data || res || {});
+      if (payload) {
+        setSalaries(payload.salaries || []);
+        setAssignedCourses(payload.assigned_courses || []);
+        setTeacherProfile(payload.profile || null);
         setSummary({
-          total_paid: Number(res.data.total_paid || 0),
-          pending_amount: Number(res.data.pending_amount || 0),
-          total_disbursements: res.data.total_disbursements || (res.data.salaries?.length || 0),
-          latest_disbursement: res.data.latest_disbursement || (res.data.salaries?.[0] || null),
+          total_paid: Number(payload.total_paid || 0),
+          pending_amount: Number(payload.pending_amount || 0),
+          total_disbursements: payload.total_disbursements || (payload.salaries?.length || 0),
+          latest_disbursement: payload.latest_disbursement || (payload.salaries?.[0] || null),
         });
       }
     } catch (err: any) {
@@ -127,6 +171,14 @@ export const TeacherSalaryPage: React.FC = () => {
 
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setIsRequestModalOpen(true)}
+            className="px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
+          >
+            <Wallet className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Request Salary</span>
+          </button>
+
+          <button
             onClick={fetchSalaryData}
             disabled={loading}
             className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
@@ -135,8 +187,6 @@ export const TeacherSalaryPage: React.FC = () => {
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-brand-600' : 'text-slate-500'}`} />
             <span>Refresh</span>
           </button>
-
-
         </div>
       </div>
 
@@ -467,10 +517,10 @@ export const TeacherSalaryPage: React.FC = () => {
 
       {/* Official Faculty Salary Voucher / Pay Slip Modal */}
       {viewingVoucher && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="border border-slate-300 bg-white max-w-xl w-full p-6 sm:p-8 shadow-2xl rounded-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
+        <div className="printable-voucher-modal fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="printable-voucher-card border border-slate-300 bg-white max-w-xl w-full max-h-[90vh] flex flex-col shadow-2xl rounded-2xl my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-150 print:max-h-none print:shadow-none print:border-slate-800 print:w-full print:max-w-none">
             {/* Voucher Header */}
-            <div className="flex items-start justify-between border-b-2 border-slate-900 pb-4">
+            <div className="flex items-start justify-between border-b-2 border-slate-900 p-6 shrink-0 bg-white">
               <div>
                 <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold flex items-center gap-1.5">
                   <ShieldCheck className="w-3.5 h-3.5 text-brand-600" />
@@ -485,131 +535,134 @@ export const TeacherSalaryPage: React.FC = () => {
               </div>
               <button
                 onClick={() => setViewingVoucher(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg border border-slate-200 hover:bg-slate-100 transition"
+                className="print:hidden p-1.5 text-slate-400 hover:text-slate-700 rounded-lg border border-slate-200 hover:bg-slate-100 transition"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Faculty & Period Identification */}
-            <div className="grid grid-cols-2 gap-4 text-xs font-mono border-b border-slate-200 pb-4">
-              <div>
-                <span className="text-[10px] uppercase text-slate-400 font-bold block">
-                  Beneficiary (Faculty Member)
-                </span>
-                <span className="font-bold text-slate-900 text-sm block mt-0.5">
-                  {user?.full_name}
-                </span>
-                <span className="text-[11px] text-slate-600 block">
-                  Department: {teacherProfile?.department || 'Academic Instruction'}
-                </span>
-                <span className="text-[10px] text-slate-400 block truncate">
-                  Email: {user?.email}
-                </span>
-              </div>
-              <div className="text-right">
-                <span className="text-[10px] uppercase text-slate-400 font-bold block">
-                  Accounting Period
-                </span>
-                <span className="text-slate-900 font-extrabold text-sm block mt-0.5">
-                  {viewingVoucher.pay_period}
-                </span>
-                <span className="text-[11px] text-slate-600 block">
-                  Disbursed: {viewingVoucher.payment_date ? new Date(viewingVoucher.payment_date).toLocaleDateString() : 'Pending'}
-                </span>
-                <span className="text-[10px] text-slate-500 block">
-                  Channel: {viewingVoucher.payment_method || 'Bank Transfer'}
-                </span>
-              </div>
-            </div>
-
-            {/* Courses Compensated Section */}
-            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1.5 text-xs">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 block">
-                Instructional Curriculum &amp; Courses Mentioned:
-              </span>
-              {viewingVoucher.course_title ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-800">
-                    {viewingVoucher.subject_code || 'COURSE'}
+            {/* Scrollable Body */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-5 print:overflow-visible print:max-h-none print:p-4">
+              {/* Faculty & Period Identification */}
+              <div className="grid grid-cols-2 gap-4 text-xs font-mono border-b border-slate-200 pb-4">
+                <div>
+                  <span className="text-[10px] uppercase text-slate-400 font-bold block">
+                    Beneficiary (Faculty Member)
                   </span>
-                  <span className="font-bold text-slate-900">
-                    {viewingVoucher.course_title}
+                  <span className="font-bold text-slate-900 text-sm block mt-0.5">
+                    {user?.full_name}
+                  </span>
+                  <span className="text-[11px] text-slate-600 block">
+                    Department: {teacherProfile?.department || 'Academic Instruction'}
+                  </span>
+                  <span className="text-[10px] text-slate-400 block truncate">
+                    Email: {user?.email}
                   </span>
                 </div>
-              ) : (
-                <div className="space-y-1">
-                  <div className="font-bold text-slate-900">
-                    Faculty Overall Teaching Load ({assignedCourses.length} Courses Covered)
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {assignedCourses.map((c) => (
-                      <span key={c.id} className="text-[10px] px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-700 font-medium">
-                        {c.title}
-                      </span>
-                    ))}
-                  </div>
+                <div className="text-right">
+                  <span className="text-[10px] uppercase text-slate-400 font-bold block">
+                    Accounting Period
+                  </span>
+                  <span className="text-slate-900 font-extrabold text-sm block mt-0.5">
+                    {viewingVoucher.pay_period}
+                  </span>
+                  <span className="text-[11px] text-slate-600 block">
+                    Disbursed: {viewingVoucher.payment_date ? new Date(viewingVoucher.payment_date).toLocaleDateString() : 'Pending'}
+                  </span>
+                  <span className="text-[10px] text-slate-500 block">
+                    Channel: {viewingVoucher.payment_method || 'Bank Transfer'}
+                  </span>
                 </div>
-              )}
-              {viewingVoucher.note && (
-                <p className="text-[11px] text-slate-500 font-mono pt-1 border-t border-slate-200">
-                  Remark: {viewingVoucher.note}
-                </p>
-              )}
-            </div>
-
-            {/* Compensation Line Items */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
-              <div className="bg-slate-100 p-2.5 font-mono text-[10px] uppercase font-bold text-slate-700 flex justify-between">
-                <span>Disbursement Line Item</span>
-                <span>Net Credit</span>
               </div>
-              <div className="p-3 space-y-2">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="font-bold text-slate-900">Instructional Base &amp; Honorarium</div>
-                    <div className="text-[11px] text-slate-500">
-                      Term Month: {viewingVoucher.pay_period}
+
+              {/* Courses Compensated Section */}
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1.5 text-xs">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 block">
+                  Instructional Curriculum &amp; Courses Mentioned:
+                </span>
+                {viewingVoucher.course_title ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-800">
+                      {viewingVoucher.subject_code || 'COURSE'}
+                    </span>
+                    <span className="font-bold text-slate-900">
+                      {viewingVoucher.course_title}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <div className="font-bold text-slate-900">
+                      Faculty Overall Teaching Load ({assignedCourses.length} Courses Covered)
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {assignedCourses.map((c) => (
+                        <span key={c.id} className="text-[10px] px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-700 font-medium">
+                          {c.title}
+                        </span>
+                      ))}
                     </div>
                   </div>
-                  <div className="font-mono font-bold text-slate-900">
-                    {formatTaka(viewingVoucher.amount)}
+                )}
+                {viewingVoucher.note && (
+                  <p className="text-[11px] text-slate-500 font-mono pt-1 border-t border-slate-200">
+                    Remark: {viewingVoucher.note}
+                  </p>
+                )}
+              </div>
+
+              {/* Compensation Line Items */}
+              <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
+                <div className="bg-slate-100 p-2.5 font-mono text-[10px] uppercase font-bold text-slate-700 flex justify-between">
+                  <span>Disbursement Line Item</span>
+                  <span>Net Credit</span>
+                </div>
+                <div className="p-3 space-y-2">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="font-bold text-slate-900">Instructional Base &amp; Honorarium</div>
+                      <div className="text-[11px] text-slate-500">
+                        Term Month: {viewingVoucher.pay_period}
+                      </div>
+                    </div>
+                    <div className="font-mono font-bold text-slate-900">
+                      {formatTaka(viewingVoucher.amount)}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 space-y-1 text-[11px] font-mono">
+                    <div className="flex justify-between text-slate-600">
+                      <span>Gross Compensation:</span>
+                      <span>{formatTaka(viewingVoucher.amount)}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600">
+                      <span>Institutional Deductions:</span>
+                      <span>৳ 0.00</span>
+                    </div>
+                    <div className="flex justify-between text-emerald-800 font-bold pt-1.5 border-t border-slate-200 text-sm">
+                      <span>Net Disbursed Amount:</span>
+                      <span>{formatTaka(viewingVoucher.amount)}</span>
+                    </div>
                   </div>
                 </div>
+              </div>
 
-                <div className="pt-2 border-t border-slate-100 space-y-1 text-[11px] font-mono">
-                  <div className="flex justify-between text-slate-600">
-                    <span>Gross Compensation:</span>
-                    <span>{formatTaka(viewingVoucher.amount)}</span>
-                  </div>
-                  <div className="flex justify-between text-slate-600">
-                    <span>Institutional Deductions:</span>
-                    <span>৳ 0.00</span>
-                  </div>
-                  <div className="flex justify-between text-emerald-800 font-bold pt-1.5 border-t border-slate-200 text-sm">
-                    <span>Net Disbursed Amount:</span>
-                    <span>{formatTaka(viewingVoucher.amount)}</span>
-                  </div>
+              {/* Seal & Comptroller Verification */}
+              <div className="flex items-center justify-between p-3.5 border border-slate-200 rounded-xl bg-slate-50/80 text-[11px] font-mono">
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Ledger Verification</span>
+                  <span className={`font-bold uppercase ${viewingVoucher.status === 'paid' ? 'text-emerald-700' : 'text-amber-700'}`}>
+                    {viewingVoucher.status === 'paid' ? 'DISBURSED • VERIFIED BY REGISTRAR' : 'PENDING CLEARING'}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Authority</span>
+                  <span className="text-slate-800 font-bold">EDUSATHI COMPTROLLER</span>
                 </div>
               </div>
             </div>
 
-            {/* Seal & Comptroller Verification */}
-            <div className="flex items-center justify-between p-3.5 border border-slate-200 rounded-xl bg-slate-50/80 text-[11px] font-mono">
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Ledger Verification</span>
-                <span className={`font-bold uppercase ${viewingVoucher.status === 'paid' ? 'text-emerald-700' : 'text-amber-700'}`}>
-                  {viewingVoucher.status === 'paid' ? 'DISBURSED • VERIFIED BY REGISTRAR' : 'PENDING CLEARING'}
-                </span>
-              </div>
-              <div className="text-right">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Authority</span>
-                <span className="text-slate-800 font-bold">EDUSATHI COMPTROLLER</span>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+            {/* Pinned Footer Actions */}
+            <div className="print:hidden flex items-center justify-between p-4 bg-slate-50 border-t border-slate-200 shrink-0">
               <button
                 type="button"
                 onClick={() => window.print()}
@@ -624,9 +677,134 @@ export const TeacherSalaryPage: React.FC = () => {
                 onClick={() => setViewingVoucher(null)}
                 className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition shadow-xs"
               >
-                Close
+                Done
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Salary Request Modal */}
+      {isRequestModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in overflow-y-auto">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg overflow-hidden my-8">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-slate-900 text-emerald-400 flex items-center justify-center font-bold">
+                  <Wallet className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Request Salary Disbursement</h3>
+                  <p className="text-[11px] text-slate-500">Submit instructional compensation request to administration</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsRequestModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSalaryRequestSubmit} className="p-6 space-y-4 text-xs">
+              {requestSuccessMsg && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl flex items-center gap-2 font-medium">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{requestSuccessMsg}</span>
+                </div>
+              )}
+
+              {requestErrorMsg && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl flex items-center gap-2 font-medium">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{requestErrorMsg}</span>
+                </div>
+              )}
+
+              {/* Pay Period Selection via MonthYearPicker */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Compensation Pay Period (Month &amp; Year) *
+                </label>
+                <MonthYearPicker
+                  value={requestForm.pay_period}
+                  onChange={(val) => setRequestForm(prev => ({ ...prev, pay_period: val }))}
+                  required
+                />
+              </div>
+
+              {/* Assigned Course */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Academic Course Track
+                </label>
+                <select
+                  value={requestForm.course_id}
+                  onChange={(e) => setRequestForm(prev => ({ ...prev, course_id: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                >
+                  <option value="">General Instructional Honorarium (All Courses)</option>
+                  {assignedCourses.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.title} ({c.subject_name || c.subject_code || 'Academic Course'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Amount */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Requested Honorarium Amount (৳ BDT) *
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-500 font-mono">৳</span>
+                  <input
+                    type="number"
+                    min="1000"
+                    step="500"
+                    required
+                    value={requestForm.amount}
+                    onChange={(e) => setRequestForm(prev => ({ ...prev, amount: Number(e.target.value) }))}
+                    className="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-xl text-slate-800 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                </div>
+              </div>
+
+              {/* Justification Note */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Instructional Note / Justification
+                </label>
+                <textarea
+                  rows={2}
+                  value={requestForm.note}
+                  onChange={(e) => setRequestForm(prev => ({ ...prev, note: e.target.value }))}
+                  placeholder="e.g. Conducted 16 lecture hours, completed assignment reviews and midterm assessments"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsRequestModalOpen(false)}
+                  disabled={requestSubmitting}
+                  className="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl font-bold transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={requestSubmitting}
+                  className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold transition flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <Wallet className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>{requestSubmitting ? 'Submitting...' : 'Submit Request'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

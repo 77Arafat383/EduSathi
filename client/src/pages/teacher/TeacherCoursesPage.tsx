@@ -9,10 +9,7 @@ import {
   Layers,
   Search,
   CheckCircle2,
-  FileCheck2,
   Eye,
-  CalendarCheck2,
-  BarChart3,
   Clock,
   Plus,
   Trash2,
@@ -180,32 +177,8 @@ export const TeacherCoursesPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Global Quick Hub Links */}
+        {/* Global Action Link */}
         <div className="flex flex-wrap items-center gap-2">
-          <Link
-            to="/teacher/attendance"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl shadow-xs transition"
-          >
-            <CalendarCheck2 className="w-3.5 h-3.5 text-blue-600" />
-            <span>Attendance</span>
-          </Link>
-
-          <Link
-            to="/teacher/analytics"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl shadow-xs transition"
-          >
-            <BarChart3 className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Class Analytics</span>
-          </Link>
-
-          <Link
-            to="/teacher/gradebook"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl shadow-xs transition"
-          >
-            <FileCheck2 className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Gradebook</span>
-          </Link>
-
           <Link
             to="/teacher/courses/create"
             className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow-xs transition"
@@ -421,49 +394,18 @@ export const TeacherCoursesPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Complete Course Feature Access Bar */}
-              <div className="p-4 pt-0 space-y-2.5">
-                {/* Secondary Row: Quick Course Feature Jumpers */}
-                <div className="grid grid-cols-4 gap-1.5 p-1.5 bg-slate-50 rounded-xl border border-slate-100">
-                  <Link
-                    to={`/teacher/attendance?courseId=${course.id}`}
-                    className="p-1.5 rounded-lg text-center hover:bg-white hover:text-brand-600 hover:shadow-xs transition group/btn"
-                    title="Take or inspect attendance"
-                  >
-                    <CalendarCheck2 className="w-3.5 h-3.5 mx-auto text-slate-500 group-hover/btn:text-brand-600" />
-                    <span className="text-[9px] font-bold text-slate-600 block mt-0.5 truncate">Attendance</span>
-                  </Link>
-
-                  <Link
-                    to={`/teacher/analytics?courseId=${course.id}`}
-                    className="p-1.5 rounded-lg text-center hover:bg-white hover:text-indigo-600 hover:shadow-xs transition group/btn"
-                    title="View syllabus roadmap & class analytics"
-                  >
-                    <BarChart3 className="w-3.5 h-3.5 mx-auto text-slate-500 group-hover/btn:text-indigo-600" />
-                    <span className="text-[9px] font-bold text-slate-600 block mt-0.5 truncate">Analytics</span>
-                  </Link>
-
-                  <Link
-                    to={`/teacher/gradebook?courseId=${course.id}`}
-                    className="p-1.5 rounded-lg text-center hover:bg-white hover:text-emerald-600 hover:shadow-xs transition group/btn"
-                    title="Check student marks and performance"
-                  >
-                    <FileCheck2 className="w-3.5 h-3.5 mx-auto text-slate-500 group-hover/btn:text-emerald-600" />
-                    <span className="text-[9px] font-bold text-slate-600 block mt-0.5 truncate">Gradebook</span>
-                  </Link>
-
+              {/* Course Action Bar */}
+              <div className="p-4 pt-0">
+                <div className="flex items-center gap-2">
                   <button
                     onClick={() => openStudentRoster(course)}
-                    className="p-1.5 rounded-lg text-center hover:bg-white hover:text-blue-600 hover:shadow-xs transition group/btn"
+                    className="py-2 px-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl shadow-xs transition flex items-center justify-center gap-1.5"
                     title="Manage enrolled students"
                   >
-                    <Users className="w-3.5 h-3.5 mx-auto text-slate-500 group-hover/btn:text-blue-600" />
-                    <span className="text-[9px] font-bold text-slate-600 block mt-0.5 truncate">Students</span>
+                    <Users className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Students ({course.student_count || 0})</span>
                   </button>
-                </div>
 
-                {/* Primary Action Buttons */}
-                <div className="flex items-center gap-2">
                   <Link
                     to={`/teacher/analytics?courseId=${course.id}&tab=syllabus`}
                     className="flex-1 py-2 px-3 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center justify-center gap-1.5"
@@ -546,36 +488,12 @@ export const TeacherCoursesPage: React.FC = () => {
 
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        <Link
-                          to={`/teacher/attendance?courseId=${c.id}`}
-                          className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition"
-                          title="Attendance"
-                        >
-                          <CalendarCheck2 className="w-3.5 h-3.5 text-blue-600" />
-                        </Link>
-
-                        <Link
-                          to={`/teacher/analytics?courseId=${c.id}`}
-                          className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition"
-                          title="Analytics & Roadmap"
-                        >
-                          <BarChart3 className="w-3.5 h-3.5 text-indigo-600" />
-                        </Link>
-
-                        <Link
-                          to={`/teacher/gradebook?courseId=${c.id}`}
-                          className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition"
-                          title="Gradebook"
-                        >
-                          <FileCheck2 className="w-3.5 h-3.5 text-emerald-600" />
-                        </Link>
-
                         <button
                           onClick={() => openStudentRoster(c)}
                           className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition"
                           title="Manage Roster"
                         >
-                          <Users className="w-3.5 h-3.5 text-purple-600" />
+                          <Users className="w-3.5 h-3.5 text-blue-600" />
                         </button>
 
                         <Link
@@ -597,10 +515,10 @@ export const TeacherCoursesPage: React.FC = () => {
 
       {/* Student Roster Modal */}
       {activeRosterCourse && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-200 max-w-3xl w-full max-h-[85vh] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-slate-200 max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col my-auto animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
-            <div className="p-5 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+            <div className="p-5 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 flex items-center justify-center">
                   <Users className="w-5 h-5" />
@@ -731,6 +649,16 @@ export const TeacherCoursesPage: React.FC = () => {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end shrink-0">
+              <button
+                onClick={() => setActiveRosterCourse(null)}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-sm transition"
+              >
+                Done
+              </button>
             </div>
           </div>
         </div>

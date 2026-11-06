@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { LucideIcon } from 'lucide-react';
 
 interface StatCardProps {
@@ -11,6 +12,7 @@ interface StatCardProps {
     value: string;
     isPositive: boolean;
   };
+  to?: string;
 }
 
 export const StatCard: React.FC<StatCardProps> = ({
@@ -20,6 +22,7 @@ export const StatCard: React.FC<StatCardProps> = ({
   icon: Icon,
   color = 'brand',
   trend,
+  to,
 }) => {
   const colorStyles = {
     brand: 'bg-brand-50 text-brand-600 border-brand-100',
@@ -29,16 +32,18 @@ export const StatCard: React.FC<StatCardProps> = ({
     rose: 'bg-rose-50 text-rose-600 border-rose-100',
   };
 
-  return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-all duration-200">
+  const content = (
+    <div className={`bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm transition-all duration-200 ${
+      to ? 'hover:shadow-md hover:border-slate-300 cursor-pointer group' : 'hover:shadow-md'
+    }`}>
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{title}</span>
-        <div className={`p-2.5 rounded-xl border ${colorStyles[color]}`}>
+        <div className={`p-2.5 rounded-xl border transition-transform duration-200 ${colorStyles[color]} ${to ? 'group-hover:scale-105' : ''}`}>
           <Icon className="w-5 h-5" />
         </div>
       </div>
       <div className="mt-3 flex items-baseline gap-2">
-        <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">{value}</span>
+        <span className={`text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight ${to ? 'group-hover:text-brand-600 transition-colors' : ''}`}>{value}</span>
         {trend && (
           <span className={`text-xs font-semibold ${trend.isPositive ? 'text-emerald-600' : 'text-rose-600'}`}>
             {trend.isPositive ? '↑' : '↓'} {trend.value}
@@ -48,4 +53,14 @@ export const StatCard: React.FC<StatCardProps> = ({
       {subtitle && <p className="mt-1 text-xs text-slate-500">{subtitle}</p>}
     </div>
   );
+
+  if (to) {
+    return (
+      <Link to={to} className="block no-underline">
+        {content}
+      </Link>
+    );
+  }
+
+  return content;
 };

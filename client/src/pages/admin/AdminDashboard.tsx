@@ -4,16 +4,11 @@ import {
   Users,
   BookOpen,
   FolderTree,
-  ShieldCheck,
   UserPlus,
   ArrowRight,
   GraduationCap,
-  Activity,
   FileCheck2,
-  Database,
-  Lock,
   Plus,
-  CalendarCheck2,
   Wallet,
   CreditCard,
   Building,
@@ -27,7 +22,7 @@ import { useAuth } from '../../app/providers';
 import { api } from '../../lib/api';
 import { StatCard } from '../../components/common/StatCard';
 import { StatusBadge } from '../../components/common/StatusBadge';
-import { User, Course } from '../../types';
+import { User, Course, DEFAULT_NEUTRAL_AVATAR } from '../../types';
 
 export const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -296,6 +291,7 @@ export const AdminDashboard: React.FC = () => {
           subtitle={`${studentCount} Students • ${teacherCount} Faculty`}
           icon={Users}
           color="brand"
+          to="/admin/users"
         />
         <StatCard
           title="Active Enrollments"
@@ -303,6 +299,7 @@ export const AdminDashboard: React.FC = () => {
           subtitle="Enrolled student seats"
           icon={GraduationCap}
           color="indigo"
+          to="/admin/users?tab=students"
         />
         <StatCard
           title="Course Offerings"
@@ -310,6 +307,7 @@ export const AdminDashboard: React.FC = () => {
           subtitle="Active delivered courses"
           icon={BookOpen}
           color="emerald"
+          to="/admin/courses"
         />
         <StatCard
           title="Submissions & Quizzes"
@@ -340,7 +338,7 @@ export const AdminDashboard: React.FC = () => {
                     </div>
                   </div>
                   <Link
-                    to="/admin/users"
+                    to="/admin/users?tab=students"
                     className="text-xs font-bold text-brand-600 hover:text-brand-700 flex items-center gap-1 transition"
                   >
                     All <ArrowRight className="w-3.5 h-3.5" />
@@ -354,9 +352,10 @@ export const AdminDashboard: React.FC = () => {
                     </div>
                   ) : (
                     recentStudents.map((s) => (
-                      <div
+                      <Link
                         key={s.id}
-                        className="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50/60 transition"
+                        to="/admin/users?tab=students"
+                        className="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50/60 transition block"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           {s.avatar_url ? (
@@ -378,7 +377,7 @@ export const AdminDashboard: React.FC = () => {
                           </div>
                         </div>
                         <StatusBadge status={s.status || 'active'} size="sm" />
-                      </div>
+                      </Link>
                     ))
                   )}
                 </div>
@@ -399,7 +398,7 @@ export const AdminDashboard: React.FC = () => {
                     </div>
                   </div>
                   <Link
-                    to="/admin/users"
+                    to="/admin/users?tab=teachers"
                     className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 transition"
                   >
                     All <ArrowRight className="w-3.5 h-3.5" />
@@ -413,9 +412,10 @@ export const AdminDashboard: React.FC = () => {
                     </div>
                   ) : (
                     recentTeachers.map((t) => (
-                      <div
+                      <Link
                         key={t.id}
-                        className="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50/60 transition"
+                        to="/admin/users?tab=teachers"
+                        className="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50/60 transition block"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           {t.avatar_url ? (
@@ -437,7 +437,7 @@ export const AdminDashboard: React.FC = () => {
                           </div>
                         </div>
                         <StatusBadge status={t.status || 'active'} size="sm" />
-                      </div>
+                      </Link>
                     ))
                   )}
                 </div>
@@ -515,80 +515,45 @@ export const AdminDashboard: React.FC = () => {
             </div>
 
             {/* Distribution Legend */}
-            <div className="space-y-2.5 pt-1 text-xs">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-slate-600">
+            <div className="space-y-1.5 pt-1 text-xs">
+              <Link
+                to="/admin/users?tab=students"
+                className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-50 transition group"
+              >
+                <div className="flex items-center gap-2 text-slate-600 group-hover:text-brand-600">
                   <span className="w-2.5 h-2.5 rounded-full bg-brand-500" />
-                  <span>Students</span>
+                  <span className="font-medium">Students</span>
                 </div>
-                <span className="font-bold text-slate-900">
+                <span className="font-bold text-slate-900 group-hover:text-brand-600">
                   {studentCount} ({studentPercent}%)
                 </span>
-              </div>
+              </Link>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-slate-600">
+              <Link
+                to="/admin/users?tab=teachers"
+                className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-50 transition group"
+              >
+                <div className="flex items-center gap-2 text-slate-600 group-hover:text-indigo-600">
                   <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
-                  <span>Faculty Instructors</span>
+                  <span className="font-medium">Faculty Instructors</span>
                 </div>
-                <span className="font-bold text-slate-900">
+                <span className="font-bold text-slate-900 group-hover:text-indigo-600">
                   {teacherCount} ({teacherPercent}%)
                 </span>
-              </div>
+              </Link>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-slate-600">
+              <Link
+                to="/admin/users?tab=admins"
+                className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-50 transition group"
+              >
+                <div className="flex items-center gap-2 text-slate-600 group-hover:text-purple-600">
                   <span className="w-2.5 h-2.5 rounded-full bg-purple-500" />
-                  <span>Administrators</span>
+                  <span className="font-medium">Administrators</span>
                 </div>
-                <span className="font-bold text-slate-900">
+                <span className="font-bold text-slate-900 group-hover:text-purple-600">
                   {adminCount} ({adminPercent}%)
                 </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Infrastructure Health Card */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-900">System Infrastructure</h3>
-              <Activity className="w-4 h-4 text-emerald-600" />
-            </div>
-
-            <div className="space-y-2.5 text-xs">
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-slate-600">
-                  <Database className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Database Layer</span>
-                </div>
-                <span className="font-bold text-slate-900">Connected</span>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-slate-600">
-                  <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Access Control</span>
-                </div>
-                <span className="font-bold text-slate-900">RBAC &amp; BOLA</span>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-slate-600">
-                  <Lock className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Auth Encryption</span>
-                </div>
-                <span className="font-bold text-slate-900">Bcrypt + JWT</span>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-slate-600">
-                  <CalendarCheck2 className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Attendance Logs</span>
-                </div>
-                <span className="font-bold text-slate-900">
-                  {data?.total_attendance_records || 0} entries
-                </span>
-              </div>
+              </Link>
             </div>
           </div>
 

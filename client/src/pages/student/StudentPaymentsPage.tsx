@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   CreditCard,
   CheckCircle2,
@@ -29,6 +29,10 @@ import { StudentPayment, Course } from '../../types';
 
 export const StudentPaymentsPage: React.FC = () => {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab') as 'history' | 'catalog' | null;
+  const buyCourseIdParam = searchParams.get('buyCourseId');
+
   const [payments, setPayments] = useState<StudentPayment[]>([]);
   const [duePayments, setDuePayments] = useState<StudentPayment[]>([]);
   const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
@@ -45,7 +49,9 @@ export const StudentPaymentsPage: React.FC = () => {
   });
 
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'history' | 'catalog'>('history');
+  const [activeTab, setActiveTab] = useState<'history' | 'catalog'>(
+    tabParam === 'catalog' || Boolean(buyCourseIdParam) ? 'catalog' : 'history'
+  );
 
   // Search & Filter
   const [search, setSearch] = useState('');
@@ -97,6 +103,44 @@ export const StudentPaymentsPage: React.FC = () => {
   useEffect(() => {
     fetchPaymentData();
   }, []);
+
+  useEffect(() => {
+    if (tabParam === 'catalog') {
+      setActiveTab('catalog');
+    } else if (tabParam === 'history') {
+      setActiveTab('history');
+    }
+  }, [tabParam]);
+
+  useEffect(() => {
+    if (buyCourseIdParam && availableCourses.length > 0) {
+      const targetCourse = availableCourses.find((c) => c.id === buyCourseIdParam);
+      if (targetCourse && !targetCourse.is_enrolled) {
+        openBuyCourseModal(targetCourse);
+      }
+    }
+  }, [buyCourseIdParam, availableCourses]);
+
+  const switchTab = (tab: 'history' | 'catalog') => {
+    setActiveTab(tab);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', tab);
+      if (tab === 'history') next.delete('buyCourseId');
+      return next;
+    });
+  };
+
+  const closeBuyCourseModal = () => {
+    setPurchasingCourse(null);
+    if (searchParams.get('buyCourseId')) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('buyCourseId');
+        return next;
+      });
+    }
+  };
 
   const openSettleModal = (payment: StudentPayment) => {
     setSettlingPayment(payment);
@@ -176,7 +220,7 @@ export const StudentPaymentsPage: React.FC = () => {
         type: 'success',
         text: res.message || `Successfully enrolled and tuition recorded for ${purchasingCourse.title}!`,
       });
-      setPurchasingCourse(null);
+      closeBuyCourseModal();
       await fetchPaymentData();
     } catch (err: any) {
       setFeedbackMessage({
@@ -263,7 +307,7 @@ export const StudentPaymentsPage: React.FC = () => {
               </button>
             )}
             <button
-              onClick={() => setActiveTab('catalog')}
+              onClick={() => switchTab('catalog')}
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition"
             >
               <BookOpen className="w-4 h-4 text-brand-400" />
@@ -430,7 +474,7 @@ export const StudentPaymentsPage: React.FC = () => {
         <div className="flex items-center justify-between border-b border-slate-200">
           <div className="flex items-center gap-2 sm:gap-6">
             <button
-              onClick={() => setActiveTab('history')}
+              onClick={() => switchTab('history')}
               className={`pb-3.5 text-xs sm:text-sm font-bold flex items-center gap-2 transition-all border-b-2 ${
                 activeTab === 'history'
                   ? 'border-brand-600 text-brand-700'
@@ -445,7 +489,7 @@ export const StudentPaymentsPage: React.FC = () => {
             </button>
 
             <button
-              onClick={() => setActiveTab('catalog')}
+              onClick={() => switchTab('catalog')}
               className={`pb-3.5 text-xs sm:text-sm font-bold flex items-center gap-2 transition-all border-b-2 ${
                 activeTab === 'catalog'
                   ? 'border-brand-600 text-brand-700'
@@ -772,9 +816,10 @@ export const StudentPaymentsPage: React.FC = () => {
 
       {/* MODAL 1: Settle Outstanding Due Modal */}
       {settlingPayment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl border border-slate-200/90 max-w-lg w-full p-6 sm:p-7 shadow-2xl relative space-y-5 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-slate-200/90 max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl relative animate-in fade-in duration-200 my-auto">
+            {/* Pinned Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-100 shrink-0 bg-white rounded-t-3xl">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
                   <CreditCard className="w-5 h-5" />
@@ -785,6 +830,7 @@ export const StudentPaymentsPage: React.FC = () => {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setSettlingPayment(null)}
                 className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 transition"
               >
@@ -792,129 +838,131 @@ export const StudentPaymentsPage: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSettleSubmit} className="space-y-4">
-              {/* Fee summary card */}
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2">
-                <div className="text-xs font-bold text-slate-800">{settlingPayment.title}</div>
-                {settlingPayment.course_title && (
-                  <div className="text-[11px] text-slate-500">Course: {settlingPayment.course_title}</div>
-                )}
-                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200/60 text-center">
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase">Total Fee</span>
-                    <div className="text-xs font-bold text-slate-800">
-                      ৳{Number(settlingPayment.total_amount).toLocaleString()}
+            <form onSubmit={handleSettleSubmit} className="flex flex-col flex-1 overflow-hidden">
+              <div className="p-6 overflow-y-auto flex-1 space-y-4">
+                {/* Fee summary card */}
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2">
+                  <div className="text-xs font-bold text-slate-800">{settlingPayment.title}</div>
+                  {settlingPayment.course_title && (
+                    <div className="text-[11px] text-slate-500">Course: {settlingPayment.course_title}</div>
+                  )}
+                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200/60 text-center">
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase">Total Fee</span>
+                      <div className="text-xs font-bold text-slate-800">
+                        ৳{Number(settlingPayment.total_amount).toLocaleString()}
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase">Already Paid</span>
-                    <div className="text-xs font-bold text-emerald-700">
-                      ৳{Number(settlingPayment.paid_amount).toLocaleString()}
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase">Already Paid</span>
+                      <div className="text-xs font-bold text-emerald-700">
+                        ৳{Number(settlingPayment.paid_amount).toLocaleString()}
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase">Due Amount</span>
-                    <div className="text-xs font-black text-rose-700">
-                      ৳{Number(settlingPayment.due_amount).toLocaleString()}
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase">Due Amount</span>
+                      <div className="text-xs font-black text-rose-700">
+                        ৳{Number(settlingPayment.due_amount).toLocaleString()}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Amount to pay */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Amount to Clear (BDT ৳)
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">
-                    ৳
-                  </span>
+                {/* Amount to pay */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Amount to Clear (BDT ৳)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">
+                      ৳
+                    </span>
+                    <input
+                      type="number"
+                      min="100"
+                      max={settlingPayment.due_amount}
+                      value={settleAmount}
+                      onChange={(e) => setSettleAmount(e.target.value)}
+                      required
+                      className="w-full pl-8 pr-4 py-2.5 text-sm font-bold bg-white rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-800"
+                    />
+                  </div>
+                  <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
+                    <span>Full payment recommended</span>
+                    <button
+                      type="button"
+                      onClick={() => setSettleAmount(String(settlingPayment.due_amount))}
+                      className="text-brand-600 font-bold hover:underline"
+                    >
+                      Set Full Due (৳{settlingPayment.due_amount.toLocaleString()})
+                    </button>
+                  </div>
+                </div>
+
+                {/* Payment Gateway / Method */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Select Payment Channel
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: 'bKash', label: 'bKash Merchant', desc: '01711-223344' },
+                      { id: 'Nagad', label: 'Nagad Direct', desc: '01911-556677' },
+                      { id: 'Card / Online', label: 'Credit / Debit Card', desc: 'Visa / Mastercard' },
+                      { id: 'Bank Challan', label: 'City Bank Deposit', desc: 'A/C 205.120.9841' },
+                    ].map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => setSettleMethod(m.id as any)}
+                        className={`p-3 rounded-xl border text-left transition ${
+                          settleMethod === m.id
+                            ? 'border-brand-600 bg-brand-50/50 ring-1 ring-brand-500/20'
+                            : 'border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="text-xs font-bold text-slate-800">{m.label}</div>
+                        <div className="text-[10px] text-slate-500 mt-0.5">{m.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Transaction Ref */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-slate-700">
+                      Transaction / Challan Reference ID
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setSettleRef(`TRX-${Date.now().toString().slice(-6)}`)}
+                      className="text-[10px] font-bold text-brand-600 hover:underline"
+                    >
+                      Auto-Generate TRX
+                    </button>
+                  </div>
                   <input
-                    type="number"
-                    min="100"
-                    max={settlingPayment.due_amount}
-                    value={settleAmount}
-                    onChange={(e) => setSettleAmount(e.target.value)}
+                    type="text"
+                    value={settleRef}
+                    onChange={(e) => setSettleRef(e.target.value)}
+                    placeholder="e.g., 9AJ8F923KL or TRX-847291"
                     required
-                    className="w-full pl-8 pr-4 py-2.5 text-sm font-bold bg-white rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-800"
+                    className="w-full px-3.5 py-2 text-xs font-mono bg-white rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-800"
                   />
                 </div>
-                <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
-                  <span>Full payment recommended</span>
-                  <button
-                    type="button"
-                    onClick={() => setSettleAmount(String(settlingPayment.due_amount))}
-                    className="text-brand-600 font-bold hover:underline"
-                  >
-                    Set Full Due (৳{settlingPayment.due_amount.toLocaleString()})
-                  </button>
+
+                {/* Notice */}
+                <div className="p-3 bg-blue-50/70 border border-blue-200/70 rounded-xl text-[11px] text-blue-900 flex items-start gap-2">
+                  <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                  <span>
+                    Immediate synchronization: Once authorized, your payment will automatically update both your student transcript and the institutional Admin panel in real time.
+                  </span>
                 </div>
               </div>
 
-              {/* Payment Gateway / Method */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Select Payment Channel
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { id: 'bKash', label: 'bKash Merchant', desc: '01711-223344' },
-                    { id: 'Nagad', label: 'Nagad Direct', desc: '01911-556677' },
-                    { id: 'Card / Online', label: 'Credit / Debit Card', desc: 'Visa / Mastercard' },
-                    { id: 'Bank Challan', label: 'City Bank Deposit', desc: 'A/C 205.120.9841' },
-                  ].map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => setSettleMethod(m.id as any)}
-                      className={`p-3 rounded-xl border text-left transition ${
-                        settleMethod === m.id
-                          ? 'border-brand-600 bg-brand-50/50 ring-1 ring-brand-500/20'
-                          : 'border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="text-xs font-bold text-slate-800">{m.label}</div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">{m.desc}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Transaction Ref */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold text-slate-700">
-                    Transaction / Challan Reference ID
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setSettleRef(`TRX-${Date.now().toString().slice(-6)}`)}
-                    className="text-[10px] font-bold text-brand-600 hover:underline"
-                  >
-                    Auto-Generate TRX
-                  </button>
-                </div>
-                <input
-                  type="text"
-                  value={settleRef}
-                  onChange={(e) => setSettleRef(e.target.value)}
-                  placeholder="e.g., 9AJ8F923KL or TRX-847291"
-                  required
-                  className="w-full px-3.5 py-2 text-xs font-mono bg-white rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-800"
-                />
-              </div>
-
-              {/* Notice */}
-              <div className="p-3 bg-blue-50/70 border border-blue-200/70 rounded-xl text-[11px] text-blue-900 flex items-start gap-2">
-                <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                <span>
-                  Immediate synchronization: Once authorized, your payment will automatically update both your student transcript and the institutional Admin panel in real time.
-                </span>
-              </div>
-
-              {/* Submit Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              {/* Pinned Footer */}
+              <div className="flex items-center justify-end gap-3 p-4 sm:p-5 border-t border-slate-100 shrink-0 bg-slate-50/70 rounded-b-3xl">
                 <button
                   type="button"
                   onClick={() => setSettlingPayment(null)}
@@ -937,9 +985,10 @@ export const StudentPaymentsPage: React.FC = () => {
 
       {/* MODAL 2: Course Purchase & Enrollment Modal */}
       {purchasingCourse && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl border border-slate-200/90 max-w-lg w-full p-6 sm:p-7 shadow-2xl relative space-y-5 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-slate-200/90 max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl relative animate-in fade-in duration-200 my-auto">
+            {/* Pinned Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-100 shrink-0 bg-white rounded-t-3xl">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center">
                   <BookOpen className="w-5 h-5" />
@@ -950,171 +999,174 @@ export const StudentPaymentsPage: React.FC = () => {
                 </div>
               </div>
               <button
-                onClick={() => setPurchasingCourse(null)}
+                type="button"
+                onClick={closeBuyCourseModal}
                 className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 transition"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handlePurchaseSubmit} className="space-y-4">
-              {/* Course Detail Banner */}
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-brand-700 bg-brand-50 px-2 py-0.5 rounded-full border border-brand-200">
-                    {purchasingCourse.subject_name || 'Academic Core'}
-                  </span>
-                  <span className="text-sm font-black text-slate-900">
-                    ৳{(purchasingCourse.price || 15000).toLocaleString()}
-                  </span>
+            <form onSubmit={handlePurchaseSubmit} className="flex flex-col flex-1 overflow-hidden">
+              <div className="p-6 overflow-y-auto flex-1 space-y-4">
+                {/* Course Detail Banner */}
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-brand-700 bg-brand-50 px-2 py-0.5 rounded-full border border-brand-200">
+                      {purchasingCourse.subject_name || 'Academic Core'}
+                    </span>
+                    <span className="text-sm font-black text-slate-900">
+                      ৳{(purchasingCourse.price || 15000).toLocaleString()}
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-900">{purchasingCourse.title}</h4>
+                  <p className="text-xs text-slate-500">
+                    Instructor: {purchasingCourse.teacher_name || 'Faculty Member'} •{' '}
+                    {purchasingCourse.lesson_count || 0} Modules
+                  </p>
                 </div>
-                <h4 className="text-sm font-bold text-slate-900">{purchasingCourse.title}</h4>
-                <p className="text-xs text-slate-500">
-                  Instructor: {purchasingCourse.teacher_name || 'Faculty Member'} •{' '}
-                  {purchasingCourse.lesson_count || 0} Modules
-                </p>
-              </div>
 
-              {/* Payment Type Selection */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Payment Option
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPurchasePaymentType('full');
-                      setPurchaseCustomAmount(String(purchasingCourse.price || 15000));
-                    }}
-                    className={`p-3 rounded-xl border text-left transition ${
-                      purchasePaymentType === 'full'
-                        ? 'border-brand-600 bg-brand-50/50 ring-1 ring-brand-500/20'
-                        : 'border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="text-xs font-bold text-slate-800">Full Payment (100%)</div>
-                    <div className="text-[11px] font-extrabold text-emerald-700 mt-0.5">
-                      ৳{(purchasingCourse.price || 15000).toLocaleString()} (৳0 Due)
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPurchasePaymentType('partial');
-                      setPurchaseCustomAmount(String((purchasingCourse.price || 15000) / 2));
-                    }}
-                    className={`p-3 rounded-xl border text-left transition ${
-                      purchasePaymentType === 'partial'
-                        ? 'border-brand-600 bg-brand-50/50 ring-1 ring-brand-500/20'
-                        : 'border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="text-xs font-bold text-slate-800">Installment (50% Down)</div>
-                    <div className="text-[11px] font-extrabold text-amber-700 mt-0.5">
-                      ৳{((purchasingCourse.price || 15000) / 2).toLocaleString()} down
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              {/* Custom amount if partial */}
-              {purchasePaymentType === 'partial' && (
+                {/* Payment Type Selection */}
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    Initial Down Payment Amount (BDT ৳)
+                    Payment Option
                   </label>
-                  <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">
-                      ৳
-                    </span>
-                    <input
-                      type="number"
-                      min="1000"
-                      max={purchasingCourse.price || 15000}
-                      value={purchaseCustomAmount}
-                      onChange={(e) => setPurchaseCustomAmount(e.target.value)}
-                      required
-                      className="w-full pl-8 pr-4 py-2 text-xs font-bold bg-white rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-800"
-                    />
-                  </div>
-                  <div className="mt-1 text-[11px] text-slate-500">
-                    Remaining balance of ৳
-                    {(
-                      (purchasingCourse.price || 15000) - Number(purchaseCustomAmount || 0)
-                    ).toLocaleString()}{' '}
-                    will be scheduled as a payable due on your ledger.
-                  </div>
-                </div>
-              )}
-
-              {/* Payment Method */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Select Payment Method
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { id: 'bKash', label: 'bKash Merchant', desc: '01711-223344' },
-                    { id: 'Nagad', label: 'Nagad Direct', desc: '01911-556677' },
-                    { id: 'Card / Online', label: 'Credit / Debit Card', desc: 'Instant gateway' },
-                    { id: 'Bank Challan', label: 'Bank Challan', desc: 'City Bank Deposit' },
-                  ].map((m) => (
+                  <div className="grid grid-cols-2 gap-2">
                     <button
-                      key={m.id}
                       type="button"
-                      onClick={() => setPurchaseMethod(m.id as any)}
+                      onClick={() => {
+                        setPurchasePaymentType('full');
+                        setPurchaseCustomAmount(String(purchasingCourse.price || 15000));
+                      }}
                       className={`p-3 rounded-xl border text-left transition ${
-                        purchaseMethod === m.id
+                        purchasePaymentType === 'full'
                           ? 'border-brand-600 bg-brand-50/50 ring-1 ring-brand-500/20'
                           : 'border-slate-200 hover:bg-slate-50'
                       }`}
                     >
-                      <div className="text-xs font-bold text-slate-800">{m.label}</div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">{m.desc}</div>
+                      <div className="text-xs font-bold text-slate-800">Full Payment (100%)</div>
+                      <div className="text-[11px] font-extrabold text-emerald-700 mt-0.5">
+                        ৳{(purchasingCourse.price || 15000).toLocaleString()} (৳0 Due)
+                      </div>
                     </button>
-                  ))}
-                </div>
-              </div>
 
-              {/* Transaction Ref */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold text-slate-700">
-                    Transaction Reference #
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPurchasePaymentType('partial');
+                        setPurchaseCustomAmount(String((purchasingCourse.price || 15000) / 2));
+                      }}
+                      className={`p-3 rounded-xl border text-left transition ${
+                        purchasePaymentType === 'partial'
+                          ? 'border-brand-600 bg-brand-50/50 ring-1 ring-brand-500/20'
+                          : 'border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="text-xs font-bold text-slate-800">Installment (50% Down)</div>
+                      <div className="text-[11px] font-extrabold text-amber-700 mt-0.5">
+                        ৳{((purchasingCourse.price || 15000) / 2).toLocaleString()} down
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Custom amount if partial */}
+                {purchasePaymentType === 'partial' && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Initial Down Payment Amount (BDT ৳)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">
+                        ৳
+                      </span>
+                      <input
+                        type="number"
+                        min="1000"
+                        max={purchasingCourse.price || 15000}
+                        value={purchaseCustomAmount}
+                        onChange={(e) => setPurchaseCustomAmount(e.target.value)}
+                        required
+                        className="w-full pl-8 pr-4 py-2 text-xs font-bold bg-white rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-800"
+                      />
+                    </div>
+                    <div className="mt-1 text-[11px] text-slate-500">
+                      Remaining balance of ৳
+                      {(
+                        (purchasingCourse.price || 15000) - Number(purchaseCustomAmount || 0)
+                      ).toLocaleString()}{' '}
+                      will be scheduled as a payable due on your ledger.
+                    </div>
+                  </div>
+                )}
+
+                {/* Payment Method */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Select Payment Method
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => setPurchaseRef(`ENR-${Date.now().toString().slice(-6)}`)}
-                    className="text-[10px] font-bold text-brand-600 hover:underline"
-                  >
-                    Auto-Generate
-                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: 'bKash', label: 'bKash Merchant', desc: '01711-223344' },
+                      { id: 'Nagad', label: 'Nagad Direct', desc: '01911-556677' },
+                      { id: 'Card / Online', label: 'Credit / Debit Card', desc: 'Instant gateway' },
+                      { id: 'Bank Challan', label: 'Bank Challan', desc: 'City Bank Deposit' },
+                    ].map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => setPurchaseMethod(m.id as any)}
+                        className={`p-3 rounded-xl border text-left transition ${
+                          purchaseMethod === m.id
+                            ? 'border-brand-600 bg-brand-50/50 ring-1 ring-brand-500/20'
+                            : 'border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="text-xs font-bold text-slate-800">{m.label}</div>
+                        <div className="text-[10px] text-slate-500 mt-0.5">{m.desc}</div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <input
-                  type="text"
-                  value={purchaseRef}
-                  onChange={(e) => setPurchaseRef(e.target.value)}
-                  placeholder="e.g., BKASH-983141 or TXN-10294"
-                  required
-                  className="w-full px-3.5 py-2 text-xs font-mono bg-white rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-800"
-                />
+
+                {/* Transaction Ref */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-slate-700">
+                      Transaction Reference #
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setPurchaseRef(`ENR-${Date.now().toString().slice(-6)}`)}
+                      className="text-[10px] font-bold text-brand-600 hover:underline"
+                    >
+                      Auto-Generate
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={purchaseRef}
+                    onChange={(e) => setPurchaseRef(e.target.value)}
+                    placeholder="e.g., BKASH-983141 or TXN-10294"
+                    required
+                    className="w-full px-3.5 py-2 text-xs font-mono bg-white rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-800"
+                  />
+                </div>
+
+                {/* Information reminder */}
+                <div className="p-3 bg-emerald-50 border border-emerald-200/80 rounded-xl text-[11px] text-emerald-900 flex items-start gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <span>
+                    Immediate Enrollment: You will be activated in this course instantly, and this invoice will be synchronized to the university Admin Financial Ledger.
+                  </span>
+                </div>
               </div>
 
-              {/* Information reminder */}
-              <div className="p-3 bg-emerald-50 border border-emerald-200/80 rounded-xl text-[11px] text-emerald-900 flex items-start gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span>
-                  Immediate Enrollment: You will be activated in this course instantly, and this invoice will be synchronized to the university Admin Financial Ledger.
-                </span>
-              </div>
-
-              {/* Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              {/* Pinned Footer */}
+              <div className="flex items-center justify-end gap-3 p-4 sm:p-5 border-t border-slate-100 shrink-0 bg-slate-50/70 rounded-b-3xl">
                 <button
                   type="button"
-                  onClick={() => setPurchasingCourse(null)}
+                  onClick={closeBuyCourseModal}
                   className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition"
                 >
                   Cancel
@@ -1134,10 +1186,10 @@ export const StudentPaymentsPage: React.FC = () => {
 
       {/* MODAL 3: Official Institutional Receipt & Voucher */}
       {viewingReceipt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl border border-slate-200/90 max-w-xl w-full p-6 sm:p-8 shadow-2xl relative space-y-6 animate-in fade-in duration-200">
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+        <div className="printable-voucher-modal fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+          <div className="printable-voucher-card bg-white rounded-3xl border border-slate-200/90 max-w-xl w-full max-h-[90vh] flex flex-col shadow-2xl relative animate-in fade-in duration-200 my-auto print:max-h-none print:shadow-none print:border-slate-800 print:w-full print:max-w-none">
+            {/* Header - Pinned */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-100 shrink-0 bg-white rounded-t-3xl">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-brand-600 text-white flex items-center justify-center font-black shadow-md shadow-brand-500/20">
                   ES
@@ -1150,15 +1202,16 @@ export const StudentPaymentsPage: React.FC = () => {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setViewingReceipt(null)}
-                className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 transition"
+                className="print:hidden p-1 rounded-lg text-slate-400 hover:bg-slate-100 transition"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Official Receipt Content (Printable) */}
-            <div id="official-receipt-print" className="space-y-5 text-xs text-slate-700">
+            {/* Official Receipt Content - Scrollable */}
+            <div id="official-receipt-print" className="p-6 overflow-y-auto flex-1 space-y-5 text-xs text-slate-700 print:overflow-visible print:max-h-none print:p-4">
               {/* Receipt metadata grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
                 <div>
@@ -1239,6 +1292,75 @@ export const StudentPaymentsPage: React.FC = () => {
                 </tbody>
               </table>
 
+              {/* Itemized Partial Payment History & Installment Ledger */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                  <span>Itemized Installments &amp; Transaction History</span>
+                  <span className="text-[10px] text-slate-400 font-normal">
+                    {viewingReceipt.transactions && viewingReceipt.transactions.length > 0
+                      ? `${viewingReceipt.transactions.length} installment event(s)`
+                      : 'Settlement record'}
+                  </span>
+                </div>
+                <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white overflow-x-auto print:overflow-visible">
+                  <table className="w-full text-left text-[11px] print:w-full print:text-[10px]">
+                    <thead className="bg-slate-50 text-[10px] font-mono uppercase text-slate-500 border-b border-slate-200">
+                      <tr>
+                        <th className="py-2 px-3">#</th>
+                        <th className="py-2 px-3">Date</th>
+                        <th className="py-2 px-3">Medium / Rail</th>
+                        <th className="py-2 px-3">Trx Ref</th>
+                        <th className="py-2 px-3 text-right">Paid</th>
+                        <th className="py-2 px-3 text-right">Remaining Due</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                      {viewingReceipt.transactions && viewingReceipt.transactions.length > 0 ? (
+                        viewingReceipt.transactions.map((tx, idx) => (
+                          <tr key={tx.id || idx} className="hover:bg-slate-50/50">
+                            <td className="py-2 px-3 text-slate-400 font-bold">#{idx + 1}</td>
+                            <td className="py-2 px-3 text-slate-700 whitespace-nowrap">
+                              {new Date(tx.created_at).toLocaleDateString()}
+                            </td>
+                            <td className="py-2 px-3 font-semibold text-slate-800">{tx.payment_method}</td>
+                            <td className="py-2 px-3 text-slate-500 text-[10px]">{tx.transaction_ref || 'N/A'}</td>
+                            <td className="py-2 px-3 text-right font-bold text-emerald-700">
+                              ৳{Number(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="py-2 px-3 text-right font-bold text-rose-700">
+                              ৳{Number(tx.balance_due_after).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        ))
+                      ) : Number(viewingReceipt.paid_amount) > 0 ? (
+                        <tr>
+                          <td className="py-2 px-3 text-slate-400 font-bold">#1</td>
+                          <td className="py-2 px-3 text-slate-700">
+                            {viewingReceipt.payment_date
+                              ? new Date(viewingReceipt.payment_date).toLocaleDateString()
+                              : 'Settled'}
+                          </td>
+                          <td className="py-2 px-3 font-semibold text-slate-800">{viewingReceipt.payment_method || 'Online'}</td>
+                          <td className="py-2 px-3 text-slate-500 text-[10px]">{viewingReceipt.transaction_ref || 'N/A'}</td>
+                          <td className="py-2 px-3 text-right font-bold text-emerald-700">
+                            ৳{Number(viewingReceipt.paid_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-2 px-3 text-right font-bold text-rose-700">
+                            ৳{Number(viewingReceipt.due_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      ) : (
+                        <tr>
+                          <td colSpan={6} className="py-3 px-3 text-center text-slate-400 italic">
+                            No payment installments recorded yet. Full balance of ৳{Number(viewingReceipt.due_amount).toLocaleString()} is outstanding.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
               {/* Verification Stamp Banner */}
               <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200/80 flex items-center justify-between text-emerald-950">
                 <div className="flex items-center gap-2">
@@ -1258,8 +1380,8 @@ export const StudentPaymentsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Modal Actions */}
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+            {/* Modal Actions - Pinned */}
+            <div className="print:hidden flex items-center justify-end gap-3 p-4 sm:p-5 border-t border-slate-100 shrink-0 bg-slate-50/70 rounded-b-3xl">
               <button
                 type="button"
                 onClick={() => setViewingReceipt(null)}

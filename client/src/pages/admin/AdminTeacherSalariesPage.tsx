@@ -12,10 +12,12 @@ import {
   FileSpreadsheet,
   Printer,
   X,
-  FileText
+  FileText,
+  Landmark
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { TeacherSalary, User } from '../../types';
+import { MonthYearPicker } from '../../components/common/MonthYearPicker';
 
 export const AdminTeacherSalariesPage: React.FC = () => {
   const [salaries, setSalaries] = useState<TeacherSalary[]>([]);
@@ -30,9 +32,17 @@ export const AdminTeacherSalariesPage: React.FC = () => {
   const [periodFilter, setPeriodFilter] = useState('all');
   const [departmentFilter, setDepartmentFilter] = useState('all');
 
+  // Pagination (10 per page)
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
   // Disbursement Modal State
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [disbursingId, setDisbursingId] = useState<string | null>(null);
+  const [teacherAssignedCourses, setTeacherAssignedCourses] = useState<any[]>([]);
+  const [loadingTeacherCourses, setLoadingTeacherCourses] = useState(false);
+
   const [formData, setFormData] = useState({
     teacher_id: '',
     course_id: '',
@@ -76,6 +86,44 @@ export const AdminTeacherSalariesPage: React.FC = () => {
     fetchData();
   }, []);
 
+  // Fetch only courses assigned to the selected teacher
+  useEffect(() => {
+    if (!formData.teacher_id) {
+      setTeacherAssignedCourses([]);
+      return;
+    }
+
+    let active = true;
+    setLoadingTeacherCourses(true);
+    api.getTeacherFinanceDetails(formData.teacher_id)
+      .then((res: any) => {
+        if (active) {
+          const assigned = res?.assigned_courses || [];
+          setTeacherAssignedCourses(assigned);
+          // If selected course is not in teacher's assigned courses, reset to all
+          if (formData.course_id && !assigned.some((c: any) => c.id === formData.course_id)) {
+            setFormData(prev => ({ ...prev, course_id: '' }));
+          }
+        }
+      })
+      .catch((err: any) => {
+        console.error('Failed to load teacher assigned courses:', err);
+        if (active) setTeacherAssignedCourses([]);
+      })
+      .finally(() => {
+        if (active) setLoadingTeacherCourses(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [formData.teacher_id]);
+
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, statusFilter, periodFilter, departmentFilter]);
+
   const handleCreateSalary = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.teacher_id || !formData.amount) return;
@@ -100,6 +148,25 @@ export const AdminTeacherSalariesPage: React.FC = () => {
       alert(err.message || 'Failed to record salary disbursement');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Click on pending salary badge to automatically disburse it
+  const handleDisbursePending = async (sal: TeacherSalary) => {
+    if (sal.status === 'paid') return;
+    const confirmDisburse = window.confirm(
+      `Disburse salary voucher of ৳ ${Number(sal.amount).toLocaleString()} for ${sal.teacher_name || 'Faculty Member'}?\n\nThis will mark the voucher as Disbursed, credit the amount to the teacher's compensation account, and deduct it from institutional cash reserves.`
+    );
+    if (!confirmDisburse) return;
+
+    setDisbursingId(sal.id);
+    try {
+      await api.disburseTeacherSalary(sal.id);
+      await fetchData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to disburse salary voucher');
+    } finally {
+      setDisbursingId(null);
     }
   };
 
@@ -144,6 +211,12 @@ export const AdminTeacherSalariesPage: React.FC = () => {
     });
     return Array.from(set);
   }, [teachers, salaries]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredSalaries.length / pageSize));
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedSalaries = useMemo(() => {
+    return filteredSalaries.slice(startIndex, startIndex + pageSize);
+  }, [filteredSalaries, startIndex, pageSize]);
 
   const filteredTotals = useMemo(() => {
     return filteredSalaries.reduce(
@@ -257,7 +330,47 @@ export const AdminTeacherSalariesPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Metric 2: Faculty on Payroll */}
+        {/* Metric 2: Main Institutional Cash Reserves */}
+        <div className="border border-slate-300 bg-white p-4 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-slate-500 mb-1">
+              <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-blue-800">Main Cash Reserves</span>
+              <Landmark className="w-4 h-4 text-blue-700" />
+            </div>
+            <div className="text-2xl font-bold font-mono text-blue-700 mt-1">
+              ৳ {Number(summary?.main_cash_balance !== undefined ? summary.main_cash_balance : ((summary?.total_collected || 0) - (summary?.total_disbursed || 0))).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1">
+              Realized tuition collected less faculty payroll
+            </p>
+          </div>
+          <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-mono">
+            <span>Institutional Cash</span>
+            <span className="font-bold text-slate-800">Main Treasury Account</span>
+          </div>
+        </div>
+
+        {/* Metric 3: Pending Approvals */}
+        <div className="border border-slate-300 bg-white p-4 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-slate-500 mb-1">
+              <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-amber-800">Pending Approvals</span>
+              <Clock className="w-4 h-4 text-amber-600" />
+            </div>
+            <div className="text-2xl font-bold font-mono text-amber-700 mt-1">
+              ৳ {Number(summary?.pending_disbursements || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1">
+              Click &quot;Pending&quot; in table to disburse instantly
+            </p>
+          </div>
+          <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-mono">
+            <span>Pending Vouchers</span>
+            <span className="font-bold text-amber-800">{salaries.filter(s => s.status === 'pending').length} Actionable</span>
+          </div>
+        </div>
+
+        {/* Metric 4: Faculty on Payroll */}
         <div className="border border-slate-300 bg-white p-4 shadow-sm flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between text-slate-500 mb-1">
@@ -274,46 +387,6 @@ export const AdminTeacherSalariesPage: React.FC = () => {
           <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-mono">
             <span>Academic Faculty Pool</span>
             <span className="font-bold text-slate-800">{teachers.length} Registered</span>
-          </div>
-        </div>
-
-        {/* Metric 3: Pending Approvals */}
-        <div className="border border-slate-300 bg-white p-4 shadow-sm flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between text-slate-500 mb-1">
-              <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-amber-800">Pending Approvals</span>
-              <Clock className="w-4 h-4 text-amber-600" />
-            </div>
-            <div className="text-2xl font-bold font-mono text-amber-700 mt-1">
-              ৳ {Number(summary?.pending_disbursements || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </div>
-            <p className="text-[11px] text-slate-500 mt-1">
-              Vouchers awaiting comptroller release
-            </p>
-          </div>
-          <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-mono">
-            <span>Pending Vouchers</span>
-            <span className="font-bold text-amber-800">{salaries.filter(s => s.status === 'pending').length} Pending</span>
-          </div>
-        </div>
-
-        {/* Metric 4: Average Compensation */}
-        <div className="border border-slate-300 bg-white p-4 shadow-sm flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between text-slate-500 mb-1">
-              <span className="text-[11px] font-mono uppercase tracking-wider font-semibold">Average Pay Voucher</span>
-              <CreditCard className="w-4 h-4 text-slate-600" />
-            </div>
-            <div className="text-2xl font-bold font-mono text-slate-900 mt-1">
-              ৳ {salaries.length > 0 ? (Number(summary?.total_disbursed || 0) / Math.max(1, salaries.filter(s => s.status === 'paid').length)).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '0'}
-            </div>
-            <p className="text-[11px] text-slate-500 mt-1">
-              Across {salaries.length} total payroll vouchers
-            </p>
-          </div>
-          <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-mono">
-            <span>Currency Standard</span>
-            <span className="font-bold text-slate-800">Bangla Taka (৳ BDT)</span>
           </div>
         </div>
       </div>
@@ -453,7 +526,7 @@ export const AdminTeacherSalariesPage: React.FC = () => {
               </p>
             </div>
             <span className="text-[11px] font-mono text-slate-600 font-semibold self-start sm:self-auto">
-              Showing {filteredSalaries.length} of {salaries.length} vouchers
+              Showing {filteredSalaries.length > 0 ? startIndex + 1 : 0} to {Math.min(startIndex + pageSize, filteredSalaries.length)} of {filteredSalaries.length} vouchers (Page {currentPage} of {totalPages})
             </span>
           </div>
 
@@ -474,7 +547,7 @@ export const AdminTeacherSalariesPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {filteredSalaries.map((sal) => (
+                {paginatedSalaries.map((sal) => (
                   <tr key={sal.id} className="hover:bg-slate-50/75 transition">
                     {/* Faculty Member */}
                     <td className="py-3 px-4">
@@ -553,16 +626,25 @@ export const AdminTeacherSalariesPage: React.FC = () => {
                       ৳ {Number(sal.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
 
-                    {/* Status */}
+                    {/* Status - Clickable to instantly disburse */}
                     <td className="py-3 px-4 whitespace-nowrap text-center">
-                      <span
-                        className={`inline-block px-2 py-0.5 text-[10px] font-mono uppercase font-bold border ${sal.status === 'paid'
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                            : 'bg-amber-50 text-amber-800 border-amber-200'
-                          }`}
-                      >
-                        {sal.status === 'paid' ? 'Disbursed' : 'Pending'}
-                      </span>
+                      {sal.status === 'paid' ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-mono uppercase font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          <span>Disbursed</span>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleDisbursePending(sal)}
+                          disabled={disbursingId === sal.id}
+                          title="Click to disburse this pending salary instantly and deduct from main cash"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-mono uppercase font-bold bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 hover:border-amber-400 transition cursor-pointer shadow-2xs group"
+                        >
+                          <Clock className={`w-3 h-3 text-amber-700 ${disbursingId === sal.id ? 'animate-spin' : 'group-hover:scale-110'} transition`} />
+                          <span>{disbursingId === sal.id ? 'Disbursing...' : 'Pending (Click to Disburse)'}</span>
+                        </button>
+                      )}
                     </td>
 
                     {/* Actions */}
@@ -582,6 +664,50 @@ export const AdminTeacherSalariesPage: React.FC = () => {
             </table>
           </div>
 
+          {/* Pagination Controls - 10 per page */}
+          {totalPages > 1 && (
+            <div className="px-4 py-3 bg-white border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="text-slate-500 font-mono text-[11px]">
+                Showing <strong className="text-slate-900">{startIndex + 1}</strong> to <strong className="text-slate-900">{Math.min(startIndex + pageSize, filteredSalaries.length)}</strong> of <strong className="text-slate-900">{filteredSalaries.length}</strong> payroll vouchers
+              </div>
+
+              <div className="flex items-center gap-1 font-mono">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-2.5 py-1 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs disabled:opacity-40 disabled:cursor-not-allowed transition"
+                >
+                  Previous
+                </button>
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                  <button
+                    key={pageNum}
+                    type="button"
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`w-7 h-7 flex items-center justify-center text-xs font-bold transition border ${
+                      currentPage === pageNum
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                        : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-300'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
+                  className="px-2.5 py-1 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs disabled:opacity-40 disabled:cursor-not-allowed transition"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Table Summary Footer */}
           <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs font-mono">
             <div className="text-slate-500">
@@ -600,9 +726,9 @@ export const AdminTeacherSalariesPage: React.FC = () => {
 
       {/* Disburse Salary Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="border border-slate-300 bg-white max-w-xl w-full p-6 shadow-xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="border border-slate-300 bg-white max-w-xl w-full max-h-[90vh] flex flex-col shadow-xl my-auto">
+            <div className="flex items-center justify-between p-5 border-b border-slate-200 shrink-0 bg-white">
               <div>
                 <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold">
                   Office of the Comptroller • Form SAL-01
@@ -612,14 +738,17 @@ export const AdminTeacherSalariesPage: React.FC = () => {
                 </h3>
               </div>
               <button
+                type="button"
                 onClick={() => setShowModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-700 border border-slate-200 hover:border-slate-400 transition"
+                className="p-1.5 text-slate-400 hover:text-slate-700 border border-slate-200 hover:border-slate-400 transition"
+                title="Close"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateSalary} className="space-y-4">
+            <form onSubmit={handleCreateSalary} className="flex flex-col flex-1 overflow-hidden">
+              <div className="p-5 overflow-y-auto flex-1 space-y-4">
               <div>
                 <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1">
                   Select Faculty Instructor *
@@ -657,36 +786,37 @@ export const AdminTeacherSalariesPage: React.FC = () => {
                   <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1">
                     Pay Period *
                   </label>
-                  <input
-                    type="text"
-                    required
+                  <MonthYearPicker
                     value={formData.pay_period}
-                    onChange={(e) => setFormData({ ...formData, pay_period: e.target.value })}
-                    placeholder="e.g. October 2026"
-                    className="w-full px-3 py-2 text-xs border border-slate-300 focus:outline-none focus:border-slate-900 font-medium"
+                    onChange={(val) => setFormData((prev) => ({ ...prev, pay_period: val }))}
                   />
                 </div>
               </div>
 
-              {/* Course Allocation Selector */}
+              {/* Course Allocation Selector - Restricted to Assigned Courses */}
               <div>
                 <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1">
-                  Course Mention / Curriculum Allocation (Optional)
+                  Course Allocation / Recommended Assigned Courses
                 </label>
                 <select
                   value={formData.course_id}
                   onChange={(e) => setFormData({ ...formData, course_id: e.target.value })}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 bg-white font-medium focus:outline-none focus:border-slate-900"
+                  disabled={loadingTeacherCourses}
+                  className="w-full px-3 py-2 text-xs border border-slate-300 bg-white font-medium focus:outline-none focus:border-slate-900 disabled:opacity-50"
                 >
                   <option value="">All Assigned Courses (General Faculty Load)</option>
-                  {courses.map((c: any) => (
+                  {teacherAssignedCourses.map((c: any) => (
                     <option key={c.id} value={c.id}>
-                      {c.title} ({c.subject_code || 'CRS'})
+                      {c.title} ({c.subject_code || 'CRS'}) • {c.student_count || 0} enrolled students
                     </option>
                   ))}
                 </select>
                 <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-                  Select a specific course or leave as General Load to cover all courses taught by the instructor.
+                  {loadingTeacherCourses
+                    ? 'Loading courses assigned to this instructor...'
+                    : teacherAssignedCourses.length > 0
+                    ? `Showing ${teacherAssignedCourses.length} course(s) assigned to this instructor.`
+                    : 'No courses currently assigned to this instructor. Disbursement applies to general faculty load.'}
                 </p>
               </div>
 
@@ -764,34 +894,35 @@ export const AdminTeacherSalariesPage: React.FC = () => {
                   className="w-full px-3 py-2 text-xs border border-slate-300 focus:outline-none focus:border-slate-900"
                 />
               </div>
+            </div>
 
-              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium shadow-sm transition disabled:opacity-50"
-                >
-                  {submitting ? 'Recording Disbursement...' : 'Post Salary Disbursement to Ledger'}
-                </button>
-              </div>
-            </form>
-          </div>
+            <div className="flex items-center justify-end gap-2.5 p-4 bg-slate-50 border-t border-slate-200 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="px-4 py-2 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium shadow-sm transition disabled:opacity-50"
+              >
+                {submitting ? 'Recording Disbursement...' : 'Post Salary Disbursement to Ledger'}
+              </button>
+            </div>
+          </form>
         </div>
+      </div>
       )}
 
       {/* Official Salary Voucher Modal */}
       {viewingVoucher && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="border border-slate-400 bg-white max-w-lg w-full p-6 sm:p-8 shadow-2xl space-y-5">
+        <div className="printable-voucher-modal fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="printable-voucher-card border border-slate-400 bg-white max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl my-auto overflow-hidden print:max-h-none print:shadow-none print:border-slate-800 print:w-full print:max-w-none">
             {/* Header */}
-            <div className="flex items-start justify-between border-b-2 border-slate-900 pb-4">
+            <div className="flex items-start justify-between border-b-2 border-slate-900 p-5 sm:p-6 shrink-0 bg-white">
               <div>
                 <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">
                   EDUSATHI REGISTRAR &amp; COMPTROLLER
@@ -805,100 +936,103 @@ export const AdminTeacherSalariesPage: React.FC = () => {
               </div>
               <button
                 onClick={() => setViewingVoucher(null)}
-                className="p-1 text-slate-400 hover:text-slate-700 border border-slate-200 hover:border-slate-400 transition"
+                className="print:hidden p-1 text-slate-400 hover:text-slate-700 border border-slate-200 hover:border-slate-400 transition"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Identification Grid */}
-            <div className="grid grid-cols-2 gap-4 text-xs font-mono border-b border-slate-200 pb-4">
-              <div>
-                <span className="text-[10px] uppercase text-slate-500 font-bold block">Faculty Member</span>
-                <span className="font-semibold text-slate-900 text-sm block mt-0.5">
-                  {viewingVoucher.teacher_name || 'N/A'}
-                </span>
-                <span className="text-[11px] text-slate-500 block">
-                  Dept: {viewingVoucher.teacher_department || 'Academic Faculty'}
-                </span>
-                <span className="text-[10px] text-slate-400 block truncate">
-                  {viewingVoucher.teacher_email}
-                </span>
+            {/* Scrollable Body */}
+            <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-5 print:overflow-visible print:max-h-none print:p-4">
+              {/* Identification Grid */}
+              <div className="grid grid-cols-2 gap-4 text-xs font-mono border-b border-slate-200 pb-4">
+                <div>
+                  <span className="text-[10px] uppercase text-slate-500 font-bold block">Faculty Member</span>
+                  <span className="font-semibold text-slate-900 text-sm block mt-0.5">
+                    {viewingVoucher.teacher_name || 'N/A'}
+                  </span>
+                  <span className="text-[11px] text-slate-500 block">
+                    Dept: {viewingVoucher.teacher_department || 'Academic Faculty'}
+                  </span>
+                  <span className="text-[10px] text-slate-400 block truncate">
+                    {viewingVoucher.teacher_email}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] uppercase text-slate-500 font-bold block">Disbursement Date</span>
+                  <span className="text-slate-800 block mt-0.5">
+                    {viewingVoucher.payment_date ? new Date(viewingVoucher.payment_date).toLocaleDateString() : new Date().toLocaleDateString()}
+                  </span>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">
+                    Period: <strong className="text-slate-900">{viewingVoucher.pay_period}</strong>
+                  </span>
+                  <span className="text-[10px] text-slate-500 block">
+                    Rail: {viewingVoucher.payment_method || 'Bank Transfer'}
+                  </span>
+                </div>
               </div>
-              <div className="text-right">
-                <span className="text-[10px] uppercase text-slate-500 font-bold block">Disbursement Date</span>
-                <span className="text-slate-800 block mt-0.5">
-                  {viewingVoucher.payment_date ? new Date(viewingVoucher.payment_date).toLocaleDateString() : new Date().toLocaleDateString()}
-                </span>
-                <span className="text-[10px] text-slate-500 block mt-0.5">
-                  Period: <strong className="text-slate-900">{viewingVoucher.pay_period}</strong>
-                </span>
-                <span className="text-[10px] text-slate-500 block">
-                  Rail: {viewingVoucher.payment_method || 'Bank Transfer'}
-                </span>
-              </div>
-            </div>
 
-            {/* Compensation Breakdown */}
-            <div className="border border-slate-200 text-xs">
-              <div className="bg-slate-100 p-2.5 font-mono text-[10px] uppercase font-bold text-slate-700 flex justify-between">
-                <span>Instructional Compensation Line Item</span>
-                <span>Amount</span>
-              </div>
-              <div className="p-3 space-y-2">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="font-bold text-slate-900">Monthly Teaching &amp; Academic Base</div>
-                    <div className="text-[11px] text-slate-500">
-                      Term Pay Period: {viewingVoucher.pay_period}
-                    </div>
-                    <div className="text-[11px] text-indigo-700 font-semibold mt-0.5">
-                      Course Allocation: {viewingVoucher.course_title ? `${viewingVoucher.course_title} (${viewingVoucher.subject_code || 'CRS'})` : 'All Assigned Courses (General Faculty Load)'}
-                    </div>
-                    {viewingVoucher.note && (
-                      <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                        Note: {viewingVoucher.note}
+              {/* Compensation Breakdown */}
+              <div className="border border-slate-200 text-xs">
+                <div className="bg-slate-100 p-2.5 font-mono text-[10px] uppercase font-bold text-slate-700 flex justify-between">
+                  <span>Instructional Compensation Line Item</span>
+                  <span>Amount</span>
+                </div>
+                <div className="p-3 space-y-2">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="font-bold text-slate-900">Monthly Teaching &amp; Academic Base</div>
+                      <div className="text-[11px] text-slate-500">
+                        Term Pay Period: {viewingVoucher.pay_period}
                       </div>
-                    )}
+                      <div className="text-[11px] text-indigo-700 font-semibold mt-0.5">
+                        Course Allocation: {viewingVoucher.course_title ? `${viewingVoucher.course_title} (${viewingVoucher.subject_code || 'CRS'})` : 'All Assigned Courses (General Faculty Load)'}
+                      </div>
+                      {viewingVoucher.note && (
+                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                          Note: {viewingVoucher.note}
+                        </div>
+                      )}
+                    </div>
+                    <div className="font-mono font-bold text-slate-900">
+                      ৳ {Number(viewingVoucher.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </div>
                   </div>
-                  <div className="font-mono font-bold text-slate-900">
-                    ৳ {Number(viewingVoucher.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+
+                  <div className="pt-2 border-t border-slate-100 space-y-1 text-[11px] font-mono">
+                    <div className="flex justify-between text-slate-600">
+                      <span>Gross Compensation:</span>
+                      <span>৳ {Number(viewingVoucher.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600">
+                      <span>Statutory Tax Withholding:</span>
+                      <span>৳ 0.00</span>
+                    </div>
+                    <div className="flex justify-between text-emerald-800 font-bold pt-1 border-t border-slate-200 text-xs">
+                      <span>Net Disbursed Amount:</span>
+                      <span>৳ {Number(viewingVoucher.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    </div>
                   </div>
                 </div>
+              </div>
 
-                <div className="pt-2 border-t border-slate-100 space-y-1 text-[11px] font-mono">
-                  <div className="flex justify-between text-slate-600">
-                    <span>Gross Compensation:</span>
-                    <span>৳ {Number(viewingVoucher.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between text-slate-600">
-                    <span>Statutory Tax Withholding:</span>
-                    <span>৳ 0.00</span>
-                  </div>
-                  <div className="flex justify-between text-emerald-800 font-bold pt-1 border-t border-slate-200 text-xs">
-                    <span>Net Disbursed Amount:</span>
-                    <span>৳ {Number(viewingVoucher.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                  </div>
+              {/* Seal & Status */}
+              <div className="flex items-center justify-between p-3 border border-slate-200 bg-slate-50 text-[11px] font-mono">
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Ledger Status</span>
+                  <span className={`font-bold uppercase ${viewingVoucher.status === 'paid' ? 'text-emerald-700' : 'text-amber-700'}`}>
+                    {viewingVoucher.status === 'paid' ? 'VERIFIED • DISBURSED & SETTLED' : 'PENDING • AWAITING RELEASE'}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Disbursing Officer</span>
+                  <span className="text-slate-700 font-bold">COMPTROLLER OF ACCOUNTS</span>
                 </div>
               </div>
             </div>
 
-            {/* Seal & Status */}
-            <div className="flex items-center justify-between p-3 border border-slate-200 bg-slate-50 text-[11px] font-mono">
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Ledger Status</span>
-                <span className={`font-bold uppercase ${viewingVoucher.status === 'paid' ? 'text-emerald-700' : 'text-amber-700'}`}>
-                  {viewingVoucher.status === 'paid' ? 'VERIFIED • DISBURSED & SETTLED' : 'PENDING • AWAITING RELEASE'}
-                </span>
-              </div>
-              <div className="text-right">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Disbursing Officer</span>
-                <span className="text-slate-700 font-bold">COMPTROLLER OF ACCOUNTS</span>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+            {/* Pinned Footer Actions */}
+            <div className="print:hidden flex items-center justify-between p-4 bg-slate-50 border-t border-slate-200 shrink-0">
               <button
                 type="button"
                 onClick={() => window.print()}

@@ -887,9 +887,9 @@ export const StudentQuizPage: React.FC = () => {
       {/* CONFIRMATION SUBMISSION MODAL                                             */}
       {/* ========================================================================= */}
       {showSubmitModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-200 max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center gap-3">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-slate-200 max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl my-auto">
+            <div className="flex items-center gap-3 p-6 pb-4 border-b border-slate-100 shrink-0 bg-white">
               <div className="w-10 h-10 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center shrink-0">
                 <Send className="w-5 h-5" />
               </div>
@@ -899,40 +899,42 @@ export const StudentQuizPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 text-xs space-y-2">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Total Questions:</span>
-                <span className="font-bold text-slate-800">{totalQuestions}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Questions Answered:</span>
-                <span className="font-bold text-emerald-600">{answeredCount}</span>
-              </div>
-              {unansweredCount > 0 && (
-                <div className="flex justify-between text-amber-600 font-semibold">
-                  <span>Unanswered Questions:</span>
-                  <span>{unansweredCount}</span>
+            <div className="p-6 overflow-y-auto flex-1 space-y-4">
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 text-xs space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Total Questions:</span>
+                  <span className="font-bold text-slate-800">{totalQuestions}</span>
                 </div>
-              )}
-              {flaggedCount > 0 && (
-                <div className="flex justify-between text-amber-600 font-semibold">
-                  <span>Questions Flagged:</span>
-                  <span>{flaggedCount}</span>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Questions Answered:</span>
+                  <span className="font-bold text-emerald-600">{answeredCount}</span>
+                </div>
+                {unansweredCount > 0 && (
+                  <div className="flex justify-between text-amber-600 font-semibold">
+                    <span>Unanswered Questions:</span>
+                    <span>{unansweredCount}</span>
+                  </div>
+                )}
+                {flaggedCount > 0 && (
+                  <div className="flex justify-between text-amber-600 font-semibold">
+                    <span>Questions Flagged:</span>
+                    <span>{flaggedCount}</span>
+                  </div>
+                )}
+              </div>
+
+              {unansweredCount > 0 && (
+                <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 p-3 rounded-xl border border-amber-200">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>
+                    You still have {unansweredCount} unanswered question(s). You can return to complete
+                    them before final grading.
+                  </span>
                 </div>
               )}
             </div>
 
-            {unansweredCount > 0 && (
-              <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 p-3 rounded-xl border border-amber-200">
-                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>
-                  You still have {unansweredCount} unanswered question(s). You can return to complete
-                  them before final grading.
-                </span>
-              </div>
-            )}
-
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex items-center justify-end gap-2 p-4 bg-slate-50 border-t border-slate-100 shrink-0">
               <button
                 onClick={() => setShowSubmitModal(false)}
                 className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl transition"

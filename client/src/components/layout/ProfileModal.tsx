@@ -206,15 +206,15 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in overflow-y-auto"
       onClick={onClose}
     >
       <div
-        className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]"
+        className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] my-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-brand-50 border border-brand-200 flex items-center justify-center text-brand-600">
               <UserIcon className="w-5 h-5" />
@@ -233,7 +233,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-slate-200 bg-slate-50/60 px-6 pt-2 gap-2">
+        <div className="flex border-b border-slate-200 bg-slate-50/60 px-6 pt-2 gap-2 shrink-0">
           <button
             onClick={() => handleTabChange('photo')}
             className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-bold border-b-2 transition ${activeTab === 'photo'
@@ -269,24 +269,26 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         </div>
 
         {/* Alerts */}
-        <div className="px-6 pt-4">
-          {successMessage && (
-            <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl animate-fade-in">
-              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-              <span>{successMessage}</span>
-            </div>
-          )}
+        {(successMessage || errorMessage) && (
+          <div className="px-6 pt-4 shrink-0">
+            {successMessage && (
+              <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl animate-fade-in">
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                <span>{successMessage}</span>
+              </div>
+            )}
 
-          {errorMessage && (
-            <div className="flex items-center gap-2 p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl animate-fade-in">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
-              <span>{errorMessage}</span>
-            </div>
-          )}
-        </div>
+            {errorMessage && (
+              <div className="flex items-center gap-2 p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl animate-fade-in">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Tab Contents */}
-        <div className="p-6 overflow-y-auto">
+        <div className="p-6 overflow-y-auto flex-1">
           {/* TAB 1: Profile Photo */}
           {activeTab === 'photo' && (
             <form onSubmit={handleSavePhoto} className="space-y-6">

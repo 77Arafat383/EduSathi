@@ -177,6 +177,17 @@ export async function updateAttendanceSession(req: AuthRequest, res: Response): 
   });
 }
 
+function parseUtcTimestamp(val: string | number | null | undefined): number {
+  if (!val) return 0;
+  if (typeof val === 'number') return val;
+  const str = String(val).trim();
+  if (!str) return 0;
+  const d = new Date(str).getTime();
+  if (!isNaN(d)) return d;
+  const withZ = new Date(str.replace(' ', 'T') + 'Z').getTime();
+  return isNaN(withZ) ? 0 : withZ;
+}
+
 export async function studentCheckIn(req: AuthRequest, res: Response): Promise<void> {
   const studentId = req.user!.id;
   const { session_id } = req.body;
@@ -207,8 +218,8 @@ export async function studentCheckIn(req: AuthRequest, res: Response): Promise<v
   }
 
   const now = Date.now();
-  const presentDeadline = session.present_until ? new Date(session.present_until).getTime() : 0;
-  const lateDeadline = session.late_until ? new Date(session.late_until).getTime() : 0;
+  const presentDeadline = parseUtcTimestamp(session.present_until);
+  const lateDeadline = parseUtcTimestamp(session.late_until);
 
   let attendanceStatus: 'present' | 'late' | 'absent' = 'present';
 

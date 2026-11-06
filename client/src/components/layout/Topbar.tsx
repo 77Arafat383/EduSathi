@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   Menu,
   Bell,
@@ -7,7 +8,10 @@ import {
   Camera,
   Mail,
   KeyRound,
-  ChevronRight
+  ChevronRight,
+  Wallet,
+  CreditCard,
+  AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../../app/providers';
 import { api } from '../../lib/api';
@@ -18,8 +22,32 @@ interface TopbarProps {
   onToggleSidebar: () => void;
 }
 
+const ADMIN_ALLOWED_TYPES = [
+  'salary_request',
+  'new_payment',
+  'payment_received',
+  'student_payment',
+  'salary_disbursed',
+  'admin_alert',
+  'system_alert'
+];
+
+const TEACHER_ALLOWED_TYPES = [
+  'submission',
+  'assignment_submitted',
+  'salary_disbursed',
+  'salary_request',
+  'comment',
+  'doubt',
+  'teacher_alert',
+  'faculty_alert',
+  'system_alert',
+  'enrollment'
+];
+
 export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
@@ -53,7 +81,17 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const unreadCount = notifications.filter(n => !n.read_at).length;
+  // Filter notifications by role:
+  // - Admin: financial clearances, student payments, salary disbursement vouchers, system alerts
+  // - Teacher: student submissions, salary disbursements, discussions, instructional circulars
+  // - Others: general notifications
+  const displayNotifications = user?.role === 'admin'
+    ? notifications.filter(n => ADMIN_ALLOWED_TYPES.includes(n.type))
+    : user?.role === 'teacher'
+    ? notifications.filter(n => TEACHER_ALLOWED_TYPES.includes(n.type))
+    : notifications;
+
+  const unreadCount = displayNotifications.filter(n => !n.read_at).length;
 
   const handleMarkAllRead = async () => {
     try {
@@ -62,10 +100,45 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
     } catch (err) { }
   };
 
+  const handleNotificationClick = async (n: Notification) => {
+    if (!n.read_at) {
+      try {
+        await api.markNotificationRead(n.id);
+        setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, read_at: new Date().toISOString() } : item));
+      } catch (err) { }
+    }
+    setShowNotifDropdown(false);
+    if (n.link) {
+      navigate(n.link);
+    }
+  };
+
   const openProfileTab = (tab: ProfileTab) => {
     setProfileModalTab(tab);
     setIsProfileModalOpen(true);
     setShowUserDropdown(false);
+  };
+
+  const renderNotifIcon = (type: string) => {
+    if (type === 'salary_request' || type === 'salary_disbursed') {
+      return (
+        <div className="w-7 h-7 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center shrink-0">
+          <Wallet className="w-3.5 h-3.5" />
+        </div>
+      );
+    }
+    if (type === 'new_payment' || type === 'payment_received' || type === 'student_payment') {
+      return (
+        <div className="w-7 h-7 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center shrink-0">
+          <CreditCard className="w-3.5 h-3.5" />
+        </div>
+      );
+    }
+    return (
+      <div className="w-7 h-7 rounded-xl bg-brand-50 border border-brand-200 text-brand-600 flex items-center justify-center shrink-0">
+        <Bell className="w-3.5 h-3.5" />
+      </div>
+    );
   };
 
   return (
@@ -102,7 +175,9 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
             <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-xl border border-slate-200/90 py-3 z-50 animate-fade-in">
               <div className="flex items-center justify-between px-4 pb-2 border-b border-slate-100">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-800">Notifications</span>
+                  <span className="text-xs font-bold text-slate-800">
+                    {user?.role === 'admin' ? 'Admin Action Alerts' : 'Notifications'}
+                  </span>
                   {unreadCount > 0 && (
                     <span className="text-[10px] bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full font-bold">
                       {unreadCount} new
@@ -120,25 +195,72 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
               </div>
 
               <div className="max-h-80 overflow-y-auto divide-y divide-slate-50">
-                {notifications.length === 0 ? (
+                {displayNotifications.length === 0 ? (
                   <div className="py-8 text-center text-xs text-slate-400">
-                    No notifications yet
+                    {user?.role === 'admin'
+                      ? 'No pending administrative alerts'
+                      : user?.role === 'teacher'
+                      ? 'No faculty alerts or submission notifications'
+                      : 'No notifications yet'}
                   </div>
                 ) : (
-                  notifications.map(n => (
-                    <div
+                  displayNotifications.map(n => (
+                    <button
                       key={n.id}
-                      className={`px-4 py-3 hover:bg-slate-50 transition text-left ${!n.read_at ? 'bg-brand-50/30' : ''}`}
+                      onClick={() => handleNotificationClick(n)}
+                      className={`w-full p-3 sm:px-4 hover:bg-slate-50 transition text-left flex items-start gap-3 cursor-pointer ${
+                        !n.read_at ? 'bg-brand-50/20' : ''
+                      }`}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-xs font-bold text-slate-800">{n.title}</p>
-                        <span className="text-[10px] text-slate-400 whitespace-nowrap">
-                          {new Date(n.created_at).toLocaleDateString()}
-                        </span>
+                      {renderNotifIcon(n.type)}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-1">
+                          <p className={`text-xs ${!n.read_at ? 'font-bold text-slate-900' : 'font-semibold text-slate-700'} truncate`}>
+                            {n.title}
+                          </p>
+                          <span className="text-[10px] text-slate-400 shrink-0 font-mono">
+                            {new Date(n.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5 line-clamp-2 leading-relaxed">
+                          {n.message}
+                        </p>
                       </div>
-                      <p className="text-xs text-slate-600 mt-1 leading-snug">{n.message}</p>
-                    </div>
+                    </button>
                   ))
+                )}
+              </div>
+
+              {/* Quick Navigation Footer */}
+              <div className="pt-2.5 px-4 border-t border-slate-100 flex items-center justify-between text-[11px] font-semibold">
+                {user?.role === 'admin' ? (
+                  <>
+                    <Link
+                      to="/admin/salaries"
+                      onClick={() => setShowNotifDropdown(false)}
+                      className="text-amber-700 hover:text-amber-800 flex items-center gap-1 font-bold"
+                    >
+                      <span>Faculty Salaries</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </Link>
+                    <Link
+                      to="/admin/student-payments"
+                      onClick={() => setShowNotifDropdown(false)}
+                      className="text-emerald-700 hover:text-emerald-800 flex items-center gap-1 font-bold"
+                    >
+                      <span>Student Payments</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </>
+                ) : (
+                  <Link
+                    to={`/${user?.role}/notifications`}
+                    onClick={() => setShowNotifDropdown(false)}
+                    className="text-brand-600 hover:text-brand-700 flex items-center gap-1"
+                  >
+                    <span>View Notification Center</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
                 )}
               </div>
             </div>

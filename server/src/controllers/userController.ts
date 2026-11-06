@@ -3,6 +3,9 @@ import bcrypt from 'bcryptjs';
 import { query, getOne, run } from '../repositories/db';
 import { AuthRequest } from '../middleware/auth';
 
+export const DEFAULT_NEUTRAL_AVATAR =
+  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><rect width="128" height="128" rx="64" fill="%23F1F5F9"/><circle cx="64" cy="48" r="22" fill="%2364748B"/><path d="M26 108c0-20.987 17.013-38 38-38s38 17.013 38 38v4H26v-4z" fill="%2364748B"/></svg>';
+
 export async function listUsers(req: AuthRequest, res: Response): Promise<void> {
   const { role, status, search } = req.query;
 
@@ -44,11 +47,36 @@ export async function listUsers(req: AuthRequest, res: Response): Promise<void> 
 }
 
 export async function createUser(req: AuthRequest, res: Response): Promise<void> {
-  const { full_name, email, password, role, student_id, department } = req.body;
+  const { full_name, email, password, role, student_id, department, avatar_url } = req.body;
 
   if (!['student', 'teacher', 'admin'].includes(role)) {
     res.status(400).json({ success: false, message: 'Invalid role specified' });
     return;
+  }
+
+  // If creating a student user, require unique student_id
+  if (role === 'student') {
+    if (!student_id || !String(student_id).trim()) {
+      res.status(400).json({
+        success: false,
+        message: 'Student ID is required when adding a student.',
+      });
+      return;
+    }
+
+    const cleanStudentId = String(student_id).trim();
+    const existingStudent = await getOne<{ id: string; full_name: string }>(
+      'SELECT id, full_name FROM profiles WHERE role = ? AND LOWER(student_id) = LOWER(?)',
+      ['student', cleanStudentId]
+    );
+
+    if (existingStudent) {
+      res.status(409).json({
+        success: false,
+        message: `Student ID "${cleanStudentId}" is already assigned to ${existingStudent.full_name}. A student must maintain a unique ID.`,
+      });
+      return;
+    }
   }
 
   const cleanEmail = email.toLowerCase().trim();
@@ -60,17 +88,19 @@ export async function createUser(req: AuthRequest, res: Response): Promise<void>
 
   const id = `usr_${role}_${Date.now()}`;
   const passwordHash = await bcrypt.hash(password || 'EduSathi@2026', 10);
+  const userAvatar = avatar_url || DEFAULT_NEUTRAL_AVATAR;
+  const cleanStudentId = role === 'student' ? String(student_id).trim() : (student_id || null);
 
   await run(
-    `INSERT INTO profiles (id, full_name, email, password_hash, role, status, student_id, department)
-     VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`,
-    [id, full_name, cleanEmail, passwordHash, role, student_id || null, department || null]
+    `INSERT INTO profiles (id, full_name, email, password_hash, role, status, avatar_url, student_id, department)
+     VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?)`,
+    [id, full_name, cleanEmail, passwordHash, role, userAvatar, cleanStudentId, department || null]
   );
 
   res.status(201).json({
     success: true,
     message: 'User created successfully',
-    data: { id, full_name, email: cleanEmail, role, student_id, department },
+    data: { id, full_name, email: cleanEmail, role, avatar_url: userAvatar, student_id: cleanStudentId, department },
   });
 }
 
@@ -78,7 +108,7 @@ export async function updateUser(req: AuthRequest, res: Response): Promise<void>
   const { id } = req.params;
   const { full_name, role, status, department, student_id } = req.body;
 
-  const user = await getOne<{ id: string }>('SELECT id FROM profiles WHERE id = ?', [id]);
+  const user = await getOne<{ id: string; role: string }>('SELECT id, role FROM profiles WHERE id = ?', [id]);
   if (!user) {
     res.status(404).json({ success: false, message: 'User not found' });
     return;
@@ -90,6 +120,22 @@ export async function updateUser(req: AuthRequest, res: Response): Promise<void>
     return;
   }
 
+  const targetRole = role || user.role;
+  if (targetRole === 'student' && student_id) {
+    const cleanStudentId = String(student_id).trim();
+    const existingStudent = await getOne<{ id: string }>(
+      'SELECT id FROM profiles WHERE role = ? AND LOWER(student_id) = LOWER(?) AND id != ?',
+      ['student', cleanStudentId, id]
+    );
+    if (existingStudent) {
+      res.status(409).json({
+        success: false,
+        message: `Student ID "${cleanStudentId}" is already assigned to another student.`,
+      });
+      return;
+    }
+  }
+
   await run(
     `UPDATE profiles SET
        full_name = COALESCE(?, full_name),
@@ -99,7 +145,7 @@ export async function updateUser(req: AuthRequest, res: Response): Promise<void>
        student_id = COALESCE(?, student_id),
        updated_at = CURRENT_TIMESTAMP
      WHERE id = ?`,
-    [full_name, role, status, department, student_id, id]
+    [full_name, role, status, department, student_id ? String(student_id).trim() : student_id, id]
   );
 
   const updated = await getOne<any>(

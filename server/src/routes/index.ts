@@ -124,6 +124,7 @@ router.post('/ai/study-assistant', authenticate, validateBody(aiAssistantPromptS
 router.get('/finance/salaries', authenticate, requireRole(['admin']), financeController.listTeacherSalaries);
 router.get('/finance/salaries/summary', authenticate, requireRole(['admin']), financeController.getTeacherSalariesSummary);
 router.post('/finance/salaries', authenticate, requireRole(['admin']), financeController.recordTeacherSalary);
+router.patch('/finance/salaries/:salaryId/disburse', authenticate, requireRole(['admin']), financeController.disburseTeacherSalary);
 router.get('/finance/teachers/:teacherId/compensation', authenticate, requireRole(['admin']), financeController.getTeacherFinanceDetails);
 
 router.get('/finance/student-payments', authenticate, requireRole(['admin']), financeController.listStudentPayments);
@@ -136,5 +137,6 @@ router.get('/me/payments', authenticate, requireRole(['student']), financeContro
 router.post('/me/payments/settle', authenticate, requireRole(['student']), financeController.settleMyStudentPayment);
 router.post('/me/payments/buy-course', authenticate, requireRole(['student']), financeController.purchaseCoursePayment);
 router.get('/me/salaries', authenticate, requireRole(['teacher']), financeController.getMyTeacherSalaries);
+router.post('/me/salaries/request', authenticate, requireRole(['teacher']), financeController.requestTeacherSalary);
 
 export default router;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   BookOpen,
@@ -24,31 +24,31 @@ import {
   X,
   ArrowRight,
   TrendingUp,
-  Award
+  Award,
+  CreditCard,
+  DollarSign,
+  Upload,
+  Check,
+  RefreshCw
 } from 'lucide-react';
 import { api } from '../../lib/api';
-import { Course, Subject, CourseTeacher, CourseStudent, User } from '../../types';
+import { Course, Subject, CourseTeacher, CourseStudent, User, DEFAULT_NEUTRAL_AVATAR } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
 
 export const AdminCoursesPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTabParam = searchParams.get('tab') === 'categories' ? 'categories' : 'courses';
-
-  const [activeTab, setActiveTab] = useState<'courses' | 'categories'>(activeTabParam);
+  const targetCourseId = searchParams.get('courseId');
   const [courses, setCourses] = useState<Course[]>([]);
   const [categories, setCategories] = useState<Subject[]>([]);
   const [allTeachers, setAllTeachers] = useState<User[]>([]);
   const [allStudents, setAllStudents] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters for Courses Tab
+  // Filters for Courses
   const [courseSearch, setCourseSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft' | 'archived'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-
-  // Filters for Categories Tab
-  const [categorySearch, setCategorySearch] = useState('');
 
   // Course Provision / Edit Modal State
   const [showCourseModal, setShowCourseModal] = useState(false);
@@ -58,17 +58,75 @@ export const AdminCoursesPage: React.FC = () => {
     description: '',
     subject_id: '',
     teacher_id: '',
+    price: 15000,
     status: 'published' as 'published' | 'draft' | 'archived',
-    banner_url: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600',
+    banner_url: '',
   });
 
-  // Category Modal State
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [categoryFormData, setCategoryFormData] = useState({
-    name: '',
-    code: '',
-    description: '',
-  });
+  // Banner image upload state
+  const [bannerFileName, setBannerFileName] = useState('');
+  const [isDraggingBanner, setIsDraggingBanner] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+
+  const processImageFile = (file: File) => {
+    setUploadError(null);
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Please select a valid image file (PNG, JPG, WebP, etc.)');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError('Image size exceeds 10MB limit. Please select a smaller image.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result as string;
+      const img = new Image();
+      img.onload = () => {
+        const maxDimension = 1600;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          setCourseFormData((prev) => ({ ...prev, banner_url: result }));
+          setBannerFileName(file.name);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressed = canvas.toDataURL('image/jpeg', 0.88);
+        setCourseFormData((prev) => ({ ...prev, banner_url: compressed }));
+        setBannerFileName(file.name);
+      };
+      img.onerror = () => {
+        setCourseFormData((prev) => ({ ...prev, banner_url: result }));
+        setBannerFileName(file.name);
+      };
+      img.src = result;
+    };
+    reader.onerror = () => {
+      setUploadError('Failed to read the selected image file. Please try again.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Quick Price Edit Modal State
+  const [quickPriceCourse, setQuickPriceCourse] = useState<Course | null>(null);
+  const [quickPriceValue, setQuickPriceValue] = useState<string>('15000');
+  const [savingPrice, setSavingPrice] = useState(false);
 
   // Course Roster Workspace Modal (Teacher Panel + Student Panel)
   const [rosterCourse, setRosterCourse] = useState<Course | null>(null);
@@ -83,21 +141,6 @@ export const AdminCoursesPage: React.FC = () => {
   // Delete Confirmations
   const [deleteCourseId, setDeleteCourseId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  // Sync tab with URL
-  useEffect(() => {
-    const tabParam = searchParams.get('tab');
-    if (tabParam === 'categories' && activeTab !== 'categories') {
-      setActiveTab('categories');
-    } else if (tabParam !== 'categories' && activeTab !== 'courses') {
-      setActiveTab('courses');
-    }
-  }, [searchParams]);
-
-  const handleTabChange = (tab: 'courses' | 'categories') => {
-    setActiveTab(tab);
-    setSearchParams(tab === 'categories' ? { tab: 'categories' } : {});
-  };
 
   const fetchCoreData = async () => {
     setLoading(true);
@@ -209,27 +252,57 @@ export const AdminCoursesPage: React.FC = () => {
     }
   };
 
+  // Quick Price Handlers
+  const handleOpenQuickPrice = (course: Course) => {
+    setQuickPriceCourse(course);
+    setQuickPriceValue(String(course.price !== undefined ? course.price : 15000));
+  };
+
+  const handleSaveQuickPrice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickPriceCourse) return;
+
+    setSavingPrice(true);
+    try {
+      const newPrice = Number(quickPriceValue) >= 0 ? Number(quickPriceValue) : 0;
+      await api.updateCourse(quickPriceCourse.id, { price: newPrice });
+      setCourses((prev) =>
+        prev.map((c) => (c.id === quickPriceCourse.id ? { ...c, price: newPrice } : c))
+      );
+      setQuickPriceCourse(null);
+    } catch (err: any) {
+      alert(err.message || 'Failed to update course price');
+    } finally {
+      setSavingPrice(false);
+    }
+  };
+
   // Create / Edit Course
   const handleOpenCourseModal = (course?: Course) => {
+    setUploadError(null);
     if (course) {
       setEditingCourse(course);
+      setBannerFileName(course.banner_url ? 'Existing course cover' : '');
       setCourseFormData({
         title: course.title,
         description: course.description || '',
         subject_id: course.subject_id || (categories[0]?.id || ''),
         teacher_id: '',
+        price: course.price !== undefined ? course.price : 15000,
         status: course.status,
-        banner_url: course.banner_url || 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600',
+        banner_url: course.banner_url || '',
       });
     } else {
       setEditingCourse(null);
+      setBannerFileName('');
       setCourseFormData({
         title: '',
         description: '',
         subject_id: categories[0]?.id || '',
         teacher_id: allTeachers[0]?.id || '',
+        price: 15000,
         status: 'published',
-        banner_url: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600',
+        banner_url: '',
       });
     }
     setShowCourseModal(true);
@@ -241,10 +314,16 @@ export const AdminCoursesPage: React.FC = () => {
 
     setSubmitting(true);
     try {
+      const fallbackBanner = 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600';
+      const payload = {
+        ...courseFormData,
+        banner_url: courseFormData.banner_url || fallbackBanner,
+        price: Number(courseFormData.price) >= 0 ? Number(courseFormData.price) : 0,
+      };
       if (editingCourse) {
-        await api.updateCourse(editingCourse.id, courseFormData);
+        await api.updateCourse(editingCourse.id, payload);
       } else {
-        await api.createCourse(courseFormData);
+        await api.createCourse(payload);
       }
       setShowCourseModal(false);
       setEditingCourse(null);
@@ -278,27 +357,13 @@ export const AdminCoursesPage: React.FC = () => {
     }
   };
 
-  // Create Category
-  const handleSaveCategory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!categoryFormData.name.trim() || !categoryFormData.code.trim()) return;
-
-    setSubmitting(true);
-    try {
-      await api.createSubject(categoryFormData);
-      setShowCategoryModal(false);
-      setCategoryFormData({ name: '', code: '', description: '' });
-      await fetchCoreData();
-    } catch (err: any) {
-      alert(err.message || 'Failed to create category');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   // Filtered Courses
   const filteredCourses = useMemo(() => {
     return courses.filter(c => {
+      if (targetCourseId && c.id !== targetCourseId) {
+        return false;
+      }
+
       const matchSearch =
         c.title.toLowerCase().includes(courseSearch.toLowerCase()) ||
         (c.description && c.description.toLowerCase().includes(courseSearch.toLowerCase())) ||
@@ -311,16 +376,7 @@ export const AdminCoursesPage: React.FC = () => {
 
       return matchSearch && matchStatus && matchCategory;
     });
-  }, [courses, courseSearch, statusFilter, categoryFilter]);
-
-  // Filtered Categories
-  const filteredCategories = useMemo(() => {
-    return categories.filter(c =>
-      c.name.toLowerCase().includes(categorySearch.toLowerCase()) ||
-      c.code.toLowerCase().includes(categorySearch.toLowerCase()) ||
-      (c.description && c.description.toLowerCase().includes(categorySearch.toLowerCase()))
-    );
-  }, [categories, categorySearch]);
+  }, [courses, courseSearch, statusFilter, categoryFilter, targetCourseId]);
 
   // Filtered Students in Roster
   const filteredRosterStudents = useMemo(() => {
@@ -363,62 +419,18 @@ export const AdminCoursesPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2.5">
-          {activeTab === 'courses' ? (
-            <button
-              onClick={() => handleOpenCourseModal()}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow-sm transition"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Deliver New Course</span>
-            </button>
-          ) : (
-            <button
-              onClick={() => setShowCategoryModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow-sm transition"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Create Curriculum Track</span>
-            </button>
-          )}
+          <button
+            onClick={() => handleOpenCourseModal()}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow-sm transition"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Deliver New Course</span>
+          </button>
         </div>
       </div>
 
-      {/* Primary Unified Tabs - Prevents Navigation Overlap */}
-      <div className="flex items-center gap-2 p-1.5 bg-slate-100/80 rounded-2xl border border-slate-200/80 max-w-md">
-        <button
-          onClick={() => handleTabChange('courses')}
-          className={`flex-1 py-2 px-3.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 ${activeTab === 'courses'
-              ? 'bg-white text-slate-900 shadow-sm'
-              : 'text-slate-600 hover:text-slate-900'
-            }`}
-        >
-          <BookOpen className="w-4 h-4 text-brand-600" />
-          <span>Delivered Courses</span>
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === 'courses' ? 'bg-brand-50 text-brand-700 font-extrabold' : 'bg-slate-200 text-slate-600'}`}>
-            {courses.length}
-          </span>
-        </button>
-
-        <button
-          onClick={() => handleTabChange('categories')}
-          className={`flex-1 py-2 px-3.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 ${activeTab === 'categories'
-              ? 'bg-white text-slate-900 shadow-sm'
-              : 'text-slate-600 hover:text-slate-900'
-            }`}
-        >
-          <FolderTree className="w-4 h-4 text-indigo-600" />
-          <span>Curriculum Categories</span>
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === 'categories' ? 'bg-indigo-50 text-indigo-700 font-extrabold' : 'bg-slate-200 text-slate-600'}`}>
-            {categories.length}
-          </span>
-        </button>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* TAB 1: DELIVERED COURSES TAB */}
-      {/* ========================================================================= */}
-      {activeTab === 'courses' && (
-        <div className="space-y-6">
+      {/* Delivered Courses Section */}
+      <div className="space-y-6">
           {/* Institutional KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
@@ -573,6 +585,34 @@ export const AdminCoursesPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Focused Course Indicator Banner */}
+          {targetCourseId && (
+            <div className="p-4 bg-brand-50 border border-brand-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-brand-100 text-brand-700 flex items-center justify-center font-bold">
+                  <BookOpen className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="font-extrabold text-brand-950">
+                    Managing Specific Course: {filteredCourses[0]?.title || targetCourseId}
+                  </p>
+                  <p className="text-brand-700 text-[11px]">
+                    Viewing assigned faculty, enrolled students, tuition fee, and curriculum settings.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setSearchParams({});
+                  setCourseSearch('');
+                }}
+                className="px-3.5 py-1.5 bg-white border border-brand-300 text-brand-700 font-bold rounded-xl hover:bg-brand-100 transition whitespace-nowrap self-start sm:self-auto shadow-sm"
+              >
+                Show All Courses
+              </button>
+            </div>
+          )}
+
           {/* Courses Presentation */}
           {loading ? (
             <div className="py-20 text-center">
@@ -643,7 +683,7 @@ export const AdminCoursesPage: React.FC = () => {
                       <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <img
-                            src={course.teacher_avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
+                            src={course.teacher_avatar || DEFAULT_NEUTRAL_AVATAR}
                             alt={course.teacher_name || 'Faculty'}
                             className="w-6 h-6 rounded-full border border-white/80 object-cover"
                           />
@@ -689,6 +729,22 @@ export const AdminCoursesPage: React.FC = () => {
                           <span className="text-[10px] text-slate-400">Lessons</span>
                         </div>
                       </div>
+
+                      {/* Course Tuition Price & Quick Edit */}
+                      <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                          <DollarSign className="w-3.5 h-3.5 text-emerald-600" /> Tuition Price
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenQuickPrice(course)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/90 font-black text-xs transition"
+                          title="Click to set or update course tuition fee"
+                        >
+                          <span>৳{(course.price !== undefined ? course.price : 15000).toLocaleString()}</span>
+                          <Edit2 className="w-2.5 h-2.5 opacity-60" />
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -704,9 +760,9 @@ export const AdminCoursesPage: React.FC = () => {
 
                     <div className="flex items-center gap-1.5">
                       <Link
-                        to={`/student/courses/${course.id}`}
+                        to={`/teacher/analytics?courseId=${course.id}&tab=syllabus`}
                         className="p-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 transition"
-                        title="Preview Course Curriculum"
+                        title="Curriculum Studio & Syllabus Roadmap"
                       >
                         <Eye className="w-3.5 h-3.5" />
                       </Link>
@@ -755,6 +811,7 @@ export const AdminCoursesPage: React.FC = () => {
                       <th className="py-3.5 px-4 text-center">Faculty</th>
                       <th className="py-3.5 px-4 text-center">Students</th>
                       <th className="py-3.5 px-4 text-center">Lessons</th>
+                      <th className="py-3.5 px-4 text-right">Tuition Price</th>
                       <th className="py-3.5 px-4 text-right">Roster &amp; Actions</th>
                     </tr>
                   </thead>
@@ -780,7 +837,7 @@ export const AdminCoursesPage: React.FC = () => {
                         <td className="py-3.5 px-4 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <img
-                              src={course.teacher_avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80'}
+                              src={course.teacher_avatar || DEFAULT_NEUTRAL_AVATAR}
                               alt={course.teacher_name || 'Faculty'}
                               className="w-5 h-5 rounded-full object-cover"
                             />
@@ -817,6 +874,18 @@ export const AdminCoursesPage: React.FC = () => {
                         </td>
 
                         <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenQuickPrice(course)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/90 font-black text-xs transition"
+                            title="Click to set or update tuition price"
+                          >
+                            <span>৳{(course.price !== undefined ? course.price : 15000).toLocaleString()}</span>
+                            <Edit2 className="w-2.5 h-2.5 opacity-60" />
+                          </button>
+                        </td>
+
+                        <td className="py-3.5 px-4 text-right whitespace-nowrap">
                           <div className="inline-flex items-center gap-1.5">
                             <button
                               onClick={() => openRosterModal(course)}
@@ -826,9 +895,9 @@ export const AdminCoursesPage: React.FC = () => {
                               <span>Manage Roster</span>
                             </button>
                             <Link
-                              to={`/student/courses/${course.id}`}
+                              to={`/teacher/analytics?courseId=${course.id}&tab=syllabus`}
                               className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition"
-                              title="Preview"
+                              title="Curriculum Studio & Syllabus Roadmap"
                             >
                               <Eye className="w-3.5 h-3.5" />
                             </Link>
@@ -865,137 +934,15 @@ export const AdminCoursesPage: React.FC = () => {
             </div>
           )}
         </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* TAB 2: CURRICULUM CATEGORIES & TRACKS */}
-      {/* ========================================================================= */}
-      {activeTab === 'categories' && (
-        <div className="space-y-6">
-          {/* Categories Metric Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-              <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Categories</span>
-                <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{categories.length}</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">Academic curriculum specializations</p>
-              </div>
-              <div className="w-11 h-11 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
-                <FolderTree className="w-5 h-5" />
-              </div>
-            </div>
-
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-              <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Associated Courses</span>
-                <h3 className="text-2xl font-extrabold text-brand-600 mt-1">{courses.length}</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">Delivered across all tracks</p>
-              </div>
-              <div className="w-11 h-11 rounded-xl bg-brand-50 border border-brand-100 flex items-center justify-center text-brand-600">
-                <BookOpen className="w-5 h-5" />
-              </div>
-            </div>
-
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-              <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Operational Health</span>
-                <h3 className="text-2xl font-extrabold text-emerald-600 mt-1">100% Active</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">Disciplines aligned with industry</p>
-              </div>
-              <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
-                <CheckCircle2 className="w-5 h-5" />
-              </div>
-            </div>
-          </div>
-
-          {/* Search Bar */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={categorySearch}
-                onChange={(e) => setCategorySearch(e.target.value)}
-                placeholder="Search categories by name, code, or description..."
-                className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition"
-              />
-            </div>
-
-            <button
-              onClick={() => setShowCategoryModal(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow-sm transition"
-            >
-              <Plus className="w-4 h-4" /> Add Category
-            </button>
-          </div>
-
-          {/* Categories Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCategories.map((cat) => {
-              const catCourses = courses.filter((c) => c.subject_id === cat.id);
-              const studentCount = catCourses.reduce((sum, c) => sum + (Number(c.student_count) || 0), 0);
-
-              return (
-                <div
-                  key={cat.id}
-                  className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 flex flex-col justify-between hover:border-slate-300 transition"
-                >
-                  <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase tracking-wider font-mono">
-                        {cat.code}
-                      </span>
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                        Active Track
-                      </span>
-                    </div>
-
-                    <h3 className="text-base font-bold text-slate-900 mt-3">{cat.name}</h3>
-                    <p className="text-xs text-slate-500 mt-1.5 line-clamp-2 leading-relaxed">
-                      {cat.description || 'Academic discipline and technical curriculum pathway.'}
-                    </p>
-
-                    <div className="mt-4 pt-3 border-t border-slate-100 space-y-1.5 text-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-500">Delivered Courses:</span>
-                        <span className="font-extrabold text-slate-900">{catCourses.length} offerings</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-500">Total Enrolled Seats:</span>
-                        <span className="font-extrabold text-indigo-600">{studentCount} students</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 pt-3 border-t border-slate-100 flex items-center justify-between">
-                    <button
-                      onClick={() => {
-                        setCategoryFilter(cat.id);
-                        handleTabChange('courses');
-                      }}
-                      className="inline-flex items-center gap-1 text-xs font-bold text-brand-600 hover:text-brand-700 transition"
-                    >
-                      <span>Filter Courses</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                    <span className="text-[10px] text-slate-400 font-medium">Core Classification</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* ========================================================================= */}
       {/* MODAL 1: COURSE ROSTER WORKSPACE (TEACHER PANEL + STUDENT PANEL) */}
       {/* ========================================================================= */}
       {rosterCourse && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-200 max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-fade-in">
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-slate-200 max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col my-auto animate-fade-in">
             {/* Modal Header Banner */}
-            <div className="p-6 bg-slate-950 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800">
+            <div className="p-6 bg-slate-950 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 shrink-0">
               <div className="flex items-center gap-4">
                 <img
                   src={rosterCourse.banner_url || 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=120'}
@@ -1025,7 +972,7 @@ export const AdminCoursesPage: React.FC = () => {
             </div>
 
             {/* Roster Navigation Tabs */}
-            <div className="px-6 pt-4 pb-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-4">
+            <div className="px-6 pt-4 pb-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-4 shrink-0">
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setRosterTab('teachers')}
@@ -1124,7 +1071,7 @@ export const AdminCoursesPage: React.FC = () => {
                           >
                             <div className="flex items-center gap-3 min-w-0">
                               <img
-                                src={t.avatar_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100'}
+                                src={t.avatar_url || DEFAULT_NEUTRAL_AVATAR}
                                 alt={t.full_name}
                                 className="w-11 h-11 rounded-full object-cover border border-slate-200 flex-shrink-0"
                               />
@@ -1240,7 +1187,7 @@ export const AdminCoursesPage: React.FC = () => {
                                   <td className="py-3 px-4">
                                     <div className="flex items-center gap-2.5">
                                       <img
-                                        src={s.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80'}
+                                        src={s.avatar_url || DEFAULT_NEUTRAL_AVATAR}
                                         alt={s.full_name}
                                         className="w-7 h-7 rounded-full object-cover border border-slate-200"
                                       />
@@ -1297,7 +1244,7 @@ export const AdminCoursesPage: React.FC = () => {
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between shrink-0">
               <span className="text-xs text-slate-500">
                 Changes apply instantly across student gradebooks, attendance registries, and faculty consoles.
               </span>
@@ -1316,9 +1263,9 @@ export const AdminCoursesPage: React.FC = () => {
       {/* MODAL 2: COURSE CREATION & EDIT MODAL */}
       {/* ========================================================================= */}
       {showCourseModal && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-200 max-w-xl w-full p-6 sm:p-8 shadow-2xl space-y-5 animate-fade-in">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-slate-200 max-w-xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-fade-in">
+            <div className="flex items-center justify-between p-6 sm:p-7 pb-4 border-b border-slate-100 shrink-0 bg-white">
               <div>
                 <h3 className="text-lg font-extrabold text-slate-900">
                   {editingCourse ? 'Edit Course Delivery' : 'Deliver New Course Offering'}
@@ -1335,89 +1282,204 @@ export const AdminCoursesPage: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSaveCourse} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Course Title</label>
-                <input
-                  type="text"
-                  required
-                  value={courseFormData.title}
-                  onChange={(e) => setCourseFormData({ ...courseFormData, title: e.target.value })}
-                  placeholder="e.g. Distributed Systems &amp; Cloud Infrastructure"
-                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <form onSubmit={handleSaveCourse} className="flex flex-col flex-1 overflow-hidden">
+              <div className="p-6 sm:p-7 overflow-y-auto flex-1 space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Curriculum Category</label>
-                  <select
-                    value={courseFormData.subject_id}
-                    onChange={(e) => setCourseFormData({ ...courseFormData, subject_id: e.target.value })}
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 bg-white"
-                  >
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.name} ({cat.code})
-                      </option>
-                    ))}
-                  </select>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Course Title</label>
+                  <input
+                    type="text"
+                    required
+                    value={courseFormData.title}
+                    onChange={(e) => setCourseFormData({ ...courseFormData, title: e.target.value })}
+                    placeholder="e.g. Distributed Systems &amp; Cloud Infrastructure"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Curriculum Category</label>
+                    <select
+                      value={courseFormData.subject_id}
+                      onChange={(e) => setCourseFormData({ ...courseFormData, subject_id: e.target.value })}
+                      className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 bg-white"
+                    >
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name} ({cat.code})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Tuition / Course Fee (BDT ৳)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-xs">
+                        ৳
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="100"
+                        required
+                        value={courseFormData.price}
+                        onChange={(e) => setCourseFormData({ ...courseFormData, price: Number(e.target.value) })}
+                        placeholder="15000"
+                        className="w-full pl-8 pr-3.5 py-2.5 text-xs font-bold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-900"
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">Course fee charged to students upon purchase.</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Publication Status</label>
+                    <select
+                      value={courseFormData.status}
+                      onChange={(e) => setCourseFormData({ ...courseFormData, status: e.target.value as any })}
+                      className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 bg-white"
+                    >
+                      <option value="published">Published (Visible to Enrolled Students)</option>
+                      <option value="draft">Draft (Curriculum Staging)</option>
+                      <option value="archived">Archived</option>
+                    </select>
+                  </div>
+
+                  {!editingCourse && (
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Initial Lead Instructor</label>
+                      <select
+                        value={courseFormData.teacher_id}
+                        onChange={(e) => setCourseFormData({ ...courseFormData, teacher_id: e.target.value })}
+                        className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 bg-white"
+                      >
+                        {allTeachers.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.full_name} ({t.department || 'Faculty'})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Publication Status</label>
-                  <select
-                    value={courseFormData.status}
-                    onChange={(e) => setCourseFormData({ ...courseFormData, status: e.target.value as any })}
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 bg-white"
-                  >
-                    <option value="published">Published (Visible to Enrolled Students)</option>
-                    <option value="draft">Draft (Curriculum Staging)</option>
-                    <option value="archived">Archived</option>
-                  </select>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Description &amp; Syllabus Objectives</label>
+                  <textarea
+                    rows={3}
+                    value={courseFormData.description}
+                    onChange={(e) => setCourseFormData({ ...courseFormData, description: e.target.value })}
+                    placeholder="Outline syllabus prerequisites, core concepts taught, and expected student outcomes..."
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                  />
                 </div>
-              </div>
 
-              {!editingCourse && (
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Initial Lead Instructor</label>
-                  <select
-                    value={courseFormData.teacher_id}
-                    onChange={(e) => setCourseFormData({ ...courseFormData, teacher_id: e.target.value })}
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 bg-white"
-                  >
-                    {allTeachers.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.full_name} ({t.department || 'Faculty'})
-                      </option>
-                    ))}
-                  </select>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Course Cover Image</label>
+                  <input
+                    ref={bannerInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) processImageFile(file);
+                    }}
+                  />
+
+                  {uploadError && (
+                    <div className="mb-2 p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{uploadError}</span>
+                    </div>
+                  )}
+
+                  {!courseFormData.banner_url ? (
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setIsDraggingBanner(true);
+                      }}
+                      onDragLeave={(e) => {
+                        e.preventDefault();
+                        setIsDraggingBanner(false);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setIsDraggingBanner(false);
+                        const file = e.dataTransfer.files?.[0];
+                        if (file) processImageFile(file);
+                      }}
+                      onClick={() => bannerInputRef.current?.click()}
+                      className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all group ${
+                        isDraggingBanner
+                          ? 'border-brand-500 bg-brand-50/60 ring-2 ring-brand-200'
+                          : 'border-slate-300 hover:border-brand-500 bg-slate-50 hover:bg-white'
+                      }`}
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 shadow-xs flex items-center justify-center mx-auto text-slate-400 group-hover:text-brand-600 transition">
+                        <Upload className="w-5 h-5" />
+                      </div>
+                      <p className="text-xs font-bold text-slate-800 mt-2 group-hover:text-brand-600 transition">
+                        Click to upload course image or drag &amp; drop
+                      </p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        PNG, JPG, WebP up to 10MB (recommended 1200 × 500 px)
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-xs h-36 w-full bg-slate-900 group">
+                      <img
+                        src={courseFormData.banner_url}
+                        alt="Course Cover"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+                      <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-white min-w-0 pr-2">
+                          <div className="p-1 rounded-md bg-emerald-500 text-white shadow-xs shrink-0">
+                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          </div>
+                          <span className="text-xs font-bold truncate max-w-[200px] drop-shadow-xs">
+                            {bannerFileName || 'Cover image selected'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              bannerInputRef.current?.click();
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-white/90 hover:bg-white text-slate-800 text-[11px] font-bold shadow-xs backdrop-blur-xs transition flex items-center gap-1"
+                          >
+                            <RefreshCw className="w-3 h-3 text-slate-600" />
+                            <span>Change</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCourseFormData((prev) => ({ ...prev, banner_url: '' }));
+                              setBannerFileName('');
+                            }}
+                            className="p-1 rounded-lg bg-rose-600/90 hover:bg-rose-600 text-white shadow-xs transition"
+                            title="Remove image"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Description &amp; Syllabus Objectives</label>
-                <textarea
-                  rows={3}
-                  value={courseFormData.description}
-                  onChange={(e) => setCourseFormData({ ...courseFormData, description: e.target.value })}
-                  placeholder="Outline syllabus prerequisites, core concepts taught, and expected student outcomes..."
-                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Banner Image Cover URL</label>
-                <input
-                  type="url"
-                  value={courseFormData.banner_url}
-                  onChange={(e) => setCourseFormData({ ...courseFormData, banner_url: e.target.value })}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-2.5 p-4 sm:p-5 bg-slate-50 border-t border-slate-100 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowCourseModal(false)}
@@ -1439,89 +1501,11 @@ export const AdminCoursesPage: React.FC = () => {
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 3: CATEGORY CREATION MODAL */}
-      {/* ========================================================================= */}
-      {showCategoryModal && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-200 max-w-md w-full p-6 sm:p-8 shadow-2xl space-y-4 animate-fade-in">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div>
-                <h3 className="text-lg font-extrabold text-slate-900">Create Curriculum Category</h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Establish a new category track for organizing delivered courses.
-                </p>
-              </div>
-              <button
-                onClick={() => setShowCategoryModal(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-sm font-bold transition"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveCategory} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Category / Track Name</label>
-                <input
-                  type="text"
-                  required
-                  value={categoryFormData.name}
-                  onChange={(e) => setCategoryFormData({ ...categoryFormData, name: e.target.value })}
-                  placeholder="e.g. Cloud &amp; Distributed Systems"
-                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Track Code</label>
-                <input
-                  type="text"
-                  required
-                  value={categoryFormData.code}
-                  onChange={(e) => setCategoryFormData({ ...categoryFormData, code: e.target.value })}
-                  placeholder="e.g. CLOUD-400"
-                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Domain Scope &amp; Focus</label>
-                <textarea
-                  rows={3}
-                  value={categoryFormData.description}
-                  onChange={(e) => setCategoryFormData({ ...categoryFormData, description: e.target.value })}
-                  placeholder="Outline the technical domain and academic focus of this category..."
-                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowCategoryModal(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow-sm transition disabled:opacity-50"
-                >
-                  {submitting ? 'Creating Category...' : 'Save Category'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
       {/* MODAL 4: DELETE CONFIRMATION MODAL */}
       {/* ========================================================================= */}
       {deleteCourseId && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-200 max-w-sm w-full p-6 shadow-2xl space-y-4 text-center">
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-slate-200 max-w-sm w-full p-6 shadow-2xl space-y-4 text-center my-auto">
             <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mx-auto">
               <AlertCircle className="w-6 h-6" />
             </div>
@@ -1545,6 +1529,112 @@ export const AdminCoursesPage: React.FC = () => {
                 Yes, Delete
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 5: QUICK PRICE UPDATE MODAL */}
+      {/* ========================================================================= */}
+      {quickPriceCourse && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-slate-200 max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-fade-in">
+            <div className="flex items-center justify-between p-6 pb-3 border-b border-slate-100 shrink-0 bg-white">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <CreditCard className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">Set Course Tuition Price</h3>
+                  <p className="text-xs text-slate-500 font-mono truncate max-w-xs">{quickPriceCourse.title}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setQuickPriceCourse(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-sm font-bold transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveQuickPrice} className="flex flex-col flex-1 overflow-hidden">
+              <div className="p-6 overflow-y-auto flex-1 space-y-4">
+                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-1.5">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Course Track</div>
+                  <div className="text-xs font-bold text-slate-800">{quickPriceCourse.title}</div>
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 text-xs">
+                    <span className="text-slate-500">Current Tuition Price:</span>
+                    <span className="font-bold text-slate-800">
+                      ৳{(quickPriceCourse.price !== undefined ? quickPriceCourse.price : 15000).toLocaleString()} BDT
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    New Tuition Price (BDT ৳)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">
+                      ৳
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="100"
+                      required
+                      value={quickPriceValue}
+                      onChange={(e) => setQuickPriceValue(e.target.value)}
+                      placeholder="15000"
+                      className="w-full pl-8 pr-4 py-2.5 text-sm font-black bg-white rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-900"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Students enrolling or purchasing this course will be billed this amount on their tuition invoice.
+                  </p>
+                </div>
+
+                {/* Standard presets */}
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                    Academic Tuition Presets
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[10000, 12000, 15000, 18000, 20000, 22000, 25000].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setQuickPriceValue(String(preset))}
+                        className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition ${
+                          Number(quickPriceValue) === preset
+                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                            : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                        }`}
+                      >
+                        ৳{preset.toLocaleString()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 p-4 bg-slate-50 border-t border-slate-100 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setQuickPriceCourse(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingPrice}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {savingPrice ? 'Updating Price...' : 'Update Tuition Price'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

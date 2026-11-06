@@ -30,7 +30,7 @@ beforeAll(async () => {
     .post('/api/auth/login')
     .send({ email: 'student.arafat@edusathi.edu', password: 'Student@123' });
   studentToken = studentRes.body.data.token;
-});
+}, 30000);
 
 describe('1. Health Check Endpoint', () => {
   it('should return 200 OK with status and service name', async () => {
@@ -78,6 +78,52 @@ describe('2. Authentication & Authorization Security', () => {
       .set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.data)).toBe(true);
+  });
+
+  it('should reject creating a student user without student_id (400 Bad Request)', async () => {
+    const res = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        full_name: 'Test Student No ID',
+        email: `student_noid_${Date.now()}@edusathi.edu`,
+        password: 'Password@123',
+        role: 'student',
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('should reject creating a student user with an already existing student_id (409 Conflict)', async () => {
+    const res = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        full_name: 'Duplicate Student ID Test',
+        email: `dup_student_${Date.now()}@edusathi.edu`,
+        password: 'Password@123',
+        role: 'student',
+        student_id: 'CS-2024-001', // Existing ID in seed data
+      });
+    expect(res.status).toBe(409);
+    expect(res.body.success).toBe(false);
+    expect(res.body.message).toContain('already assigned');
+  });
+
+  it('should automatically assign gender-neutral person avatar when creating user', async () => {
+    const res = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        full_name: 'New Student With Neutral Avatar',
+        email: `neutral_student_${Date.now()}@edusathi.edu`,
+        password: 'Password@123',
+        role: 'student',
+        student_id: `CS-TEST-${Date.now().toString().slice(-4)}`,
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.avatar_url).toContain('data:image/svg+xml');
   });
 });
 
@@ -142,5 +188,279 @@ describe('4. Attendance & Analytics Integrity', () => {
     expect(res.body.data).toHaveProperty('enrolled_courses');
     expect(res.body.data).toHaveProperty('course_completion_pct');
     expect(res.body.data).toHaveProperty('overall_attendance_pct');
+  });
+});
+
+describe('5. Teacher Salary Disbursements & Main Cash Reconciliation', () => {
+  let createdSalaryId = '';
+
+  it('should record a pending salary disbursement', async () => {
+    const res = await request(app)
+      .post('/api/finance/salaries')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        teacher_id: 'usr_teacher_1',
+        amount: 35000,
+        pay_period: 'November 2026',
+        payment_method: 'BEFTN / Bank Transfer',
+        status: 'pending',
+        note: 'Bi-monthly instructional honorarium pending clearance',
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveProperty('id');
+    createdSalaryId = res.body.data.id;
+  });
+
+  it('should disburse the pending salary and update status to paid', async () => {
+    const res = await request(app)
+      .patch(`/api/finance/salaries/${createdSalaryId}/disburse`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.status).toBe('paid');
+  });
+
+  it('should reflect main cash balance and updated totals in salaries summary', async () => {
+    const res = await request(app)
+      .get('/api/finance/salaries/summary')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveProperty('total_disbursed');
+    expect(res.body.data).toHaveProperty('pending_disbursements');
+    expect(res.body.data).toHaveProperty('main_cash_balance');
+  });
+
+  it('should return teacher assigned courses and updated compensation history', async () => {
+    const res = await request(app)
+      .get('/api/finance/teachers/usr_teacher_1/compensation')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveProperty('assigned_courses');
+    expect(Array.isArray(res.body.data.assigned_courses)).toBe(true);
+    expect(res.body.data.assigned_courses.length).toBeGreaterThan(0);
+    expect(res.body.data).toHaveProperty('total_salary_paid');
+  });
+});
+
+describe('6. Student Multi-Course Invoicing, Auto Enrollment & Partial Payment History', () => {
+  let createdPaymentId = '';
+
+  it('should generate a multi-course tuition invoice and auto-enroll the student into new courses', async () => {
+    // usr_student_3 is initially not enrolled in crs_ai_eng
+    const res = await request(app)
+      .post('/api/finance/student-payments')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        student_id: 'usr_student_3',
+        course_ids: ['crs_ai_eng'],
+        title: 'Spring 2027 Advanced AI Enrollment',
+        total_amount: 18000,
+        paid_amount: 10000,
+        due_date: '2026-12-31',
+        payment_method: 'bKash Merchant',
+        transaction_ref: 'TRX-INST-1001',
+        note: 'First installment paid upon multi-course registration',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveProperty('id');
+    expect(res.body.data.due_amount).toBe(8000);
+    createdPaymentId = res.body.data.id;
+
+    // Verify student is now actively enrolled in crs_ai_eng
+    const studentRes = await request(app)
+      .get('/api/finance/students/usr_student_3/ledger')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(studentRes.status).toBe(200);
+    const enrolledCourseIds = studentRes.body.data.enrolled_courses.map((c: any) => c.id);
+    expect(enrolledCourseIds).toContain('crs_ai_eng');
+  });
+
+  it('should track partial payment installment history in official receipt and ledger', async () => {
+    // 2nd installment: pay 5000 (leaves 3000 due)
+    const settleRes1 = await request(app)
+      .patch(`/api/finance/student-payments/${createdPaymentId}/pay`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        additional_paid: 5000,
+        payment_method: 'Nagad',
+        transaction_ref: 'TRX-INST-1002',
+        note: 'Second installment paid',
+      });
+    expect(settleRes1.status).toBe(200);
+    expect(settleRes1.body.data.paid_amount).toBe(15000);
+    expect(settleRes1.body.data.due_amount).toBe(3000);
+    expect(settleRes1.body.data.status).toBe('partial');
+
+    // 3rd installment: pay 3000 (clears the balance to 0, status becomes paid)
+    const settleRes2 = await request(app)
+      .patch(`/api/finance/student-payments/${createdPaymentId}/pay`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        additional_paid: 3000,
+        payment_method: 'Bank Transfer (BEFTN/NPSB)',
+        transaction_ref: 'TRX-INST-1003',
+        note: 'Final settlement installment',
+      });
+    expect(settleRes2.status).toBe(200);
+    expect(settleRes2.body.data.paid_amount).toBe(18000);
+    expect(settleRes2.body.data.due_amount).toBe(0);
+    expect(settleRes2.body.data.status).toBe('paid');
+
+    // Fetch payments list and verify transactions array has all 3 installments
+    const listRes = await request(app)
+      .get(`/api/finance/student-payments?student_id=usr_student_3`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(listRes.status).toBe(200);
+    const payment = listRes.body.data.find((p: any) => p.id === createdPaymentId);
+    expect(payment).toBeDefined();
+    expect(payment.status).toBe('paid');
+    expect(Number(payment.paid_amount)).toBe(18000);
+    expect(Number(payment.due_amount)).toBe(0);
+    expect(Array.isArray(payment.transactions)).toBe(true);
+    expect(payment.transactions.length).toBe(3);
+
+    // Verify transaction 1
+    expect(Number(payment.transactions[0].amount)).toBe(10000);
+    expect(payment.transactions[0].payment_method).toBe('bKash Merchant');
+    expect(payment.transactions[0].transaction_ref).toBe('TRX-INST-1001');
+    expect(Number(payment.transactions[0].balance_due_after)).toBe(8000);
+
+    // Verify transaction 2
+    expect(Number(payment.transactions[1].amount)).toBe(5000);
+    expect(payment.transactions[1].payment_method).toBe('Nagad');
+    expect(payment.transactions[1].transaction_ref).toBe('TRX-INST-1002');
+    expect(Number(payment.transactions[1].balance_due_after)).toBe(3000);
+
+    // Verify transaction 3
+    expect(Number(payment.transactions[2].amount)).toBe(3000);
+    expect(payment.transactions[2].payment_method).toBe('Bank Transfer (BEFTN/NPSB)');
+    expect(payment.transactions[2].transaction_ref).toBe('TRX-INST-1003');
+    expect(Number(payment.transactions[2].balance_due_after)).toBe(0);
+  });
+});
+
+describe('7. Admin Operational Notifications & Financial Alerts', () => {
+  it('should deliver only admin-relevant notifications and ignore classroom/student types for admin', async () => {
+    // Insert a student-only notification addressed to admin to test exclusion filter
+    const testId = `notif_test_classroom_${Date.now()}`;
+    await run(`INSERT INTO notifications (id, recipient_id, type, title, message) VALUES (?, ?, ?, ?, ?)`,
+      [testId, 'usr_admin_1', 'grade_released', 'Irrelevant Classroom Notification', 'Student grade alert']);
+
+    const res = await request(app)
+      .get('/api/notifications')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
+
+    // Ensure irrelevant classroom notification is excluded/ignored for admin
+    const irrelevantNotif = res.body.data.find((n: any) => n.id === testId);
+    expect(irrelevantNotif).toBeUndefined();
+
+    // Verify all returned notifications for admin are in allowed administrative types
+    const allowedTypes = ['salary_request', 'new_payment', 'payment_received', 'student_payment', 'salary_disbursed', 'admin_alert', 'system_alert'];
+    for (const notif of res.body.data) {
+      expect(allowedTypes).toContain(notif.type);
+    }
+  });
+
+  it('should notify admin when teacher submits a salary disbursement request', async () => {
+    const reqRes = await request(app)
+      .post('/api/me/salaries/request')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({
+        course_id: 'crs_web_dev',
+        amount: 45000,
+        pay_period: 'November 2026',
+        note: 'Lecture delivery and grading completion',
+      });
+
+    expect(reqRes.status).toBe(201);
+    expect(reqRes.body.success).toBe(true);
+    expect(reqRes.body.data.status).toBe('pending');
+
+    // Admin checks notifications and receives the salary request notification
+    const adminNotifRes = await request(app)
+      .get('/api/notifications')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(adminNotifRes.status).toBe(200);
+    const salaryNotif = adminNotifRes.body.data.find((n: any) => n.type === 'salary_request' && n.message.includes('November 2026'));
+    expect(salaryNotif).toBeDefined();
+    expect(salaryNotif.link).toBe('/admin/salaries');
+  });
+
+  it('should notify admin when student pays tuition fee or installment', async () => {
+    const payRes = await request(app)
+      .post('/api/me/payments/buy-course')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({
+        course_id: 'crs_ai_eng',
+        amount_to_pay: 15000,
+        payment_method: 'bKash',
+        transaction_ref: 'TRX-TEST-NOTIF-99',
+      });
+
+    // If already enrolled/paid, settle an existing due
+    if (payRes.status !== 201) {
+      await request(app)
+        .post('/api/finance/student-payments')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          student_id: 'usr_student_1',
+          title: 'Special Assessment Fee',
+          total_amount: 5000,
+          paid_amount: 5000,
+          payment_method: 'Nagad',
+        });
+    }
+
+    const adminNotifRes = await request(app)
+      .get('/api/notifications')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(adminNotifRes.status).toBe(200);
+    const paymentNotifs = adminNotifRes.body.data.filter((n: any) => n.type === 'new_payment' || n.type === 'payment_received');
+    expect(paymentNotifs.length).toBeGreaterThan(0);
+  });
+
+  it('should deliver only teacher-relevant notifications and ignore admin/student types for teacher', async () => {
+    // Insert an admin-only payment notification addressed to teacher to verify filtering
+    const testPaymentId = `notif_teacher_irrelevant_${Date.now()}`;
+    await run(`INSERT INTO notifications (id, recipient_id, type, title, message) VALUES (?, ?, ?, ?, ?)`,
+      [testPaymentId, 'usr_teacher_1', 'new_payment', 'Student Tuition Payment', 'Irrelevant payment for teacher']);
+
+    // Insert a valid teacher notification (salary disbursement)
+    const testDisbursedId = `notif_teacher_valid_${Date.now()}`;
+    await run(`INSERT INTO notifications (id, recipient_id, type, title, message, link) VALUES (?, ?, ?, ?, ?, ?)`,
+      [testDisbursedId, 'usr_teacher_1', 'salary_disbursed', 'Compensation Cleared', 'Your salary voucher has been credited', '/teacher/salary']);
+
+    const res = await request(app)
+      .get('/api/notifications')
+      .set('Authorization', `Bearer ${teacherToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
+
+    // Ensure irrelevant notification is excluded/ignored for teacher
+    const irrelevantNotif = res.body.data.find((n: any) => n.id === testPaymentId);
+    expect(irrelevantNotif).toBeUndefined();
+
+    // Ensure valid notification is present
+    const validNotif = res.body.data.find((n: any) => n.id === testDisbursedId);
+    expect(validNotif).toBeDefined();
+
+    // Verify all returned notifications for teacher are in permitted teacher types
+    const allowedTeacherTypes = ['submission', 'assignment_submitted', 'salary_disbursed', 'salary_request', 'comment', 'doubt', 'teacher_alert', 'faculty_alert', 'system_alert', 'enrollment'];
+    for (const notif of res.body.data) {
+      expect(allowedTeacherTypes).toContain(notif.type);
+    }
   });
 });

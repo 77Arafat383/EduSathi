@@ -2,6 +2,25 @@ import { Response } from 'express';
 import { query, getOne, run } from '../repositories/db';
 import { AuthRequest } from '../middleware/auth';
 
+/**
+ * Dispatch real-time administrative notification to all system administrators.
+ * Used for financial activities that require admin attention: salary requests, student payments, arrears clearances.
+ */
+export async function notifyAdmins(type: string, title: string, message: string, link: string): Promise<void> {
+  try {
+    const admins = await query<{ id: string }>("SELECT id FROM profiles WHERE role = 'admin'");
+    for (const admin of admins) {
+      const notifId = `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      await run(
+        `INSERT INTO notifications (id, recipient_id, type, title, message, link) VALUES (?, ?, ?, ?, ?, ?)`,
+        [notifId, admin.id, type, title, message, link]
+      );
+    }
+  } catch (err) {
+    console.error('[Notification] Failed to notify admins:', err);
+  }
+}
+
 // --- 1. Teacher Salaries Management ---
 
 export async function listTeacherSalaries(req: AuthRequest, res: Response): Promise<void> {
@@ -55,7 +74,72 @@ export async function getTeacherSalariesSummary(req: AuthRequest, res: Response)
     FROM teacher_salaries
   `);
 
-  res.json({ success: true, data: summary });
+  const studentPayments = await getOne<any>(`
+    SELECT
+      COALESCE(SUM(paid_amount), 0) as total_collected
+    FROM student_payments
+  `);
+
+  const totalCollected = Number(studentPayments?.total_collected || 0);
+  const totalDisbursed = Number(summary?.total_disbursed || 0);
+  const mainCashBalance = totalCollected - totalDisbursed;
+
+  res.json({
+    success: true,
+    data: {
+      ...summary,
+      total_collected: totalCollected,
+      main_cash_balance: mainCashBalance,
+    },
+  });
+}
+
+export async function disburseTeacherSalary(req: AuthRequest, res: Response): Promise<void> {
+  const { salaryId } = req.params;
+
+  const salary = await getOne<any>('SELECT * FROM teacher_salaries WHERE id = ?', [salaryId]);
+  if (!salary) {
+    res.status(404).json({ success: false, message: 'Salary disbursement record not found' });
+    return;
+  }
+
+  if (salary.status === 'paid') {
+    res.status(400).json({ success: false, message: 'This salary voucher has already been disbursed' });
+    return;
+  }
+
+  const pDate = new Date().toISOString().split('T')[0];
+  await run(
+    `UPDATE teacher_salaries SET
+       status = 'paid',
+       payment_date = ?
+     WHERE id = ?`,
+    [pDate, salaryId]
+  );
+
+  // Notify teacher of cleared salary disbursement
+  try {
+    const notifId = `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    await run(
+      `INSERT INTO notifications (id, recipient_id, type, title, message, link) VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        notifId,
+        salary.teacher_id,
+        'salary_disbursed',
+        'Compensation Disbursed',
+        `Your faculty salary voucher of ৳${Number(salary.amount).toLocaleString()} for ${salary.pay_period} has been disbursed to your account.`,
+        '/teacher/salary',
+      ]
+    );
+  } catch (notifErr) {
+    console.error('[Notification] Failed to notify teacher of salary disbursement:', notifErr);
+  }
+
+  res.json({
+    success: true,
+    message: 'Teacher salary has been successfully disbursed',
+    data: { id: salaryId, status: 'paid', payment_date: pDate, amount: salary.amount },
+  });
 }
 
 export async function recordTeacherSalary(req: AuthRequest, res: Response): Promise<void> {
@@ -66,7 +150,7 @@ export async function recordTeacherSalary(req: AuthRequest, res: Response): Prom
     return;
   }
 
-  const teacher = await getOne<{ id: string; role: string }>('SELECT id, role FROM profiles WHERE id = ?', [teacher_id]);
+  const teacher = await getOne<{ id: string; role: string; full_name: string }>('SELECT id, role, full_name FROM profiles WHERE id = ?', [teacher_id]);
   if (!teacher || teacher.role !== 'teacher') {
     res.status(404).json({ success: false, message: 'Teacher profile not found' });
     return;
@@ -84,10 +168,78 @@ export async function recordTeacherSalary(req: AuthRequest, res: Response): Prom
     [id, teacher_id, course_id || null, Number(amount), pDate, pay_period, pMethod, txRef, pStatus, note || null]
   );
 
+  // If pending, notify admin of pending salary clearing voucher
+  if (pStatus === 'pending') {
+    await notifyAdmins(
+      'salary_request',
+      'Pending Salary Disbursement Registered',
+      `Salary voucher of ৳${Number(amount).toLocaleString()} for ${teacher.full_name} (${pay_period}) is awaiting administrative clearing.`,
+      '/admin/salaries'
+    );
+  } else if (pStatus === 'paid') {
+    // Notify teacher of recorded salary disbursement
+    try {
+      const notifId = `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      await run(
+        `INSERT INTO notifications (id, recipient_id, type, title, message, link) VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          notifId,
+          teacher_id,
+          'salary_disbursed',
+          'Compensation Disbursed',
+          `A faculty salary voucher of ৳${Number(amount).toLocaleString()} for ${pay_period} has been disbursed to your account.`,
+          '/teacher/salary',
+        ]
+      );
+    } catch (notifErr) {
+      console.error('[Notification] Failed to notify teacher of salary disbursement:', notifErr);
+    }
+  }
+
   res.status(201).json({
     success: true,
     message: 'Teacher salary disbursement recorded successfully',
     data: { id, transaction_ref: txRef },
+  });
+}
+
+export async function requestTeacherSalary(req: AuthRequest, res: Response): Promise<void> {
+  const teacherId = req.user!.id;
+  const { course_id, amount, pay_period, note } = req.body;
+
+  if (!amount || !pay_period) {
+    res.status(400).json({ success: false, message: 'Amount and pay period are required' });
+    return;
+  }
+
+  const teacher = await getOne<{ id: string; full_name: string; email: string }>('SELECT id, full_name, email FROM profiles WHERE id = ?', [teacherId]);
+  if (!teacher) {
+    res.status(404).json({ success: false, message: 'Teacher profile not found' });
+    return;
+  }
+
+  const id = `sal_${Date.now()}`;
+  const txRef = `REQ-${Date.now().toString().slice(-6)}`;
+  const amt = Number(amount);
+
+  await run(
+    `INSERT INTO teacher_salaries (id, teacher_id, course_id, amount, payment_date, pay_period, payment_method, transaction_ref, status, note)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, teacherId, course_id || null, amt, new Date().toISOString().split('T')[0], pay_period, 'Bank Transfer / Clearing', txRef, 'pending', note || 'Faculty compensation disbursement request']
+  );
+
+  // Notify all administrators about the new salary disbursement request
+  await notifyAdmins(
+    'salary_request',
+    'Faculty Salary Disbursement Request',
+    `${teacher.full_name} submitted a salary clearance request of ৳${amt.toLocaleString()} for ${pay_period}.`,
+    '/admin/salaries'
+  );
+
+  res.status(201).json({
+    success: true,
+    message: 'Salary request submitted successfully and queued for administrative disbursement',
+    data: { id, transaction_ref: txRef, status: 'pending', amount: amt, pay_period },
   });
 }
 
@@ -110,11 +262,14 @@ export async function getTeacherFinanceDetails(req: AuthRequest, res: Response):
            (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id AND status = 'active') as student_count,
            (SELECT COUNT(*) FROM lessons l JOIN modules m ON l.module_id = m.id WHERE m.course_id = c.id) as lesson_count
     FROM courses c
-    JOIN course_teachers ct ON c.id = ct.course_id
     LEFT JOIN subjects s ON c.subject_id = s.id
-    WHERE ct.teacher_id = ?
+    WHERE c.id IN (
+      SELECT course_id FROM course_teachers WHERE teacher_id = ?
+      UNION
+      SELECT id FROM courses WHERE created_by = ?
+    )
     ORDER BY c.created_at DESC
-  `, [teacherId]);
+  `, [teacherId, teacherId]);
 
   // Salary disbursements history
   const salaries = await query<any>(
@@ -144,6 +299,51 @@ export async function getTeacherFinanceDetails(req: AuthRequest, res: Response):
 }
 
 // --- 2. Student Payments & Dues Management ---
+
+async function attachTransactionsToPayments(payments: any[]): Promise<any[]> {
+  if (!payments || payments.length === 0) return payments;
+  const paymentIds = payments.map(p => p.id);
+  const placeholders = paymentIds.map(() => '?').join(',');
+  let allTransactions: any[] = [];
+  try {
+    allTransactions = await query<any>(
+      `SELECT * FROM student_payment_transactions WHERE payment_id IN (${placeholders}) ORDER BY created_at ASC`,
+      paymentIds
+    );
+  } catch (err) {
+    allTransactions = [];
+  }
+
+  const txMap = new Map<string, any[]>();
+  for (const tx of allTransactions) {
+    if (!txMap.has(tx.payment_id)) {
+      txMap.set(tx.payment_id, []);
+    }
+    txMap.get(tx.payment_id)!.push(tx);
+  }
+
+  return payments.map(p => {
+    let txs = txMap.get(p.id) || [];
+    if (txs.length === 0 && Number(p.paid_amount) > 0) {
+      txs = [
+        {
+          id: `init_${p.id}`,
+          payment_id: p.id,
+          amount: Number(p.paid_amount),
+          payment_method: p.payment_method || 'Bank Transfer',
+          transaction_ref: p.transaction_ref || 'RECEIPT-INIT',
+          balance_due_after: Number(p.due_amount || 0),
+          note: 'Initial disbursement / down payment',
+          created_at: p.payment_date || p.created_at || new Date().toISOString(),
+        },
+      ];
+    }
+    return {
+      ...p,
+      transactions: txs,
+    };
+  });
+}
 
 export async function listStudentPayments(req: AuthRequest, res: Response): Promise<void> {
   const { student_id, status, has_due, search } = req.query;
@@ -182,7 +382,8 @@ export async function listStudentPayments(req: AuthRequest, res: Response): Prom
   sql += ' ORDER BY sp.created_at DESC';
 
   const payments = await query(sql, params);
-  res.json({ success: true, data: payments });
+  const enrichedPayments = await attachTransactionsToPayments(payments);
+  res.json({ success: true, data: enrichedPayments });
 }
 
 export async function getStudentPaymentsSummary(req: AuthRequest, res: Response): Promise<void> {
@@ -200,14 +401,14 @@ export async function getStudentPaymentsSummary(req: AuthRequest, res: Response)
 }
 
 export async function recordStudentPayment(req: AuthRequest, res: Response): Promise<void> {
-  const { student_id, course_id, title, total_amount, paid_amount, due_date, payment_method, transaction_ref, note } = req.body;
+  const { student_id, course_id, course_ids, title, total_amount, paid_amount, due_date, payment_method, transaction_ref, note } = req.body;
 
   if (!student_id || !title || total_amount === undefined) {
     res.status(400).json({ success: false, message: 'Student ID, title, and total amount are required' });
     return;
   }
 
-  const student = await getOne<{ id: string; role: string }>('SELECT id, role FROM profiles WHERE id = ?', [student_id]);
+  const student = await getOne<{ id: string; role: string; full_name: string; student_id?: string }>('SELECT id, role, full_name, student_id FROM profiles WHERE id = ?', [student_id]);
   if (!student || student.role !== 'student') {
     res.status(404).json({ success: false, message: 'Student profile not found' });
     return;
@@ -228,11 +429,58 @@ export async function recordStudentPayment(req: AuthRequest, res: Response): Pro
   const txRef = transaction_ref || `INV-${Date.now().toString().slice(-6)}`;
   const pDate = paid > 0 ? new Date().toISOString() : null;
 
+  // Process course enrollments if course_ids or course_id provided
+  const targetCourseIds: string[] = Array.isArray(course_ids) && course_ids.length > 0
+    ? course_ids.filter(Boolean)
+    : (course_id ? [course_id] : []);
+
+  for (const cId of targetCourseIds) {
+    const existingEnr = await getOne<{ id: string; status: string }>(
+      'SELECT id, status FROM enrollments WHERE course_id = ? AND student_id = ?',
+      [cId, student_id]
+    );
+    if (!existingEnr) {
+      const enrId = `enr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      await run(
+        'INSERT INTO enrollments (id, course_id, student_id, status) VALUES (?, ?, ?, ?)',
+        [enrId, cId, student_id, 'active']
+      );
+    } else if (existingEnr.status !== 'active') {
+      await run('UPDATE enrollments SET status = ? WHERE id = ?', ['active', existingEnr.id]);
+    }
+  }
+
+  const primaryCourseId = targetCourseIds.length > 0 ? targetCourseIds[0] : (course_id || null);
+
   await run(
     `INSERT INTO student_payments (id, student_id, course_id, title, total_amount, paid_amount, due_amount, payment_date, due_date, payment_method, transaction_ref, status, note)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, student_id, course_id || null, title, total, paid, due, pDate, due_date || null, payment_method || 'Bank Transfer', txRef, status, note || null]
+    [id, student_id, primaryCourseId, title, total, paid, due, pDate, due_date || null, payment_method || 'Bank Transfer', txRef, status, note || null]
   );
+
+  // If initial payment was made, record it as first transaction in student_payment_transactions
+  if (paid > 0) {
+    const txId = `tx_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    await run(
+      `INSERT INTO student_payment_transactions (id, payment_id, amount, payment_method, transaction_ref, balance_due_after, note)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [txId, id, paid, payment_method || 'Bank Transfer', txRef, due, note || 'Initial Tuition Disbursement / Down payment']
+    );
+
+    await notifyAdmins(
+      'new_payment',
+      'New Student Tuition Payment Received',
+      `${student.full_name} (${student.student_id || 'Student'}) paid ৳${paid.toLocaleString()} for "${title}" (Ref: ${txRef}).`,
+      '/admin/student-payments'
+    );
+  } else {
+    await notifyAdmins(
+      'new_payment',
+      'New Student Tuition Invoice Issued',
+      `Tuition invoice of ৳${total.toLocaleString()} issued for ${student.full_name} (${student.student_id || 'Student'}).`,
+      '/admin/student-payments'
+    );
+  }
 
   res.status(201).json({
     success: true,
@@ -243,7 +491,7 @@ export async function recordStudentPayment(req: AuthRequest, res: Response): Pro
 
 export async function settleStudentPayment(req: AuthRequest, res: Response): Promise<void> {
   const { paymentId } = req.params;
-  const { additional_paid, payment_method, transaction_ref } = req.body;
+  const { additional_paid, payment_method, transaction_ref, note } = req.body;
 
   const existing = await getOne<any>('SELECT * FROM student_payments WHERE id = ?', [paymentId]);
   if (!existing) {
@@ -262,17 +510,38 @@ export async function settleStudentPayment(req: AuthRequest, res: Response): Pro
     status = 'partial';
   }
 
+  const pMethod = payment_method || existing.payment_method || 'Cash at Bursar Office';
+  const txRef = transaction_ref || `REC-${Date.now().toString().slice(-6)}`;
+
   await run(
     `UPDATE student_payments SET
        paid_amount = ?,
        due_amount = ?,
        status = ?,
        payment_date = CURRENT_TIMESTAMP,
-       payment_method = COALESCE(?, payment_method),
-       transaction_ref = COALESCE(?, transaction_ref)
+       payment_method = ?,
+       transaction_ref = ?
      WHERE id = ?`,
-    [newPaid, newDue, status, payment_method || null, transaction_ref || null, paymentId]
+    [newPaid, newDue, status, pMethod, txRef, paymentId]
   );
+
+  // Record installment transaction in student_payment_transactions
+  if (addPay > 0) {
+    const txId = `tx_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    await run(
+      `INSERT INTO student_payment_transactions (id, payment_id, amount, payment_method, transaction_ref, balance_due_after, note)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [txId, paymentId, addPay, pMethod, txRef, newDue, note || 'Partial fee settlement installment']
+    );
+
+    const studentInfo = await getOne<any>('SELECT full_name, student_id FROM profiles WHERE id = ?', [existing.student_id]);
+    await notifyAdmins(
+      'payment_received',
+      'Student Tuition Installment Received',
+      `${studentInfo?.full_name || 'Student'} (${studentInfo?.student_id || 'Student'}) paid ৳${addPay.toLocaleString()} installment for "${existing.title}". Outstanding due: ৳${newDue.toLocaleString()}.`,
+      '/admin/student-payments'
+    );
+  }
 
   res.json({
     success: true,
@@ -325,9 +594,11 @@ export async function getStudentFinanceDetails(req: AuthRequest, res: Response):
     ORDER BY sp.created_at DESC
   `, [studentId]);
 
-  const totalInvoiced = payments.reduce((sum, p) => sum + (Number(p.total_amount) || 0), 0);
-  const totalPaid = payments.reduce((sum, p) => sum + (Number(p.paid_amount) || 0), 0);
-  const totalDue = payments.reduce((sum, p) => sum + (Number(p.due_amount) || 0), 0);
+  const paymentsWithTx = await attachTransactionsToPayments(payments);
+
+  const totalInvoiced = paymentsWithTx.reduce((sum, p) => sum + (Number(p.total_amount) || 0), 0);
+  const totalPaid = paymentsWithTx.reduce((sum, p) => sum + (Number(p.paid_amount) || 0), 0);
+  const totalDue = paymentsWithTx.reduce((sum, p) => sum + (Number(p.due_amount) || 0), 0);
 
   res.json({
     success: true,
@@ -335,8 +606,8 @@ export async function getStudentFinanceDetails(req: AuthRequest, res: Response):
       profile: student,
       student,
       enrolled_courses: coursesWithProgress,
-      payment_history: payments,
-      payments,
+      payment_history: paymentsWithTx,
+      payments: paymentsWithTx,
       financial_summary: {
         total_invoiced: totalInvoiced,
         total_paid: totalPaid,
@@ -360,10 +631,12 @@ export async function getMyStudentPayments(req: AuthRequest, res: Response): Pro
     ORDER BY sp.created_at DESC
   `, [studentId]);
 
-  const totalInvoiced = payments.reduce((sum, p) => sum + (Number(p.total_amount) || 0), 0);
-  const totalPaid = payments.reduce((sum, p) => sum + (Number(p.paid_amount) || 0), 0);
-  const totalDue = payments.reduce((sum, p) => sum + (Number(p.due_amount) || 0), 0);
-  const duePayments = payments.filter((p: any) => Number(p.due_amount) > 0);
+  const paymentsWithTx = await attachTransactionsToPayments(payments);
+
+  const totalInvoiced = paymentsWithTx.reduce((sum, p) => sum + (Number(p.total_amount) || 0), 0);
+  const totalPaid = paymentsWithTx.reduce((sum, p) => sum + (Number(p.paid_amount) || 0), 0);
+  const totalDue = paymentsWithTx.reduce((sum, p) => sum + (Number(p.due_amount) || 0), 0);
+  const duePayments = paymentsWithTx.filter((p: any) => Number(p.due_amount) > 0);
 
   // Also fetch all available published courses with enrollment status and pricing for self-service purchase
   const availableCourses = await query<any>(`
@@ -390,8 +663,9 @@ export async function getMyStudentPayments(req: AuthRequest, res: Response): Pro
   res.json({
     success: true,
     data: {
-      payments,
+      payments: paymentsWithTx,
       due_payments: duePayments,
+      dues: duePayments,
       total_invoiced: totalInvoiced,
       total_paid: totalPaid,
       total_due_available: totalDue,
@@ -452,6 +726,24 @@ export async function settleMyStudentPayment(req: AuthRequest, res: Response): P
      WHERE id = ?`,
     [newPaid, newDue, status, pMethod, txRef, note || null, payment_id]
   );
+
+  // Record transaction in student_payment_transactions
+  if (payAmount > 0) {
+    const txId = `tx_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    await run(
+      `INSERT INTO student_payment_transactions (id, payment_id, amount, payment_method, transaction_ref, balance_due_after, note)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [txId, payment_id, payAmount, pMethod, txRef, newDue, note || 'Student self-service installment payment']
+    );
+
+    const student = await getOne<any>('SELECT full_name, student_id FROM profiles WHERE id = ?', [studentId]);
+    await notifyAdmins(
+      'payment_received',
+      'Online Tuition Due Settlement',
+      `${student?.full_name || 'Student'} (${student?.student_id || 'Student'}) paid ৳${payAmount.toLocaleString()} via ${pMethod} (Ref: ${txRef}). Outstanding due: ৳${newDue.toLocaleString()}.`,
+      '/admin/student-payments'
+    );
+  }
 
   res.json({
     success: true,
@@ -552,6 +844,24 @@ export async function purchaseCoursePayment(req: AuthRequest, res: Response): Pr
     await run('UPDATE enrollments SET status = ? WHERE id = ?', ['active', existingEnrollment.id]);
   }
 
+  // 3. Record initial transaction in student_payment_transactions if paidAmount > 0
+  if (paidAmount > 0) {
+    const txId = `tx_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    await run(
+      `INSERT INTO student_payment_transactions (id, payment_id, amount, payment_method, transaction_ref, balance_due_after, note)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [txId, paymentId, paidAmount, pMethod, txRef, dueAmount, note || `Direct student enrollment & fee clearance for ${course.title}`]
+    );
+
+    const student = await getOne<any>('SELECT full_name, student_id FROM profiles WHERE id = ?', [studentId]);
+    await notifyAdmins(
+      'new_payment',
+      'New Course Enrollment Payment',
+      `${student?.full_name || 'Student'} (${student?.student_id || 'Student'}) enrolled in "${course.title}" and paid ৳${paidAmount.toLocaleString()} via ${pMethod} (Ref: ${txRef}).`,
+      '/admin/student-payments'
+    );
+  }
+
   res.status(201).json({
     success: true,
     message: `Enrollment and payment completed successfully for ${course.title}!`,
@@ -594,11 +904,14 @@ export async function getMyTeacherSalaries(req: AuthRequest, res: Response): Pro
            (SELECT COUNT(*) FROM quizzes q WHERE q.course_id = c.id) as quiz_count,
            (SELECT COUNT(*) FROM assignments a WHERE a.course_id = c.id) as assignment_count
     FROM courses c
-    JOIN course_teachers ct ON c.id = ct.course_id
     LEFT JOIN subjects s ON c.subject_id = s.id
-    WHERE ct.teacher_id = ?
+    WHERE c.id IN (
+      SELECT course_id FROM course_teachers WHERE teacher_id = ?
+      UNION
+      SELECT id FROM courses WHERE created_by = ?
+    )
     ORDER BY c.created_at DESC
-  `, [teacherId]);
+  `, [teacherId, teacherId]);
 
   const teacher = await getOne<any>(
     "SELECT id, full_name, email, avatar_url, department, status, created_at FROM profiles WHERE id = ?",

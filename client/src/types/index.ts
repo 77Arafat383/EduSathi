@@ -1,6 +1,9 @@
 export type UserRole = 'student' | 'teacher' | 'admin';
 export type UserStatus = 'active' | 'inactive';
 
+export const DEFAULT_NEUTRAL_AVATAR =
+  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><rect width="128" height="128" rx="64" fill="%23F1F5F9"/><circle cx="64" cy="48" r="22" fill="%2364748B"/><path d="M26 108c0-20.987 17.013-38 38-38s38 17.013 38 38v4H26v-4z" fill="%2364748B"/></svg>';
+
 export interface User {
   id: string;
   full_name: string;
@@ -41,6 +44,17 @@ export interface TeacherSalary {
   created_at?: string;
 }
 
+export interface StudentPaymentTransaction {
+  id: string;
+  payment_id: string;
+  amount: number;
+  payment_method: string;
+  transaction_ref?: string;
+  balance_due_after: number;
+  note?: string;
+  created_at: string;
+}
+
 export interface StudentPayment {
   id: string;
   student_id: string;
@@ -50,6 +64,7 @@ export interface StudentPayment {
   student_avatar?: string;
   student_department?: string;
   course_id?: string;
+  course_ids?: string[];
   course_title?: string;
   title: string;
   total_amount: number;
@@ -61,6 +76,7 @@ export interface StudentPayment {
   transaction_ref?: string;
   status: 'paid' | 'partial' | 'due' | 'overdue';
   note?: string;
+  transactions?: StudentPaymentTransaction[];
   created_at?: string;
 }
 

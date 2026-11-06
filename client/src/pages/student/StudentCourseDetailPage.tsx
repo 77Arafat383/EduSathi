@@ -22,6 +22,9 @@ import {
   User,
   Award,
   Layers,
+  Lock,
+  CreditCard,
+  Compass,
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { Course, Lesson, Comment } from '../../types';
@@ -192,6 +195,153 @@ export const StudentCourseDetailPage: React.FC = () => {
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Back to Enrolled Courses
         </Link>
+      </div>
+    );
+  }
+
+  // If student is not enrolled, present locked syllabus overview and direct CTA to buy section
+  if (course && !course.is_enrolled) {
+    const coursePrice = Number(course.price || 15000);
+    const totalLessons = course.modules?.reduce((sum: number, m: any) => sum + (m.lessons?.length || 0), 0) || 0;
+
+    return (
+      <div className="space-y-6 pb-20 max-w-5xl mx-auto">
+        {/* Top Breadcrumb */}
+        <div className="flex items-center justify-between">
+          <Link
+            to="/student/courses?tab=explore"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-900 transition"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Back to Course Catalog</span>
+          </Link>
+          <Link
+            to="/student/payments?tab=catalog"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-600 hover:underline"
+          >
+            <CreditCard className="w-3.5 h-3.5" />
+            <span>Tuition &amp; Payments Hub</span>
+          </Link>
+        </div>
+
+        {/* Lock / Purchase Alert Banner */}
+        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-brand-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
+          <div className="absolute right-0 top-0 translate-x-10 -translate-y-10 w-64 h-64 bg-brand-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-3 max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-brand-300 border border-white/10 text-[11px] font-bold uppercase tracking-wider">
+                <Lock className="w-3.5 h-3.5" />
+                <span>Enrollment &amp; Tuition Required</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                {course.title}
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                {course.description ||
+                  'Complete course registration and tuition settlement to unlock the full academic syllabus, lecture materials, assignments, quizzes, and live attendance tracking.'}
+              </p>
+              <div className="flex flex-wrap items-center gap-4 text-xs text-slate-300 pt-1">
+                <span className="flex items-center gap-1.5">
+                  <BookOpen className="w-4 h-4 text-brand-400" />
+                  <span>{totalLessons} Modules &amp; Lessons</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <HelpCircle className="w-4 h-4 text-brand-400" />
+                  <span>{course.quizzes?.length || 0} Quizzes</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-brand-400" />
+                  <span>{course.assignments?.length || 0} Assignments</span>
+                </span>
+              </div>
+            </div>
+
+            {/* Price & Primary CTA */}
+            <div className="bg-white/10 backdrop-blur-md p-5 rounded-2xl border border-white/15 flex flex-col items-center sm:items-end justify-center shrink-0 min-w-[240px] text-center sm:text-right">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Course Tuition Fee
+              </span>
+              <div className="text-3xl font-black text-white mt-1 font-mono">
+                ৳{coursePrice.toLocaleString()}
+              </div>
+              <p className="text-[10px] text-emerald-400 font-semibold mt-0.5">
+                Installment Options Available (50% Down)
+              </p>
+
+              <Link
+                to={`/student/payments?tab=catalog&buyCourseId=${course.id}`}
+                className="mt-4 w-full py-3 bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center justify-center gap-2"
+              >
+                <CreditCard className="w-4 h-4" />
+                <span>Buy &amp; Enroll Course</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Curriculum Outline Preview (Locked items) */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs space-y-5">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div>
+              <h2 className="text-sm font-bold text-slate-900">Curriculum Syllabus Overview</h2>
+              <p className="text-xs text-slate-500">Preview the course structure and topics covered.</p>
+            </div>
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              {course.modules?.length || 0} Modules
+            </span>
+          </div>
+
+          <div className="space-y-4">
+            {course.modules && course.modules.length > 0 ? (
+              course.modules.map((mod: any, mIdx: number) => (
+                <div key={mod.id} className="border border-slate-100 rounded-xl overflow-hidden">
+                  <div className="bg-slate-50/80 px-4 py-2.5 flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-800">
+                      Module {mIdx + 1}: {mod.title}
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-400">
+                      {mod.lessons?.length || 0} Topics
+                    </span>
+                  </div>
+                  <div className="divide-y divide-slate-100">
+                    {(mod.lessons || []).map((les: any, lIdx: number) => (
+                      <div
+                        key={les.id}
+                        className="px-4 py-2.5 flex items-center justify-between text-xs text-slate-600"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="font-mono text-[10px] text-slate-400">
+                            {mIdx + 1}.{lIdx + 1}
+                          </span>
+                          <span>{les.title}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-[11px] text-slate-400">
+                          <Lock className="w-3 h-3 text-slate-400" />
+                          <span>Locked</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-xs text-slate-400 py-6 text-center">Curriculum details are being finalized by instructor.</p>
+            )}
+          </div>
+
+          <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <span className="text-xs text-slate-500">
+              Access all lecture videos, problem sheets, and assessments immediately upon tuition settlement.
+            </span>
+            <Link
+              to={`/student/payments?tab=catalog&buyCourseId=${course.id}`}
+              className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 shrink-0"
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>Enroll &amp; Pay Tuition</span>
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }

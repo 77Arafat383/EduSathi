@@ -944,9 +944,9 @@ export const TeacherAttendancePage: React.FC = () => {
 
       {/* 5. Launch Live Attendance Modal */}
       {isLiveModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-200 max-w-lg w-full p-6 sm:p-8 shadow-2xl space-y-5 animate-fade-in">
-            <div className="flex items-start justify-between">
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-slate-200 max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-fade-in">
+            <div className="flex items-start justify-between p-6 sm:p-8 pb-4 border-b border-slate-100 shrink-0 bg-white">
               <div>
                 <h3 className="text-lg font-extrabold text-slate-900 mt-0.5">
                   Live Attendance
@@ -963,85 +963,88 @@ export const TeacherAttendancePage: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleLaunchLiveSession} className="space-y-4 pt-1">
-              {/* Session Title */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Session Title</label>
-                <input
-                  type="text"
-                  required
-                  value={liveSessionTitle}
-                  onChange={(e) => setLiveSessionTitle(e.target.value)}
-                  placeholder="e.g. Lecture Session 12: Distributed Systems"
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 font-semibold"
-                />
-              </div>
-
-              {/* Session Date */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Date</label>
-                <input
-                  type="date"
-                  required
-                  value={liveSessionDate}
-                  onChange={(e) => setLiveSessionDate(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 font-medium"
-                />
-              </div>
-
-              {/* Two-Phase Timers */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                {/* Present Timer */}
+            <form onSubmit={handleLaunchLiveSession} className="flex flex-col flex-1 overflow-hidden">
+              <div className="p-6 sm:p-8 overflow-y-auto flex-1 space-y-4">
+                {/* Session Title */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-800 mb-1">
-                    1. Present
-                  </label>
-                  <p className="text-[10px] text-slate-500 mb-2">
-                    Window for students to receive a full <strong>Present</strong> mark.
-                  </p>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      min={1}
-                      max={120}
-                      required
-                      value={presentMinutes}
-                      onChange={(e) => setPresentMinutes(Math.max(1, parseInt(e.target.value) || 1))}
-                      placeholder="e.g. 5"
-                      className="w-full pl-3.5 pr-14 py-2 text-xs rounded-xl border border-slate-200 bg-white font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                    />
-                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold pointer-events-none">
-                      mins
-                    </span>
-                  </div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Session Title</label>
+                  <input
+                    type="text"
+                    required
+                    value={liveSessionTitle}
+                    onChange={(e) => setLiveSessionTitle(e.target.value)}
+                    placeholder="e.g. Lecture Session 12: Distributed Systems"
+                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 font-semibold"
+                  />
                 </div>
 
-                {/* Late Timer */}
+                {/* Session Date */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-800 mb-1">
-                    2. Late Present
-                  </label>
-                  <p className="text-[10px] text-slate-500 mb-2">
-                    Grace period after Present timer ends where students are marked <strong>Late</strong>.
-                  </p>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      min={1}
-                      max={120}
-                      required
-                      value={lateMinutes}
-                      onChange={(e) => setLateMinutes(Math.max(1, parseInt(e.target.value) || 1))}
-                      placeholder="e.g. 5"
-                      className="w-full pl-3.5 pr-14 py-2 text-xs rounded-xl border border-slate-200 bg-white font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                    />
-                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold pointer-events-none">
-                      mins
-                    </span>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={liveSessionDate}
+                    onChange={(e) => setLiveSessionDate(e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 font-medium"
+                  />
+                </div>
+
+                {/* Two-Phase Timers */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                  {/* Present Timer */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1">
+                      1. Present
+                    </label>
+                    <p className="text-[10px] text-slate-500 mb-2">
+                      Window for students to receive a full <strong>Present</strong> mark.
+                    </p>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min={1}
+                        max={120}
+                        required
+                        value={presentMinutes}
+                        onChange={(e) => setPresentMinutes(Math.max(1, parseInt(e.target.value) || 1))}
+                        placeholder="e.g. 5"
+                        className="w-full pl-3.5 pr-14 py-2 text-xs rounded-xl border border-slate-200 bg-white font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                      />
+                      <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold pointer-events-none">
+                        mins
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Late Timer */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1">
+                      2. Late Present
+                    </label>
+                    <p className="text-[10px] text-slate-500 mb-2">
+                      Grace period after Present timer ends where students are marked <strong>Late</strong>.
+                    </p>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min={1}
+                        max={120}
+                        required
+                        value={lateMinutes}
+                        onChange={(e) => setLateMinutes(Math.max(1, parseInt(e.target.value) || 1))}
+                        placeholder="e.g. 5"
+                        className="w-full pl-3.5 pr-14 py-2 text-xs rounded-xl border border-slate-200 bg-white font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                      />
+                      <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold pointer-events-none">
+                        mins
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
-              <div className="flex gap-2.5 pt-2">
+
+              <div className="flex gap-2.5 p-4 sm:p-6 bg-slate-50 border-t border-slate-100 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsLiveModalOpen(false)}

@@ -1,18 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Settings,
-  Building,
   GraduationCap,
-  DollarSign,
-  ShieldCheck,
-  Bell,
-  Database,
   Save,
-  RotateCcw,
   CheckCircle2,
-  AlertTriangle,
-  Server,
-  Lock,
   Globe,
   Mail,
   Phone,
@@ -24,12 +14,6 @@ import {
   Sliders,
   Share2,
   ExternalLink,
-  Download,
-  Upload,
-  MessageCircle,
-  FileText,
-  CreditCard,
-  Radio,
   Facebook,
   Linkedin,
   Youtube,
@@ -38,9 +22,8 @@ import {
   Instagram,
   Navigation,
   Compass,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight
+  Radio,
+  ChevronDown
 } from 'lucide-react';
 
 const SETTING_MODULES = [
@@ -68,31 +51,6 @@ const SETTING_MODULES = [
     iconColor: 'text-indigo-600',
     bgColor: 'bg-indigo-50',
   },
-  {
-    id: 'finance',
-    name: 'Tuition & Accounts (৳ BDT)',
-    desc: 'Tuition rates, faculty honorarium, bKash & Nagad gateway accounts',
-    icon: DollarSign,
-    iconColor: 'text-emerald-600',
-    bgColor: 'bg-emerald-50',
-  },
-  {
-    id: 'security',
-    name: 'Security & Governance',
-    desc: '2FA enforcement, user registration policy & maintenance mode',
-    icon: ShieldCheck,
-    iconColor: 'text-amber-600',
-    bgColor: 'bg-amber-50',
-  },
-  {
-    id: 'communication',
-    name: 'SMTP & SMS Gateway',
-    desc: 'Mail server credentials, SMS masking ID & notification triggers',
-    icon: Bell,
-    iconColor: 'text-blue-600',
-    bgColor: 'bg-blue-50',
-  },
-
 ] as const;
 
 interface InstitutionalSettings {
@@ -140,44 +98,6 @@ interface InstitutionalSettings {
   courseDropGraceDays: number;
   gradingScale: string;
   autoProbationAlert: boolean;
-
-  // 4. Fiscal & Accounts Gateways (৳ BDT)
-  currency: string;
-  defaultSemesterTuition: number;
-  facultyCourseHonorarium: number;
-  latePaymentFine: number;
-  invoiceGracePeriodDays: number;
-  bkashMerchantNumber: string;
-  nagadWalletNumber: string;
-  bankName: string;
-  bankAccountNumber: string;
-  bankRoutingNumber: string;
-  enableBkashGateway: boolean;
-  enableNagadGateway: boolean;
-  enableBankTransfer: boolean;
-  autoGenerateEnrollmentInvoices: boolean;
-
-  // 5. Security & Access Governance
-  selfRegistrationPolicy: 'open' | 'approval_required' | 'admin_only';
-  enforceFaculty2FA: boolean;
-  sessionInactivityTimeoutMinutes: number;
-  auditLogRetentionDays: number;
-  maintenanceMode: boolean;
-  privacyPolicyUrl: string;
-  termsOfServiceUrl: string;
-
-  // 6. Communication, SMTP & SMS Gateways
-  smtpHost: string;
-  smtpPort: number;
-  smtpSenderName: string;
-  smtpSenderEmail: string;
-  smsGatewayProvider: string;
-  smsSenderId: string;
-  emailEnrollmentConfirmations: boolean;
-  emailGradeAnnouncements: boolean;
-  lowAttendanceGuardianAlerts: boolean;
-  tuitionInvoiceReceiptAlerts: boolean;
-  facultyPayrollDisbursementAlerts: boolean;
 }
 
 const DEFAULT_SETTINGS: InstitutionalSettings = {
@@ -225,52 +145,13 @@ const DEFAULT_SETTINGS: InstitutionalSettings = {
   courseDropGraceDays: 14,
   gradingScale: '4.00 Standard UGC Uniform Grading System',
   autoProbationAlert: true,
-
-  // 4. Fiscal & Accounts Gateways (৳ BDT)
-  currency: 'BDT (৳)',
-  defaultSemesterTuition: 18000,
-  facultyCourseHonorarium: 45000,
-  latePaymentFine: 500,
-  invoiceGracePeriodDays: 14,
-  bkashMerchantNumber: '01712-345678 (Merchant Account)',
-  nagadWalletNumber: '01812-345678 (Direct Pay)',
-  bankName: 'Sonali Bank PLC (Dhaka Corporate Branch)',
-  bankAccountNumber: '1023-4567-890123',
-  bankRoutingNumber: '090273841',
-  enableBkashGateway: true,
-  enableNagadGateway: true,
-  enableBankTransfer: true,
-  autoGenerateEnrollmentInvoices: true,
-
-  // 5. Security & Access Governance
-  selfRegistrationPolicy: 'approval_required',
-  enforceFaculty2FA: true,
-  sessionInactivityTimeoutMinutes: 60,
-  auditLogRetentionDays: 365,
-  maintenanceMode: false,
-  privacyPolicyUrl: 'https://edusathi.edu.bd/privacy',
-  termsOfServiceUrl: 'https://edusathi.edu.bd/terms',
-
-  // 6. Communication, SMTP & SMS Gateways
-  smtpHost: 'smtp.edusathi.edu.bd',
-  smtpPort: 587,
-  smtpSenderName: 'Office of the Registrar - EduSathi',
-  smtpSenderEmail: 'no-reply@edusathi.edu.bd',
-  smsGatewayProvider: 'SSL Wireless / BulkSMS Bangladesh',
-  smsSenderId: 'EDUSATHI',
-  emailEnrollmentConfirmations: true,
-  emailGradeAnnouncements: true,
-  lowAttendanceGuardianAlerts: true,
-  tuitionInvoiceReceiptAlerts: true,
-  facultyPayrollDisbursementAlerts: true,
 };
 
 export const AdminSettingsPage: React.FC = () => {
   const [settings, setSettings] = useState<InstitutionalSettings>(DEFAULT_SETTINGS);
-  const [activeTab, setActiveTab] = useState<'location' | 'social' | 'academic' | 'finance' | 'security' | 'communication' | 'system'>('location');
+  const [activeTab, setActiveTab] = useState<'location' | 'social' | 'academic'>('location');
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Dropdown state and click outside handler
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -289,18 +170,6 @@ export const AdminSettingsPage: React.FC = () => {
   const currentModuleIndex = SETTING_MODULES.findIndex(m => m.id === activeTab);
   const currentModule = SETTING_MODULES[currentModuleIndex >= 0 ? currentModuleIndex : 0];
   const CurrentIcon = currentModule.icon;
-
-  const handlePrevModule = () => {
-    if (currentModuleIndex > 0) {
-      setActiveTab(SETTING_MODULES[currentModuleIndex - 1].id as any);
-    }
-  };
-
-  const handleNextModule = () => {
-    if (currentModuleIndex < SETTING_MODULES.length - 1) {
-      setActiveTab(SETTING_MODULES[currentModuleIndex + 1].id as any);
-    }
-  };
 
   // Load persisted settings
   useEffect(() => {
@@ -329,45 +198,6 @@ export const AdminSettingsPage: React.FC = () => {
     }, 400);
   };
 
-  const handleReset = () => {
-    if (window.confirm('Reset all institutional platform settings to standard factory defaults?')) {
-      setSettings(DEFAULT_SETTINGS);
-      localStorage.removeItem('edusathi_institutional_settings');
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
-    }
-  };
-
-  const handleExportJSON = () => {
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(settings, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `edusathi_settings_backup_${new Date().toISOString().split('T')[0]}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-  };
-
-  const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const parsed = JSON.parse(event.target?.result as string);
-        setSettings(prev => ({ ...prev, ...parsed }));
-        localStorage.setItem('edusathi_institutional_settings', JSON.stringify(parsed));
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 4000);
-      } catch (err) {
-        alert('Invalid JSON configuration file format.');
-      }
-    };
-    reader.readAsText(file);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
   const updateSetting = <K extends keyof InstitutionalSettings>(key: K, value: InstitutionalSettings[K]) => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
@@ -378,46 +208,16 @@ export const AdminSettingsPage: React.FC = () => {
       <div className="border border-slate-300 bg-white p-5 shadow-sm">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
               Institutional Platform Settings &amp; Governance
             </h1>
             <p className="text-xs text-slate-600 mt-1">
-              Manage university identity, campus location profiles, official social media integrations, academic rules, tuition rails &amp; communications.
+              Manage university identity, campus location profiles, official social media integrations &amp; academic rules.
             </p>
           </div>
 
           {/* Action Bar */}
           <div className="flex flex-wrap items-center gap-2 self-start lg:self-auto">
-            <button
-              onClick={handleExportJSON}
-              className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-medium text-xs shadow-sm transition"
-              title="Export configuration as JSON backup"
-            >
-              <Download className="w-3.5 h-3.5 text-slate-500" />
-              <span>Backup JSON</span>
-            </button>
-
-            <label className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-medium text-xs shadow-sm transition cursor-pointer">
-              <Upload className="w-3.5 h-3.5 text-slate-500" />
-              <span>Restore JSON</span>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleImportJSON}
-                accept=".json"
-                className="hidden"
-              />
-            </label>
-
-            <button
-              onClick={handleReset}
-              className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-medium text-xs shadow-sm transition"
-            >
-              <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-              <span>Reset Defaults</span>
-            </button>
-
             <button
               onClick={handleSave}
               disabled={saving}
@@ -477,7 +277,7 @@ export const AdminSettingsPage: React.FC = () => {
           {isDropdownOpen && (
             <div className="absolute left-0 right-0 mt-1 bg-white border border-slate-300 shadow-xl z-50 divide-y divide-slate-100 max-h-96 overflow-y-auto">
               <div className="px-3 py-1.5 bg-slate-50 text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">
-                Select Configuration Section (7 Modules)
+                Select Configuration Section (3 Modules)
               </div>
               {SETTING_MODULES.map((mod, idx) => {
                 const Icon = mod.icon;
@@ -1209,438 +1009,6 @@ export const AdminSettingsPage: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 4: FISCAL & TUITION GATEWAYS (৳ BDT) */}
-      {activeTab === 'finance' && (
-        <div className="space-y-4">
-          <div className="border border-slate-300 bg-white p-6 shadow-sm">
-            <h3 className="text-xs font-bold uppercase tracking-wider font-mono text-slate-800 mb-1">
-              Tuition Billing, Faculty Honorarium &amp; Digital Payment Rails (৳ BDT)
-            </h3>
-            <p className="text-[11px] text-slate-500 mb-6">
-              Standardized tuition rates, salary disbursement schedules, and integrated payment gateways in Bangla Taka.
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 text-xs">
-              <div>
-                <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1.5">
-                  Standard Regular Semester Tuition (৳ BDT)
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono font-bold text-slate-600">৳</span>
-                  <input
-                    type="number"
-                    value={settings.defaultSemesterTuition}
-                    onChange={(e) => updateSetting('defaultSemesterTuition', Number(e.target.value))}
-                    className="w-full pl-8 pr-3 py-2 border border-slate-300 focus:outline-none focus:border-slate-900 text-slate-900 font-mono bg-white font-semibold"
-                  />
-                </div>
-                <p className="text-[10px] text-slate-500 mt-1">Default invoice amount generated during student term registration.</p>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1.5">
-                  Standard Faculty Honorarium per Course (৳ BDT)
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono font-bold text-slate-600">৳</span>
-                  <input
-                    type="number"
-                    value={settings.facultyCourseHonorarium}
-                    onChange={(e) => updateSetting('facultyCourseHonorarium', Number(e.target.value))}
-                    className="w-full pl-8 pr-3 py-2 border border-slate-300 focus:outline-none focus:border-slate-900 text-slate-900 font-mono bg-white font-semibold"
-                  />
-                </div>
-                <p className="text-[10px] text-slate-500 mt-1">Base calculation rate in Faculty Salary Management module.</p>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1.5">
-                  Overdue Tuition Late Fine Surcharge (৳ BDT)
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono font-bold text-slate-600">৳</span>
-                  <input
-                    type="number"
-                    value={settings.latePaymentFine}
-                    onChange={(e) => updateSetting('latePaymentFine', Number(e.target.value))}
-                    className="w-full pl-8 pr-3 py-2 border border-slate-300 focus:outline-none focus:border-slate-900 text-slate-900 font-mono bg-white"
-                  />
-                </div>
-                <p className="text-[10px] text-slate-500 mt-1">Assessed on student tuition accounts past the payment grace window.</p>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1.5">
-                  Official bKash Merchant Number
-                </label>
-                <input
-                  type="text"
-                  value={settings.bkashMerchantNumber}
-                  onChange={(e) => updateSetting('bkashMerchantNumber', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 focus:outline-none focus:border-slate-900 text-slate-900 font-mono bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1.5">
-                  Nagad Business Wallet Number
-                </label>
-                <input
-                  type="text"
-                  value={settings.nagadWalletNumber}
-                  onChange={(e) => updateSetting('nagadWalletNumber', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 focus:outline-none focus:border-slate-900 text-slate-900 font-mono bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1.5">
-                  Institutional Bank Name
-                </label>
-                <input
-                  type="text"
-                  value={settings.bankName}
-                  onChange={(e) => updateSetting('bankName', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 focus:outline-none focus:border-slate-900 text-slate-900 bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1.5">
-                  Bank Account Number
-                </label>
-                <input
-                  type="text"
-                  value={settings.bankAccountNumber}
-                  onChange={(e) => updateSetting('bankAccountNumber', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 focus:outline-none focus:border-slate-900 text-slate-900 font-mono bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1.5">
-                  Bank Routing Number (Bangladesh Bank)
-                </label>
-                <input
-                  type="text"
-                  value={settings.bankRoutingNumber}
-                  onChange={(e) => updateSetting('bankRoutingNumber', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 focus:outline-none focus:border-slate-900 text-slate-900 font-mono bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1.5">
-                  Payment Grace Window (Days)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="60"
-                  value={settings.invoiceGracePeriodDays}
-                  onChange={(e) => updateSetting('invoiceGracePeriodDays', Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-slate-300 focus:outline-none focus:border-slate-900 text-slate-900 font-mono bg-white"
-                />
-              </div>
-            </div>
-
-            {/* Gateway Configuration Switches */}
-            <div className="mt-6 pt-5 border-t border-slate-200">
-              <h4 className="text-[11px] font-mono uppercase tracking-wider font-bold text-slate-700 mb-3">
-                Active Digital Payment Rails (Bangla Taka ৳)
-              </h4>
-              <div className="space-y-3 text-xs">
-                <label className="flex items-center justify-between p-3 border border-slate-200 bg-slate-50 cursor-pointer">
-                  <div>
-                    <span className="font-bold text-slate-900">bKash Merchant Direct Gateway</span>
-                    <p className="text-[11px] text-slate-500">Supports automated instantaneous mobile tuition checkout and reference verification.</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={settings.enableBkashGateway}
-                    onChange={(e) => updateSetting('enableBkashGateway', e.target.checked)}
-                    className="w-4 h-4 text-slate-900 border-slate-300 rounded-none focus:ring-0"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between p-3 border border-slate-200 bg-slate-50 cursor-pointer">
-                  <div>
-                    <span className="font-bold text-slate-900">Nagad Business Checkout</span>
-                    <p className="text-[11px] text-slate-500">Postal department digital wallet integration for tuition settlement.</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={settings.enableNagadGateway}
-                    onChange={(e) => updateSetting('enableNagadGateway', e.target.checked)}
-                    className="w-4 h-4 text-slate-900 border-slate-300 rounded-none focus:ring-0"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between p-3 border border-slate-200 bg-slate-50 cursor-pointer">
-                  <div>
-                    <span className="font-bold text-slate-900">Bangladesh Bank BEFTN / Direct Bank Transfer</span>
-                    <p className="text-[11px] text-slate-500">Institutional bank account deposit with manual or automated voucher reconciliation.</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={settings.enableBankTransfer}
-                    onChange={(e) => updateSetting('enableBankTransfer', e.target.checked)}
-                    className="w-4 h-4 text-slate-900 border-slate-300 rounded-none focus:ring-0"
-                  />
-                </label>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 5: SECURITY & ACCESS GOVERNANCE */}
-      {activeTab === 'security' && (
-        <div className="space-y-4">
-          <div className="border border-slate-300 bg-white p-6 shadow-sm">
-            <h3 className="text-xs font-bold uppercase tracking-wider font-mono text-slate-800 mb-1">
-              Role-Based Access Control, Data Privacy &amp; Cyber-Security Standards
-            </h3>
-            <p className="text-[11px] text-slate-500 mb-6">
-              Mandatory authentication, session lifecycle, and regulatory data integrity controls for administrative users.
-            </p>
-
-            <div className="space-y-4 text-xs">
-              <div>
-                <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1.5">
-                  Student Registration Protocol
-                </label>
-                <select
-                  value={settings.selfRegistrationPolicy}
-                  onChange={(e) => updateSetting('selfRegistrationPolicy', e.target.value as any)}
-                  className="w-full max-w-md px-3 py-2 border border-slate-300 focus:outline-none focus:border-slate-900 text-slate-900 bg-white font-medium"
-                >
-                  <option value="approval_required">Approval Required (Registrar must review student accounts)</option>
-                  <option value="open">Open Registration (Instant activation upon email verification)</option>
-                  <option value="admin_only">Strict Provisioning (Admin directory creation only)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1.5">
-                  Administrative Inactive Session Expiration (Minutes)
-                </label>
-                <select
-                  value={settings.sessionInactivityTimeoutMinutes}
-                  onChange={(e) => updateSetting('sessionInactivityTimeoutMinutes', Number(e.target.value))}
-                  className="w-full max-w-md px-3 py-2 border border-slate-300 focus:outline-none focus:border-slate-900 text-slate-900 bg-white font-medium font-mono"
-                >
-                  <option value={30}>30 Minutes (High Security Mode)</option>
-                  <option value={60}>60 Minutes (Standard Enterprise Protocol)</option>
-                  <option value={120}>120 Minutes (Extended Working Shift)</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                <div>
-                  <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1.5">
-                    Privacy Policy Document URL
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.privacyPolicyUrl}
-                    onChange={(e) => updateSetting('privacyPolicyUrl', e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 focus:outline-none focus:border-slate-900 text-slate-900 font-mono bg-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1.5">
-                    Terms of Academic Service URL
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.termsOfServiceUrl}
-                    onChange={(e) => updateSetting('termsOfServiceUrl', e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 focus:outline-none focus:border-slate-900 text-slate-900 font-mono bg-white"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-2 border-t border-slate-200">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={settings.enforceFaculty2FA}
-                    onChange={(e) => updateSetting('enforceFaculty2FA', e.target.checked)}
-                    className="w-4 h-4 text-slate-900 border-slate-300 rounded-none focus:ring-0"
-                  />
-                  <div>
-                    <span className="font-bold text-slate-900">Enforce Multi-Factor Authentication (MFA/2FA) for Faculty &amp; Staff</span>
-                    <p className="text-[11px] text-slate-500">
-                      Mandatory second-factor OTP code verification for all grade alterations and salary disbursement operations.
-                    </p>
-                  </div>
-                </label>
-              </div>
-
-              <div className="pt-2 border-t border-slate-200">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={settings.maintenanceMode}
-                    onChange={(e) => updateSetting('maintenanceMode', e.target.checked)}
-                    className="w-4 h-4 text-rose-700 border-slate-300 rounded-none focus:ring-0"
-                  />
-                  <div>
-                    <span className="font-bold text-rose-700">Platform Maintenance Mode (Restricted Access)</span>
-                    <p className="text-[11px] text-slate-500">
-                      Temporarily redirects all student and teacher traffic to an institutional maintenance advisory notice. Administrators retain console access.
-                    </p>
-                  </div>
-                </label>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 6: COMMUNICATION & GATEWAYS */}
-      {activeTab === 'communication' && (
-        <div className="space-y-4">
-          <div className="border border-slate-300 bg-white p-6 shadow-sm">
-            <h3 className="text-xs font-bold uppercase tracking-wider font-mono text-slate-800 mb-1">
-              SMTP Mail Server &amp; SMS Gateway Dispatches
-            </h3>
-            <p className="text-[11px] text-slate-500 mb-6">
-              Configure outgoing mail hosts, SMS gateway providers, and automated notification triggers.
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-xs mb-6">
-              <div>
-                <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1.5">
-                  SMTP Hostname
-                </label>
-                <input
-                  type="text"
-                  value={settings.smtpHost}
-                  onChange={(e) => updateSetting('smtpHost', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 focus:outline-none focus:border-slate-900 text-slate-900 font-mono bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1.5">
-                  SMTP Port
-                </label>
-                <input
-                  type="number"
-                  value={settings.smtpPort}
-                  onChange={(e) => updateSetting('smtpPort', Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-slate-300 focus:outline-none focus:border-slate-900 text-slate-900 font-mono bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1.5">
-                  Default Sender Name
-                </label>
-                <input
-                  type="text"
-                  value={settings.smtpSenderName}
-                  onChange={(e) => updateSetting('smtpSenderName', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 focus:outline-none focus:border-slate-900 text-slate-900 bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1.5">
-                  Default Sender Email
-                </label>
-                <input
-                  type="email"
-                  value={settings.smtpSenderEmail}
-                  onChange={(e) => updateSetting('smtpSenderEmail', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 focus:outline-none focus:border-slate-900 text-slate-900 font-mono bg-white"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1.5">
-                  SMS Gateway Provider
-                </label>
-                <input
-                  type="text"
-                  value={settings.smsGatewayProvider}
-                  onChange={(e) => updateSetting('smsGatewayProvider', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 focus:outline-none focus:border-slate-900 text-slate-900 bg-white font-medium"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1.5">
-                  SMS Masking Sender ID
-                </label>
-                <input
-                  type="text"
-                  value={settings.smsSenderId}
-                  onChange={(e) => updateSetting('smsSenderId', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 focus:outline-none focus:border-slate-900 text-slate-900 font-mono bg-white font-bold"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3 text-xs pt-4 border-t border-slate-200">
-              <label className="flex items-center justify-between p-3 border border-slate-200 bg-slate-50 cursor-pointer">
-                <div>
-                  <span className="font-bold text-slate-900">Course Enrollment Confirmation Notices</span>
-                  <p className="text-[11px] text-slate-500">Sends instant registration ledger confirmation when student is assigned to a course.</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={settings.emailEnrollmentConfirmations}
-                  onChange={(e) => updateSetting('emailEnrollmentConfirmations', e.target.checked)}
-                  className="w-4 h-4 text-slate-900 border-slate-300 rounded-none focus:ring-0"
-                />
-              </label>
-
-              <label className="flex items-center justify-between p-3 border border-slate-200 bg-slate-50 cursor-pointer">
-                <div>
-                  <span className="font-bold text-slate-900">Attendance Warning Dispatches (&lt;75% Threshold)</span>
-                  <p className="text-[11px] text-slate-500">Dispatches automated non-compliance warning letter when attendance falls below academic requirement.</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={settings.lowAttendanceGuardianAlerts}
-                  onChange={(e) => updateSetting('lowAttendanceGuardianAlerts', e.target.checked)}
-                  className="w-4 h-4 text-slate-900 border-slate-300 rounded-none focus:ring-0"
-                />
-              </label>
-
-              <label className="flex items-center justify-between p-3 border border-slate-200 bg-slate-50 cursor-pointer">
-                <div>
-                  <span className="font-bold text-slate-900">Tuition Invoicing &amp; Digital Clearance Receipts</span>
-                  <p className="text-[11px] text-slate-500">Provides downloadable institutional receipts upon student due settlement in Bangla Taka (৳).</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={settings.tuitionInvoiceReceiptAlerts}
-                  onChange={(e) => updateSetting('tuitionInvoiceReceiptAlerts', e.target.checked)}
-                  className="w-4 h-4 text-slate-900 border-slate-300 rounded-none focus:ring-0"
-                />
-              </label>
-
-              <label className="flex items-center justify-between p-3 border border-slate-200 bg-slate-50 cursor-pointer">
-                <div>
-                  <span className="font-bold text-slate-900">Faculty Salary Voucher Payout Advisories</span>
-                  <p className="text-[11px] text-slate-500">Notifies instructors automatically with salary breakdown upon admin payroll disbursement.</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={settings.facultyPayrollDisbursementAlerts}
-                  onChange={(e) => updateSetting('facultyPayrollDisbursementAlerts', e.target.checked)}
-                  className="w-4 h-4 text-slate-900 border-slate-300 rounded-none focus:ring-0"
-                />
-              </label>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

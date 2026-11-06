@@ -94,10 +94,29 @@ export async function register(req: Request, res: Response): Promise<void> {
   const role = 'student';
   const status = 'active';
 
+  if (student_id && String(student_id).trim()) {
+    const cleanStudentId = String(student_id).trim();
+    const existingStudent = await getOne<{ id: string }>(
+      'SELECT id FROM profiles WHERE role = ? AND LOWER(student_id) = LOWER(?)',
+      ['student', cleanStudentId]
+    );
+    if (existingStudent) {
+      res.status(409).json({
+        success: false,
+        message: `Student ID "${cleanStudentId}" is already assigned to another student.`,
+        code: 'STUDENT_ID_EXISTS',
+      });
+      return;
+    }
+  }
+
+  const defaultNeutralAvatar =
+    'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><rect width="128" height="128" rx="64" fill="%23F1F5F9"/><circle cx="64" cy="48" r="22" fill="%2364748B"/><path d="M26 108c0-20.987 17.013-38 38-38s38 17.013 38 38v4H26v-4z" fill="%2364748B"/></svg>';
+
   await run(
-    `INSERT INTO profiles (id, full_name, email, password_hash, role, status, student_id, department)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, full_name, cleanEmail, passwordHash, role, status, student_id || null, department || null]
+    `INSERT INTO profiles (id, full_name, email, password_hash, role, status, avatar_url, student_id, department)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, full_name, cleanEmail, passwordHash, role, status, defaultNeutralAvatar, student_id ? String(student_id).trim() : null, department || null]
   );
 
   const signOptions: SignOptions = { expiresIn: config.jwtExpiresIn as any };
@@ -141,10 +160,16 @@ export async function getMe(req: AuthRequest, res: Response): Promise<void> {
   }
 
   // Get unread notification count
-  const unreadCountRow = await getOne<{ count: number }>(
-    'SELECT COUNT(*) as count FROM notifications WHERE recipient_id = ? AND read_at IS NULL',
-    [req.user.id]
-  );
+  const isAdmin = req.user.role === 'admin';
+  const isTeacher = req.user.role === 'teacher';
+  let unreadSql = 'SELECT COUNT(*) as count FROM notifications WHERE recipient_id = ? AND read_at IS NULL';
+  if (isAdmin) {
+    unreadSql += ` AND type IN ('salary_request', 'new_payment', 'payment_received', 'student_payment', 'salary_disbursed', 'admin_alert', 'system_alert')`;
+  } else if (isTeacher) {
+    unreadSql += ` AND type IN ('submission', 'assignment_submitted', 'salary_disbursed', 'salary_request', 'comment', 'doubt', 'teacher_alert', 'faculty_alert', 'system_alert', 'enrollment')`;
+  }
+
+  const unreadCountRow = await getOne<{ count: number }>(unreadSql, [req.user.id]);
 
   res.json({
     success: true,

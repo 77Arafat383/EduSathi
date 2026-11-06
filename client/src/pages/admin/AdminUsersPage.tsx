@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Users,
   UserPlus,
@@ -22,19 +22,51 @@ import {
   Plus
 } from 'lucide-react';
 import { api } from '../../lib/api';
-import { User, UserRole } from '../../types';
+import { User, UserRole, DEFAULT_NEUTRAL_AVATAR } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { MonthYearPicker } from '../../components/common/MonthYearPicker';
 import { useAuth } from '../../app/providers';
 
 export const AdminUsersPage: React.FC = () => {
   const { user: currentUser } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const getInitialTab = (): 'teachers' | 'students' | 'admins' => {
+    const t = searchParams.get('tab') || searchParams.get('role');
+    if (t === 'students' || t === 'student') return 'students';
+    if (t === 'admins' || t === 'admin') return 'admins';
+    return 'teachers';
+  };
+
   const [users, setUsers] = useState<User[]>([]);
-  const [activeTab, setActiveTab] = useState<'teachers' | 'students' | 'admins'>('teachers');
+  const [activeTab, setActiveTab] = useState<'teachers' | 'students' | 'admins'>(getInitialTab());
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // Sync tab with search parameters
+  useEffect(() => {
+    const t = searchParams.get('tab') || searchParams.get('role');
+    if (t === 'students' || t === 'student') {
+      setActiveTab('students');
+    } else if (t === 'teachers' || t === 'teacher') {
+      setActiveTab('teachers');
+    } else if (t === 'admins' || t === 'admin') {
+      setActiveTab('admins');
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (tab: 'teachers' | 'students' | 'admins') => {
+    setActiveTab(tab);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', tab);
+      return next;
+    });
+  };
+
   // Create User Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [newUser, setNewUser] = useState({
     full_name: '',
     email: '',
@@ -185,10 +217,39 @@ export const AdminUsersPage: React.FC = () => {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    setCreateError(null);
+
+    // Validate student ID uniqueness for students
+    if (newUser.role === 'student') {
+      const cleanStudentId = newUser.student_id?.trim();
+      if (!cleanStudentId) {
+        setCreateError('Student ID is required when adding a student.');
+        return;
+      }
+
+      const duplicateStudent = users.find(
+        (u) =>
+          u.role === 'student' &&
+          u.student_id &&
+          u.student_id.trim().toLowerCase() === cleanStudentId.toLowerCase()
+      );
+
+      if (duplicateStudent) {
+        setCreateError(
+          `Student ID "${cleanStudentId}" is already assigned to ${duplicateStudent.full_name}. A student must maintain a unique ID.`
+        );
+        return;
+      }
+    }
+
     setSubmitting(true);
 
     try {
-      await api.createUser(newUser);
+      await api.createUser({
+        ...newUser,
+        student_id: newUser.role === 'student' ? newUser.student_id.trim() : (newUser.student_id || undefined),
+        avatar_url: DEFAULT_NEUTRAL_AVATAR,
+      });
       setShowCreateModal(false);
       setNewUser({
         full_name: '',
@@ -200,7 +261,7 @@ export const AdminUsersPage: React.FC = () => {
       });
       fetchUsers();
     } catch (err: any) {
-      alert(err.message || 'Failed to create user');
+      setCreateError(err.message || 'Failed to create user');
     } finally {
       setSubmitting(false);
     }
@@ -248,7 +309,10 @@ export const AdminUsersPage: React.FC = () => {
 
         <div className="flex items-center gap-2.5">
           <button
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => {
+              setCreateError(null);
+              setShowCreateModal(true);
+            }}
             className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow-sm transition"
           >
             <UserPlus className="w-4 h-4" /> Add User
@@ -261,7 +325,7 @@ export const AdminUsersPage: React.FC = () => {
         {/* Role Tabs */}
         <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl border border-slate-200 text-xs w-full sm:w-auto">
           <button
-            onClick={() => setActiveTab('teachers')}
+            onClick={() => handleTabChange('teachers')}
             className={`px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 ${activeTab === 'teachers'
                 ? 'bg-white text-slate-900 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
@@ -271,7 +335,7 @@ export const AdminUsersPage: React.FC = () => {
             <span>Faculty ({teacherList.length})</span>
           </button>
           <button
-            onClick={() => setActiveTab('students')}
+            onClick={() => handleTabChange('students')}
             className={`px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 ${activeTab === 'students'
                 ? 'bg-white text-slate-900 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
@@ -281,7 +345,7 @@ export const AdminUsersPage: React.FC = () => {
             <span>Students ({studentList.length})</span>
           </button>
           <button
-            onClick={() => setActiveTab('admins')}
+            onClick={() => handleTabChange('admins')}
             className={`px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 ${activeTab === 'admins'
                 ? 'bg-white text-slate-900 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
@@ -346,7 +410,7 @@ export const AdminUsersPage: React.FC = () => {
                 <div className="p-4 space-y-4">
                   <div className="flex items-start gap-3.5">
                     <img
-                      src={teacher.avatar_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120'}
+                      src={teacher.avatar_url || DEFAULT_NEUTRAL_AVATAR}
                       alt={teacher.full_name}
                       className="w-14 h-14 rounded-none border border-slate-300 object-cover bg-slate-100 shrink-0"
                     />
@@ -444,7 +508,7 @@ export const AdminUsersPage: React.FC = () => {
                   <div className="p-4 space-y-4">
                     <div className="flex items-start gap-3.5">
                       <img
-                        src={student.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120'}
+                        src={student.avatar_url || DEFAULT_NEUTRAL_AVATAR}
                         alt={student.full_name}
                         className="w-14 h-14 rounded-none border border-slate-300 object-cover bg-slate-100 shrink-0"
                       />
@@ -544,7 +608,7 @@ export const AdminUsersPage: React.FC = () => {
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
                         <img
-                          src={admin.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80'}
+                          src={admin.avatar_url || DEFAULT_NEUTRAL_AVATAR}
                           alt={admin.full_name}
                           className="w-8 h-8 rounded-full object-cover"
                         />
@@ -584,13 +648,13 @@ export const AdminUsersPage: React.FC = () => {
       {/* MODAL 1: TEACHER PROFILE, ASSIGNED COURSES & SALARY SECTION */}
       {/* ========================================================================= */}
       {selectedTeacher && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-200 max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-fade-in">
+        <div className="fixed inset-0 z-[100] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-slate-200 max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col my-auto animate-fade-in">
             {/* Modal Header */}
-            <div className="p-6 bg-slate-950 text-white flex items-center justify-between border-b border-slate-800">
+            <div className="p-6 bg-slate-950 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
               <div className="flex items-center gap-4">
                 <img
-                  src={selectedTeacher.avatar_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120'}
+                  src={selectedTeacher.avatar_url || DEFAULT_NEUTRAL_AVATAR}
                   alt={selectedTeacher.full_name}
                   className="w-14 h-14 rounded-2xl object-cover border border-slate-700"
                 />
@@ -617,7 +681,7 @@ export const AdminUsersPage: React.FC = () => {
             </div>
 
             {/* Navigation Tabs in Modal */}
-            <div className="px-6 pt-4 pb-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-4">
+            <div className="px-6 pt-4 pb-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-4 shrink-0">
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setTeacherModalTab('courses')}
@@ -691,10 +755,11 @@ export const AdminUsersPage: React.FC = () => {
                           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
                             <span>{course.student_count || 0} students enrolled</span>
                             <Link
-                              to={`/student/courses/${course.id}`}
+                              to={`/admin/courses?courseId=${course.id}`}
                               className="font-bold text-brand-600 hover:text-brand-700 inline-flex items-center gap-1"
+                              title="Manage this course in Course Management"
                             >
-                              <span>View Studio</span>
+                              <span>Course Management</span>
                               <ChevronRight className="w-3.5 h-3.5" />
                             </Link>
                           </div>
@@ -772,8 +837,14 @@ export const AdminUsersPage: React.FC = () => {
                                 <td className="py-3 px-4 text-slate-600">{sal.payment_method}</td>
                                 <td className="py-3 px-4 font-mono font-bold text-slate-500">{sal.transaction_ref}</td>
                                 <td className="py-3 px-4 text-center">
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                    Disbursed
+                                  <span
+                                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                      sal.status === 'paid'
+                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                        : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                    }`}
+                                  >
+                                    {sal.status === 'paid' ? 'Disbursed' : 'Pending'}
                                   </span>
                                 </td>
                               </tr>
@@ -787,7 +858,7 @@ export const AdminUsersPage: React.FC = () => {
               )}
             </div>
 
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end">
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end shrink-0">
               <button
                 onClick={() => setSelectedTeacher(null)}
                 className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-sm transition"
@@ -803,13 +874,13 @@ export const AdminUsersPage: React.FC = () => {
       {/* MODAL 2: STUDENT PROFILE, ENROLLED COURSES & PAYMENT/DUES SECTION */}
       {/* ========================================================================= */}
       {selectedStudent && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-200 max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-fade-in">
+        <div className="fixed inset-0 z-[100] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-slate-200 max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col my-auto animate-fade-in">
             {/* Modal Header */}
-            <div className="p-6 bg-slate-950 text-white flex items-center justify-between border-b border-slate-800">
+            <div className="p-6 bg-slate-950 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
               <div className="flex items-center gap-4">
                 <img
-                  src={selectedStudent.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120'}
+                  src={selectedStudent.avatar_url || DEFAULT_NEUTRAL_AVATAR}
                   alt={selectedStudent.full_name}
                   className="w-14 h-14 rounded-2xl object-cover border border-slate-700"
                 />
@@ -836,7 +907,7 @@ export const AdminUsersPage: React.FC = () => {
             </div>
 
             {/* Outstanding Due Available Banner */}
-            <div className="px-6 py-3 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="px-6 py-3 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
               <div className="flex items-center gap-2">
                 {studentFinanceData?.financial_summary?.has_due ? (
                   <div className="flex items-center gap-2 text-xs font-bold text-amber-800 bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200">
@@ -863,7 +934,7 @@ export const AdminUsersPage: React.FC = () => {
             </div>
 
             {/* Navigation Tabs in Modal */}
-            <div className="px-6 pt-3 pb-2 border-b border-slate-200 flex items-center gap-2">
+            <div className="px-6 pt-3 pb-2 border-b border-slate-200 flex items-center gap-2 shrink-0">
               <button
                 onClick={() => setStudentModalTab('courses')}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${studentModalTab === 'courses'
@@ -1044,7 +1115,7 @@ export const AdminUsersPage: React.FC = () => {
               )}
             </div>
 
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end">
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end shrink-0">
               <button
                 onClick={() => setSelectedStudent(null)}
                 className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-sm transition"
@@ -1058,72 +1129,71 @@ export const AdminUsersPage: React.FC = () => {
 
       {/* In-Modal Quick Disburse Salary Modal */}
       {showTeacherPayModal && selectedTeacher && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-200 max-w-md w-full p-6 shadow-2xl space-y-4 animate-fade-in">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-slate-200 max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-fade-in">
+            <div className="flex items-center justify-between p-6 pb-4 border-b border-slate-100 shrink-0 bg-white">
               <h4 className="text-base font-extrabold text-slate-900">Disburse Salary to {selectedTeacher.full_name}</h4>
               <button onClick={() => setShowTeacherPayModal(false)} className="text-slate-400 hover:text-slate-600">✕</button>
             </div>
 
-            <form onSubmit={handleQuickDisburseSalary} className="space-y-3.5">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Disbursement Amount (৳ BDT)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  value={teacherPayAmount}
-                  onChange={(e) => setTeacherPayAmount(e.target.value)}
-                  placeholder="45000.00"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500 font-mono font-bold"
-                />
+            <form onSubmit={handleQuickDisburseSalary} className="flex flex-col flex-1 overflow-hidden">
+              <div className="p-6 overflow-y-auto flex-1 space-y-3.5">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Disbursement Amount (৳ BDT)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={teacherPayAmount}
+                    onChange={(e) => setTeacherPayAmount(e.target.value)}
+                    placeholder="45000.00"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500 font-mono font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Pay Period *</label>
+                  <MonthYearPicker
+                    value={teacherPayPeriod}
+                    onChange={(val) => setTeacherPayPeriod(val)}
+                    className="w-full"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Course Allocation (Optional)</label>
+                  <select
+                    value={teacherPayCourseId}
+                    onChange={(e) => setTeacherPayCourseId(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white"
+                  >
+                    <option value="">All Assigned Courses (General Faculty Load)</option>
+                    {teacherFinanceData?.assigned_courses?.map((c: any) => (
+                      <option key={c.id} value={c.id}>
+                        {c.title} ({c.subject_code || 'CRS'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Payment Method</label>
+                  <select
+                    value={teacherPayMethod}
+                    onChange={(e) => setTeacherPayMethod(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white"
+                  >
+                    <option value="BEFTN / Bank Transfer">BEFTN / Bank Transfer</option>
+                    <option value="City Bank Direct">City Bank Direct</option>
+                    <option value="bKash Merchant">bKash Merchant</option>
+                    <option value="Nagad Enterprise">Nagad Enterprise</option>
+                    <option value="Pay Order / Cheque">Pay Order / Cheque</option>
+                    <option value="Cash Voucher">Cash Voucher</option>
+                  </select>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Pay Period</label>
-                <input
-                  type="text"
-                  required
-                  value={teacherPayPeriod}
-                  onChange={(e) => setTeacherPayPeriod(e.target.value)}
-                  placeholder="e.g. October 2026"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Course Allocation (Optional)</label>
-                <select
-                  value={teacherPayCourseId}
-                  onChange={(e) => setTeacherPayCourseId(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white"
-                >
-                  <option value="">All Assigned Courses (General Faculty Load)</option>
-                  {teacherFinanceData?.assigned_courses?.map((c: any) => (
-                    <option key={c.id} value={c.id}>
-                      {c.title} ({c.subject_code || 'CRS'})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Payment Method</label>
-                <select
-                  value={teacherPayMethod}
-                  onChange={(e) => setTeacherPayMethod(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white"
-                >
-                  <option value="BEFTN / Bank Transfer">BEFTN / Bank Transfer</option>
-                  <option value="City Bank Direct">City Bank Direct</option>
-                  <option value="bKash Merchant">bKash Merchant</option>
-                  <option value="Nagad Enterprise">Nagad Enterprise</option>
-                  <option value="Pay Order / Cheque">Pay Order / Cheque</option>
-                  <option value="Cash Voucher">Cash Voucher</option>
-                </select>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2">
+              <div className="flex items-center justify-end gap-2 p-4 bg-slate-50 border-t border-slate-100 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowTeacherPayModal(false)}
@@ -1146,54 +1216,56 @@ export const AdminUsersPage: React.FC = () => {
 
       {/* In-Modal Quick Record Student Payment Modal */}
       {showStudentPayModal && selectedStudent && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-200 max-w-md w-full p-6 shadow-2xl space-y-4 animate-fade-in">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-slate-200 max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-fade-in">
+            <div className="flex items-center justify-between p-6 pb-4 border-b border-slate-100 shrink-0 bg-white">
               <h4 className="text-base font-extrabold text-slate-900">Record Fee for {selectedStudent.full_name}</h4>
               <button onClick={() => setShowStudentPayModal(false)} className="text-slate-400 hover:text-slate-600">✕</button>
             </div>
 
-            <form onSubmit={handleQuickStudentPayment} className="space-y-3.5">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Charge / Invoice Title</label>
-                <input
-                  type="text"
-                  required
-                  value={studentPayTitle}
-                  onChange={(e) => setStudentPayTitle(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                />
+            <form onSubmit={handleQuickStudentPayment} className="flex flex-col flex-1 overflow-hidden">
+              <div className="p-6 overflow-y-auto flex-1 space-y-3.5">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Charge / Invoice Title</label>
+                  <input
+                    type="text"
+                    required
+                    value={studentPayTitle}
+                    onChange={(e) => setStudentPayTitle(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Amount Paid (৳ BDT)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={studentPayAmount}
+                    onChange={(e) => setStudentPayAmount(e.target.value)}
+                    placeholder="e.g. 6000.00"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500 font-mono font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Payment Method</label>
+                  <select
+                    value={studentPayMethod}
+                    onChange={(e) => setStudentPayMethod(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white"
+                  >
+                    <option value="bKash Merchant">bKash Merchant</option>
+                    <option value="Nagad">Nagad</option>
+                    <option value="Bank Transfer (BEFTN/NPSB)">Bank Transfer (BEFTN/NPSB)</option>
+                    <option value="Dutch-Bangla Bank (DBBL)">Dutch-Bangla Bank (DBBL)</option>
+                    <option value="Cash at Admissions">Cash at Admissions</option>
+                  </select>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Amount Paid (৳ BDT)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  value={studentPayAmount}
-                  onChange={(e) => setStudentPayAmount(e.target.value)}
-                  placeholder="e.g. 6000.00"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500 font-mono font-bold"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Payment Method</label>
-                <select
-                  value={studentPayMethod}
-                  onChange={(e) => setStudentPayMethod(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white"
-                >
-                  <option value="bKash Merchant">bKash Merchant</option>
-                  <option value="Nagad">Nagad</option>
-                  <option value="Bank Transfer (BEFTN/NPSB)">Bank Transfer (BEFTN/NPSB)</option>
-                  <option value="Dutch-Bangla Bank (DBBL)">Dutch-Bangla Bank (DBBL)</option>
-                  <option value="Cash at Admissions">Cash at Admissions</option>
-                </select>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2">
+              <div className="flex items-center justify-end gap-2 p-4 bg-slate-50 border-t border-slate-100 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowStudentPayModal(false)}
@@ -1216,9 +1288,9 @@ export const AdminUsersPage: React.FC = () => {
 
       {/* Modal 3: Provision User Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-200 max-w-md w-full p-6 sm:p-8 shadow-2xl space-y-4 animate-fade-in">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+        <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-slate-200 max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-fade-in">
+            <div className="flex items-center justify-between p-6 pb-4 border-b border-slate-100 shrink-0 bg-white">
               <div>
                 <h3 className="text-lg font-extrabold text-slate-900">Provision User Account</h3>
                 <p className="text-xs text-slate-500 mt-0.5">Register student, faculty, or admin account.</p>
@@ -1226,83 +1298,112 @@ export const AdminUsersPage: React.FC = () => {
               <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-slate-600">✕</button>
             </div>
 
-            <form onSubmit={handleCreateUser} className="space-y-3.5">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  value={newUser.full_name}
-                  onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
-                  placeholder="e.g. Dr. Jane Doe"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Email Address</label>
-                <input
-                  type="email"
-                  required
-                  value={newUser.email}
-                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                  placeholder="jane.doe@edusathi.edu"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Initial Password</label>
-                <input
-                  type="password"
-                  required
-                  value={newUser.password}
-                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                  placeholder="••••••••"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Role</label>
-                  <select
-                    value={newUser.role}
-                    onChange={(e) => setNewUser({ ...newUser, role: e.target.value as UserRole })}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white"
-                  >
-                    <option value="student">Student</option>
-                    <option value="teacher">Teacher (Faculty)</option>
-                    <option value="admin">Administrator</option>
-                  </select>
-                </div>
-
-                {newUser.role === 'student' && (
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Student ID</label>
-                    <input
-                      type="text"
-                      value={newUser.student_id}
-                      onChange={(e) => setNewUser({ ...newUser, student_id: e.target.value })}
-                      placeholder="e.g. CS-2024-005"
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 font-mono"
-                    />
+            <form onSubmit={handleCreateUser} className="flex flex-col flex-1 overflow-hidden">
+              <div className="p-6 overflow-y-auto flex-1 space-y-3.5">
+                {createError && (
+                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{createError}</span>
                   </div>
                 )}
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={newUser.full_name}
+                    onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
+                    placeholder="e.g. Dr. Jane Doe"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    value={newUser.email}
+                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                    placeholder="jane.doe@edusathi.edu"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Initial Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={newUser.password}
+                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                    placeholder="••••••••"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Role</label>
+                    <select
+                      value={newUser.role}
+                      onChange={(e) => {
+                        setNewUser({ ...newUser, role: e.target.value as UserRole });
+                        setCreateError(null);
+                      }}
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white"
+                    >
+                      <option value="student">Student</option>
+                      <option value="teacher">Teacher (Faculty)</option>
+                      <option value="admin">Administrator</option>
+                    </select>
+                  </div>
+
+                  {newUser.role === 'student' && (
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Student ID <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newUser.student_id}
+                        onChange={(e) => {
+                          setNewUser({ ...newUser, student_id: e.target.value });
+                          setCreateError(null);
+                        }}
+                        placeholder="e.g. CS-2024-005"
+                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 font-mono focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      />
+                      {newUser.student_id.trim() &&
+                        users.some(
+                          (u) =>
+                            u.role === 'student' &&
+                            u.student_id &&
+                            u.student_id.trim().toLowerCase() === newUser.student_id.trim().toLowerCase()
+                        ) && (
+                          <p className="text-[10px] text-rose-600 font-bold mt-1">
+                            ⚠️ ID already exists! Enter a unique ID.
+                          </p>
+                        )}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Department</label>
+                  <input
+                    type="text"
+                    value={newUser.department}
+                    onChange={(e) => setNewUser({ ...newUser, department: e.target.value })}
+                    placeholder="Computer Science & Engineering"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Department</label>
-                <input
-                  type="text"
-                  value={newUser.department}
-                  onChange={(e) => setNewUser({ ...newUser, department: e.target.value })}
-                  placeholder="Computer Science & Engineering"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-2 p-4 bg-slate-50 border-t border-slate-100 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}

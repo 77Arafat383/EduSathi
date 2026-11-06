@@ -1473,9 +1473,9 @@ export const TeacherQuizBuilderPage: React.FC = () => {
       {/* ===================== EQUATION STUDIO MODAL ===================== */}
       {equationModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-2xl w-full p-6 space-y-5 my-8">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden my-auto">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center justify-between border-b border-slate-100 p-6 pb-3 shrink-0 bg-white">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-600 text-white flex items-center justify-center shadow-xs">
                   <Calculator className="w-4 h-4" />
@@ -1502,8 +1502,10 @@ export const TeacherQuizBuilderPage: React.FC = () => {
               </button>
             </div>
 
-            {/* Mode Switcher Tabs */}
-            <div className="flex items-center justify-between">
+            {/* Scrollable Body */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-5">
+              {/* Mode Switcher Tabs */}
+              <div className="flex items-center justify-between">
               <div className="inline-flex p-1 bg-slate-100 rounded-2xl border border-slate-200/80">
                 <button
                   type="button"
@@ -1691,18 +1693,28 @@ export const TeacherQuizBuilderPage: React.FC = () => {
                 )}
               </div>
             </div>
+          </div>
 
-            {/* Final Action Button */}
+          {/* Pinned Footer Actions */}
+          <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setEquationModalOpen(false)}
+              className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition"
+            >
+              Cancel
+            </button>
             <button
               type="button"
               onClick={() => handleInsertFromStudio(activeLatex)}
-              className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm"
+              className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm"
             >
               <Check className="w-4 h-4" />
               Insert Equation into Assessment
             </button>
           </div>
         </div>
+      </div>
       )}
     </div>
   );

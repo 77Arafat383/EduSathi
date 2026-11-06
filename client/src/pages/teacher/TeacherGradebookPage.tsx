@@ -1275,9 +1275,9 @@ export const TeacherGradebookPage: React.FC = () => {
 
       {/* 4. Grade Submission Modal */}
       {gradingModalData && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-200 max-w-lg w-full p-6 sm:p-8 shadow-2xl space-y-4 animate-fade-in">
-            <div className="flex items-start justify-between">
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-slate-200 max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-fade-in">
+            <div className="flex items-start justify-between p-6 sm:p-8 pb-4 border-b border-slate-100 shrink-0 bg-white">
               <div>
                 <span className="text-[10px] font-bold text-brand-600 uppercase tracking-wider">Evaluation Terminal</span>
                 <h3 className="text-lg font-extrabold text-slate-900">{gradingModalData.assignment_title}</h3>
@@ -1291,54 +1291,56 @@ export const TeacherGradebookPage: React.FC = () => {
               </button>
             </div>
 
-            {/* Student submission preview */}
-            {gradingModalData.content && (
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-700 max-h-40 overflow-y-auto whitespace-pre-wrap">
-                <span className="block font-bold text-slate-900 mb-1">Student Submission Content:</span>
-                {gradingModalData.content}
+            <form onSubmit={handleSaveGrade} className="flex flex-col flex-1 overflow-hidden">
+              <div className="p-6 sm:p-8 overflow-y-auto flex-1 space-y-4">
+                {/* Student submission preview */}
+                {gradingModalData.content && (
+                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-700 max-h-40 overflow-y-auto whitespace-pre-wrap">
+                    <span className="block font-bold text-slate-900 mb-1">Student Submission Content:</span>
+                    {gradingModalData.content}
+                  </div>
+                )}
+
+                {gradingModalData.file_url && (
+                  <a
+                    href={gradingModalData.file_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs text-brand-600 font-bold hover:underline"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" /> View Attached Deliverable
+                  </a>
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Awarded Score (Max: {gradingModalData.max_score} pts)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={gradingModalData.max_score}
+                    step={0.5}
+                    required
+                    value={gradeInputScore}
+                    onChange={(e) => setGradeInputScore(parseFloat(e.target.value) || 0)}
+                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Instructor Pedagogical Feedback</label>
+                  <textarea
+                    rows={3}
+                    value={gradeInputFeedback}
+                    onChange={(e) => setGradeInputFeedback(e.target.value)}
+                    placeholder="Provide recommendations, positive feedback, and areas of improvement..."
+                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                  />
+                </div>
               </div>
-            )}
 
-            {gradingModalData.file_url && (
-              <a
-                href={gradingModalData.file_url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs text-brand-600 font-bold hover:underline"
-              >
-                <ExternalLink className="w-3.5 h-3.5" /> View Attached Deliverable
-              </a>
-            )}
-
-            <form onSubmit={handleSaveGrade} className="space-y-4 pt-2">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Awarded Score (Max: {gradingModalData.max_score} pts)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  max={gradingModalData.max_score}
-                  step={0.5}
-                  required
-                  value={gradeInputScore}
-                  onChange={(e) => setGradeInputScore(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 font-semibold"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Instructor Pedagogical Feedback</label>
-                <textarea
-                  rows={3}
-                  value={gradeInputFeedback}
-                  onChange={(e) => setGradeInputFeedback(e.target.value)}
-                  placeholder="Provide recommendations, positive feedback, and areas of improvement..."
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                />
-              </div>
-
-              <div className="flex gap-2 pt-2">
+              <div className="flex gap-2 p-4 sm:p-6 bg-slate-50 border-t border-slate-100 shrink-0">
                 <button
                   type="button"
                   onClick={() => setGradingModalData(null)}

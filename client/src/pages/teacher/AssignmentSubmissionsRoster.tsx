@@ -441,32 +441,33 @@ export const AssignmentSubmissionsRoster: React.FC<AssignmentSubmissionsRosterPr
       {/* ======================================================== */}
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden">
         {/* Banner Top Bar */}
-        <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="space-y-1">
+        <div className="p-5 sm:p-6 bg-gradient-to-r from-slate-50 via-brand-50/20 to-indigo-50/30 border-b border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-4 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-72 h-32 bg-gradient-to-bl from-indigo-100/30 via-brand-100/10 to-transparent pointer-events-none rounded-bl-full blur-xl" />
+          <div className="space-y-2 relative z-10">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-md bg-white/15 text-indigo-200 font-mono font-black text-xs tracking-wider border border-white/10 flex items-center gap-1.5 shadow-2xs">
-                <Hash className="w-3.5 h-3.5 text-indigo-300" />
+              <span className="px-2.5 py-1 rounded-lg bg-brand-50 text-brand-700 font-mono font-black text-xs tracking-wider border border-brand-200/80 flex items-center gap-1.5 shadow-2xs">
+                <Hash className="w-3.5 h-3.5 text-brand-600" />
                 <span>CODE: {asgCode}</span>
               </span>
-              <span className="px-2.5 py-0.5 rounded-md bg-white/10 text-slate-200 text-xs font-semibold">
+              <span className="px-2.5 py-1 rounded-lg bg-white text-slate-700 text-xs font-bold border border-slate-200/80 shadow-2xs">
                 {assignment.course_title || 'Course Assignment'}
               </span>
               {assignment.due_at && (
-                <span className="px-2.5 py-0.5 rounded-md bg-white/10 text-slate-200 text-xs font-semibold flex items-center gap-1">
-                  <Calendar className="w-3 h-3 text-indigo-300" />
-                  Due: {new Date(assignment.due_at).toLocaleDateString()}
+                <span className="px-2.5 py-1 rounded-lg bg-white text-slate-600 text-xs font-semibold border border-slate-200/80 shadow-2xs flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-brand-600" />
+                  <span>Due: {new Date(assignment.due_at).toLocaleDateString()}</span>
                 </span>
               )}
             </div>
-            <h3 className="text-base sm:text-lg font-black tracking-tight text-white">
+            <h3 className="text-lg sm:text-xl font-black tracking-tight text-slate-900">
               {assignment.title}
             </h3>
           </div>
 
-          <div className="flex items-center gap-2 self-start md:self-auto">
-            <div className="px-3 py-1.5 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-right">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-200">Max Score</p>
-              <p className="text-sm font-black text-white">{assignment.max_score} Points</p>
+          <div className="flex items-center gap-2.5 self-start md:self-auto relative z-10">
+            <div className="px-3.5 py-1.5 rounded-xl bg-white border border-slate-200/90 shadow-2xs text-right">
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Max Score</p>
+              <p className="text-sm font-black text-slate-900 font-mono">{assignment.max_score} Points</p>
             </div>
             {assignment.file_url && (
               <button
@@ -475,7 +476,7 @@ export const AssignmentSubmissionsRoster: React.FC<AssignmentSubmissionsRosterPr
                   const { ext } = getFileInfo(assignment.file_url!, assignment.file_name);
                   downloadFileWithCode(assignment.file_url!, `${asgCode}_Assignment_Brief${ext}`);
                 }}
-                className="px-3 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-xs"
+                className="px-3.5 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-xs"
                 title="Download Instructor Brief File"
               >
                 <Download className="w-3.5 h-3.5" />
@@ -575,7 +576,7 @@ export const AssignmentSubmissionsRoster: React.FC<AssignmentSubmissionsRosterPr
                     const { ext } = getFileInfo(assignment.file_url!, assignment.file_name);
                     downloadFileWithCode(assignment.file_url!, `${asgCode}_Assignment_Brief${ext}`);
                   }}
-                  className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-2xs"
+                  className="px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-2xs"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Download Brief</span>

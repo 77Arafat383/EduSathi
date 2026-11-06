@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   BookOpen,
   Search,
@@ -18,20 +18,38 @@ import {
   GraduationCap,
   Clock,
   Compass,
+  CreditCard,
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { Course, Subject } from '../../types';
 
 export const StudentCoursesPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab') as 'my' | 'explore' | null;
+
   const [courses, setCourses] = useState<Course[]>([]);
   const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [search, setSearch] = useState('');
   const [subjectFilter, setSubjectFilter] = useState('all');
   const [sortBy, setSortBy] = useState<'recent' | 'progress' | 'alpha'>('recent');
-  const [activeTab, setActiveTab] = useState<'my' | 'explore'>('my');
+  const [activeTab, setActiveTab] = useState<'my' | 'explore'>(tabParam === 'explore' ? 'explore' : 'my');
   const [loading, setLoading] = useState(true);
-  const [enrollingId, setEnrollingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (tabParam === 'explore' || tabParam === 'my') {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
+
+  const switchTab = (tab: 'my' | 'explore') => {
+    setActiveTab(tab);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', tab);
+      return next;
+    });
+  };
 
   const fetchCourses = () => {
     setLoading(true);
@@ -50,19 +68,6 @@ export const StudentCoursesPage: React.FC = () => {
   useEffect(() => {
     fetchCourses();
   }, []);
-
-  const handleEnroll = async (courseId: string) => {
-    setEnrollingId(courseId);
-    try {
-      await api.enrollCourse(courseId);
-      await fetchCourses();
-      setActiveTab('my');
-    } catch (err: any) {
-      alert(err.message || 'Enrollment failed. Please try again.');
-    } finally {
-      setEnrollingId(null);
-    }
-  };
 
   // Distinct subjects available across courses
   const availableSubjects = useMemo(() => {
@@ -242,7 +247,7 @@ export const StudentCoursesPage: React.FC = () => {
         {/* Left: Tab Switcher */}
         <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs w-full md:w-auto">
           <button
-            onClick={() => setActiveTab('my')}
+            onClick={() => switchTab('my')}
             className={`flex-1 md:flex-none px-4 py-1.5 rounded-lg font-bold transition flex items-center justify-center gap-1.5 ${
               activeTab === 'my'
                 ? 'bg-white text-slate-900 shadow-xs'
@@ -256,7 +261,7 @@ export const StudentCoursesPage: React.FC = () => {
             </span>
           </button>
           <button
-            onClick={() => setActiveTab('explore')}
+            onClick={() => switchTab('explore')}
             className={`flex-1 md:flex-none px-4 py-1.5 rounded-lg font-bold transition flex items-center justify-center gap-1.5 ${
               activeTab === 'explore'
                 ? 'bg-white text-slate-900 shadow-xs'
@@ -320,6 +325,37 @@ export const StudentCoursesPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Explore Catalog Notice Banner */}
+      {activeTab === 'explore' && (
+        <div className="bg-gradient-to-r from-brand-50 to-indigo-50/70 border border-brand-200/80 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-brand-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <Compass className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-brand-700 bg-brand-100/70 px-2 py-0.5 rounded-md">
+                  University Curriculum Catalog
+                </span>
+              </div>
+              <h3 className="text-xs sm:text-sm font-bold text-slate-900 mt-1">
+                Accredited Course Programs &amp; Tuition Registration
+              </h3>
+              <p className="text-[11px] sm:text-xs text-slate-600 mt-0.5 leading-relaxed">
+                Courses require tuition clearance to unlock syllabus lectures, assignments, and quizzes. Choose any course to proceed to the payment &amp; buy section.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/student/payments?tab=catalog"
+            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-xs transition shrink-0 inline-flex items-center justify-center gap-2"
+          >
+            <CreditCard className="w-3.5 h-3.5 text-brand-400" />
+            <span>Go to Buy Section</span>
+          </Link>
+        </div>
+      )}
+
       {/* Courses Display Grid */}
       {loading ? (
         <div className="py-20 text-center">
@@ -342,7 +378,7 @@ export const StudentCoursesPage: React.FC = () => {
           {activeTab === 'my' ? (
             <button
               onClick={() => {
-                setActiveTab('explore');
+                switchTab('explore');
                 setSearch('');
                 setSubjectFilter('all');
               }}
@@ -401,8 +437,8 @@ export const StudentCoursesPage: React.FC = () => {
                           <CheckCircle2 className="w-3 h-3" /> Enrolled
                         </span>
                       ) : (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-900/80 text-white backdrop-blur-xs">
-                          Available
+                        <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-slate-900/90 text-white backdrop-blur-xs shadow-xs font-mono border border-white/20">
+                          ৳{Number(course.price || 15000).toLocaleString()}
                         </span>
                       )}
                     </div>
@@ -423,7 +459,11 @@ export const StudentCoursesPage: React.FC = () => {
                   {/* Card Body */}
                   <div className="p-5">
                     <Link
-                      to={`/student/courses/${course.id}`}
+                      to={
+                        isEnrolled
+                          ? `/student/courses/${course.id}`
+                          : `/student/payments?tab=catalog&buyCourseId=${course.id}`
+                      }
                       className="block group/title"
                     >
                       <h3 className="text-sm font-bold text-slate-900 line-clamp-1 group-hover/title:text-brand-600 transition">
@@ -555,23 +595,13 @@ export const StudentCoursesPage: React.FC = () => {
                       <ArrowRight className="w-3.5 h-3.5" />
                     </Link>
                   ) : (
-                    <button
-                      onClick={() => handleEnroll(course.id)}
-                      disabled={enrollingId === course.id}
-                      className="w-full py-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center justify-center gap-1.5"
+                    <Link
+                      to={`/student/payments?tab=catalog&buyCourseId=${course.id}`}
+                      className="w-full py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center justify-center gap-1.5"
                     >
-                      {enrollingId === course.id ? (
-                        <>
-                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          <span>Enrolling...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-3.5 h-3.5" />
-                          <span>Enroll in Course</span>
-                        </>
-                      )}
-                    </button>
+                      <CreditCard className="w-3.5 h-3.5" />
+                      <span>Buy &amp; Enroll • ৳{Number(course.price || 15000).toLocaleString()}</span>
+                    </Link>
                   )}
                 </div>
               </div>

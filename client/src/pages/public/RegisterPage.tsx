@@ -121,10 +121,6 @@ export const RegisterPage: React.FC = () => {
               </div>
             </div>
 
-            <p className="text-[10px] text-slate-400 leading-tight">
-              Note: Self-registration is restricted to Student roles. Teacher and Admin accounts are managed by university administrators.
-            </p>
-
             <button
               type="submit"
               disabled={loading}

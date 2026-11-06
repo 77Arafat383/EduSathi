@@ -48,3 +48,88 @@
 .animate-fade-in {
   animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* ========================================================================= */
+/* Print optimization for official slips, receipts, and vouchers             */
+/* ========================================================================= */
+@media print {
+  /* Hide all elements on the page except the printable voucher modal */
+  body > * {
+    visibility: hidden !important;
+  }
+
+  .printable-voucher-modal,
+  .printable-voucher-modal * {
+    visibility: visible !important;
+  }
+
+  .printable-voucher-modal {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 100% !important;
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    z-index: 999999 !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  .printable-voucher-card {
+    position: relative !important;
+    max-height: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: 1.5px solid #0f172a !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    background: #ffffff !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .printable-voucher-card * {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  /* Unclip all tables and scroll wrappers so the entire section prints without scrolling */
+  .printable-voucher-card .overflow-x-auto,
+  .printable-voucher-card .overflow-y-auto {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  .printable-voucher-card table {
+    width: 100% !important;
+    table-layout: auto !important;
+    border-collapse: collapse !important;
+  }
+
+  .printable-voucher-card th,
+  .printable-voucher-card td {
+    padding: 4px 6px !important;
+    font-size: 8.5pt !important;
+    white-space: normal !important;
+  }
+
+  .no-print,
+  .print\:hidden {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  @page {
+    size: auto;
+    margin: 10mm 12mm;
+  }
+}

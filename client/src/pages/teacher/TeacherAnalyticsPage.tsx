@@ -1709,9 +1709,9 @@ export const TeacherAnalyticsPage: React.FC = () => {
 
           {/* Modal: Add New Roadmap Phase */}
           {showAddPhaseModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-              <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-200">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 overflow-y-auto">
+              <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
+                <div className="flex items-center justify-between p-6 pb-3 border-b border-slate-100 shrink-0 bg-white">
                   <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                     <Milestone className="w-4 h-4 text-brand-600" />
                     Add Roadmap Phase
@@ -1724,35 +1724,37 @@ export const TeacherAnalyticsPage: React.FC = () => {
                   </button>
                 </div>
 
-                <form onSubmit={handleAddPhase} className="mt-4 space-y-4">
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                      Phase Title / Module Goal
-                    </label>
-                    <input
-                      type="text"
-                      value={newPhaseTitle}
-                      onChange={e => setNewPhaseTitle(e.target.value)}
-                      placeholder="e.g. Module 3: Advanced Cloud Architectures"
-                      className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-500 focus:bg-white"
-                      required
-                    />
+                <form onSubmit={handleAddPhase} className="flex flex-col flex-1 overflow-hidden">
+                  <div className="p-6 overflow-y-auto flex-1 space-y-4">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                        Phase Title / Module Goal
+                      </label>
+                      <input
+                        type="text"
+                        value={newPhaseTitle}
+                        onChange={e => setNewPhaseTitle(e.target.value)}
+                        placeholder="e.g. Module 3: Advanced Cloud Architectures"
+                        className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-500 focus:bg-white"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                        Target Academic Timeline (Weeks)
+                      </label>
+                      <input
+                        type="text"
+                        value={newPhaseWeek}
+                        onChange={e => setNewPhaseWeek(e.target.value)}
+                        placeholder="e.g. Weeks 7 - 9 or Mid-Term Sprint"
+                        className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-500 focus:bg-white"
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                      Target Academic Timeline (Weeks)
-                    </label>
-                    <input
-                      type="text"
-                      value={newPhaseWeek}
-                      onChange={e => setNewPhaseWeek(e.target.value)}
-                      placeholder="e.g. Weeks 7 - 9 or Mid-Term Sprint"
-                      className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-500 focus:bg-white"
-                    />
-                  </div>
-
-                  <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                  <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2 shrink-0">
                     <button
                       type="button"
                       onClick={() => setShowAddPhaseModal(false)}

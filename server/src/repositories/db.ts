@@ -7,6 +7,8 @@ import { config } from '../config';
 
 // Parse PostgreSQL COUNT(*) and bigint as integer instead of string
 types.setTypeParser(20, (val: string) => parseInt(val, 10));
+// Parse PostgreSQL timestamp without time zone (OID 1114) strictly as UTC Date
+types.setTypeParser(1114, (val: string) => (val ? new Date(val.replace(' ', 'T') + 'Z') : null));
 
 let sqliteDb: Database.Database | null = null;
 let pgPool: Pool | null = null;
@@ -350,6 +352,17 @@ export async function initDb(): Promise<void> {
       status TEXT DEFAULT 'due' CHECK (status IN ('paid', 'partial', 'due', 'overdue')),
       note TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS student_payment_transactions (
+      id TEXT PRIMARY KEY,
+      payment_id TEXT REFERENCES student_payments(id) ON DELETE CASCADE,
+      amount REAL NOT NULL,
+      payment_method TEXT NOT NULL DEFAULT 'Bank Transfer',
+      transaction_ref TEXT,
+      balance_due_after REAL NOT NULL DEFAULT 0.0,
+      note TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`
   ];
 
@@ -573,6 +586,16 @@ async function seedDefaults(): Promise<void> {
   await run(`INSERT INTO notifications (id, recipient_id, type, title, message, link) VALUES (?, ?, ?, ?, ?, ?)`,
     ['notif_3', 'usr_teacher_1', 'submission', 'New Assignment Submission', 'Arafat Rahman submitted Assignment 1', '/teacher/gradebook']);
 
+  // Admin Operational Notifications (Salary Requests, Student Payments, Financial Audits)
+  await run(`INSERT INTO notifications (id, recipient_id, type, title, message, link) VALUES (?, ?, ?, ?, ?, ?)`,
+    ['notif_admin_1', 'usr_admin_1', 'salary_request', 'Faculty Salary Disbursement Request', 'Dr. Rahim Ahmed submitted a salary clearance request of ৳45,000 for October 2026.', '/admin/salaries']);
+
+  await run(`INSERT INTO notifications (id, recipient_id, type, title, message, link) VALUES (?, ?, ?, ?, ?, ?)`,
+    ['notif_admin_2', 'usr_admin_1', 'new_payment', 'New Student Tuition Payment Received', 'Arafat Rahman (ID: EDUS-2026-001) paid ৳18,000 semester tuition clearance via bKash (Ref: TRX-99214).', '/admin/student-payments']);
+
+  await run(`INSERT INTO notifications (id, recipient_id, type, title, message, link) VALUES (?, ?, ?, ?, ?, ?)`,
+    ['notif_admin_3', 'usr_admin_1', 'payment_received', 'Student Tuition Installment Received', 'Fatima Zahra deposited ৳5,000 installment for Data Structures & Algorithms. Outstanding due: ৳3,000.', '/admin/student-payments']);
+
   console.log('[DB] Synthetic demonstration data successfully seeded.');
 }
 
@@ -618,6 +641,17 @@ async function seedFinanceDefaults(): Promise<void> {
     await run(`UPDATE student_payments SET total_amount = 4500.00, paid_amount = 4500.00, due_amount = 0.00, payment_method = 'Nagad' WHERE id = 'pay_2' AND total_amount < 5000`);
     await run(`UPDATE student_payments SET total_amount = 18000.00, paid_amount = 12000.00, due_amount = 6000.00, payment_method = 'bKash' WHERE id = 'pay_3' AND total_amount < 5000`);
     await run(`UPDATE student_payments SET total_amount = 18000.00, paid_amount = 0.00, due_amount = 18000.00, payment_method = 'Bank Challan Pending' WHERE id = 'pay_4' AND total_amount < 5000`);
+  }
+
+  // Ensure default administrative financial alerts exist for administrator
+  const adminNotif = await getOne<{ id: string }>("SELECT id FROM notifications WHERE recipient_id = 'usr_admin_1' LIMIT 1");
+  if (!adminNotif) {
+    await run(`INSERT INTO notifications (id, recipient_id, type, title, message, link) VALUES (?, ?, ?, ?, ?, ?)`,
+      ['notif_admin_1', 'usr_admin_1', 'salary_request', 'Faculty Salary Disbursement Request', 'Dr. Rahim Ahmed submitted a salary clearance request of ৳45,000 for October 2026.', '/admin/salaries']).catch(() => {});
+    await run(`INSERT INTO notifications (id, recipient_id, type, title, message, link) VALUES (?, ?, ?, ?, ?, ?)`,
+      ['notif_admin_2', 'usr_admin_1', 'new_payment', 'New Student Tuition Payment Received', 'Arafat Rahman (ID: EDUS-2026-001) paid ৳18,000 semester tuition clearance via bKash (Ref: TRX-99214).', '/admin/student-payments']).catch(() => {});
+    await run(`INSERT INTO notifications (id, recipient_id, type, title, message, link) VALUES (?, ?, ?, ?, ?, ?)`,
+      ['notif_admin_3', 'usr_admin_1', 'payment_received', 'Student Tuition Installment Received', 'Fatima Zahra deposited ৳5,000 installment for Data Structures & Algorithms. Outstanding due: ৳3,000.', '/admin/student-payments']).catch(() => {});
   }
 }
 

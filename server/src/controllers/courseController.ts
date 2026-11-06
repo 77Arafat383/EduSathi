@@ -102,6 +102,13 @@ export async function getCourse(req: AuthRequest, res: Response): Promise<void> 
       'SELECT id, title, content, position, published_at FROM lessons WHERE module_id = ? ORDER BY position ASC',
       [mod.id]
     );
+
+    // If student is not enrolled, do not expose lesson content
+    if (req.user?.role === 'student' && !isEnrolled) {
+      for (const les of mod.lessons) {
+        les.content = null;
+      }
+    }
   }
 
   // Fetch quizzes with duration and student attempt if student
@@ -207,15 +214,16 @@ export async function getCourse(req: AuthRequest, res: Response): Promise<void> 
 }
 
 export async function createCourse(req: AuthRequest, res: Response): Promise<void> {
-  const { title, description, subject_id, banner_url, status } = req.body;
+  const { title, description, subject_id, banner_url, status, price } = req.body;
 
   const id = `crs_${Date.now()}`;
   const createdBy = req.user!.id;
+  const coursePrice = price !== undefined && Number(price) >= 0 ? Number(price) : 15000.00;
 
   await run(
-    `INSERT INTO courses (id, title, description, subject_id, status, created_by, banner_url)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [id, title, description || null, subject_id || null, status || 'published', createdBy, banner_url || null]
+    `INSERT INTO courses (id, title, description, subject_id, status, created_by, banner_url, price)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, title, description || null, subject_id || null, status || 'published', createdBy, banner_url || null, coursePrice]
   );
 
   // Add author to course_teachers
@@ -224,13 +232,13 @@ export async function createCourse(req: AuthRequest, res: Response): Promise<voi
   res.status(201).json({
     success: true,
     message: 'Course created successfully',
-    data: { id, title },
+    data: { id, title, price: coursePrice },
   });
 }
 
 export async function updateCourse(req: AuthRequest, res: Response): Promise<void> {
   const { courseId } = req.params;
-  const { title, description, subject_id, status, banner_url } = req.body;
+  const { title, description, subject_id, status, banner_url, price } = req.body;
 
   // Verify ownership or admin
   if (req.user?.role !== 'admin') {
@@ -244,17 +252,37 @@ export async function updateCourse(req: AuthRequest, res: Response): Promise<voi
     }
   }
 
-  await run(
-    `UPDATE courses SET
-       title = COALESCE(?, title),
-       description = COALESCE(?, description),
-       subject_id = COALESCE(?, subject_id),
-       status = COALESCE(?, status),
-       banner_url = COALESCE(?, banner_url),
-       updated_at = CURRENT_TIMESTAMP
-     WHERE id = ?`,
-    [title, description, subject_id, status, banner_url, courseId]
-  );
+  const updates: string[] = ['updated_at = CURRENT_TIMESTAMP'];
+  const params: any[] = [];
+
+  if (title !== undefined) {
+    updates.push('title = ?');
+    params.push(title);
+  }
+  if (description !== undefined) {
+    updates.push('description = ?');
+    params.push(description);
+  }
+  if (subject_id !== undefined) {
+    updates.push('subject_id = ?');
+    params.push(subject_id);
+  }
+  if (status !== undefined) {
+    updates.push('status = ?');
+    params.push(status);
+  }
+  if (banner_url !== undefined) {
+    updates.push('banner_url = ?');
+    params.push(banner_url);
+  }
+  if (price !== undefined) {
+    updates.push('price = ?');
+    params.push(Number(price) >= 0 ? Number(price) : 0);
+  }
+
+  params.push(courseId);
+
+  await run(`UPDATE courses SET ${updates.join(', ')} WHERE id = ?`, params);
 
   res.json({
     success: true,
@@ -264,12 +292,25 @@ export async function updateCourse(req: AuthRequest, res: Response): Promise<voi
 
 export async function enrollCourse(req: AuthRequest, res: Response): Promise<void> {
   const { courseId } = req.params;
-  const studentId = req.body.student_id || req.user?.id;
+  const isStaff = req.user?.role === 'admin' || req.user?.role === 'teacher';
+  const studentId = isStaff ? (req.body.student_id || req.user?.id) : req.user?.id;
 
-  const course = await getOne<{ id: string }>('SELECT id FROM courses WHERE id = ?', [courseId]);
+  const course = await getOne<any>('SELECT * FROM courses WHERE id = ?', [courseId]);
   if (!course) {
     res.status(404).json({ success: false, message: 'Course not found' });
     return;
+  }
+
+  // Prevent students from bypassing payment for paid courses
+  if (req.user?.role === 'student') {
+    const coursePrice = Number(course.price || 0);
+    if (coursePrice > 0) {
+      res.status(403).json({
+        success: false,
+        message: 'This course requires tuition purchase. Please complete enrollment through the tuition & payments section.',
+      });
+      return;
+    }
   }
 
   const existing = await getOne<{ id: string }>(

@@ -13,7 +13,10 @@ import {
   X,
   ArrowRight,
   FileText,
-  DollarSign
+  DollarSign,
+  ChevronLeft,
+  ChevronRight,
+  Check
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { StudentPayment, User, Course } from '../../types';
@@ -25,10 +28,17 @@ export const AdminStudentPaymentsPage: React.FC = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters
+  // Filters & Pagination
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'due_only' | 'paid' | 'partial'>('all');
   const [courseFilter, setCourseFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
+  // Searchable Student & Multi-Course Selection State
+  const [studentSearchQuery, setStudentSearchQuery] = useState('');
+  const [isStudentDropdownOpen, setIsStudentDropdownOpen] = useState(false);
+  const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
 
   // Create Invoice Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -67,10 +77,6 @@ export const AdminStudentPaymentsPage: React.FC = () => {
       setSummary(summaryData || null);
       setStudents(studentsData || []);
       setCourses(coursesData || []);
-
-      if (studentsData && studentsData.length > 0 && !invoiceForm.student_id) {
-        setInvoiceForm(prev => ({ ...prev, student_id: studentsData[0].id }));
-      }
     } catch (err: any) {
       console.error('Failed to load student payments data:', err);
     } finally {
@@ -82,25 +88,46 @@ export const AdminStudentPaymentsPage: React.FC = () => {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, statusFilter, courseFilter]);
+
+  const handleOpenCreateModal = () => {
+    setSelectedCourseIds([]);
+    setStudentSearchQuery('');
+    setIsStudentDropdownOpen(false);
+    setInvoiceForm({
+      student_id: '',
+      course_id: '',
+      title: 'Fall 2026 Academic Tuition Fee',
+      total_amount: '12000.00',
+      paid_amount: '12000.00',
+      due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      payment_method: 'bKash Merchant',
+      transaction_ref: `INV-${Date.now().toString().slice(-6)}`,
+      note: '',
+    });
+    setShowCreateModal(true);
+  };
+
   const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!invoiceForm.student_id || !invoiceForm.title || !invoiceForm.total_amount) return;
+    if (!invoiceForm.student_id) {
+      alert('Please search and select a student account first.');
+      return;
+    }
+    if (!invoiceForm.title || !invoiceForm.total_amount) return;
 
     setSubmitting(true);
     try {
-      await api.recordStudentPayment(invoiceForm);
-      setShowCreateModal(false);
-      setInvoiceForm({
-        student_id: students[0]?.id || '',
-        course_id: '',
-        title: 'Fall 2026 Academic Tuition Fee',
-        total_amount: '12000.00',
-        paid_amount: '12000.00',
-        due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        payment_method: 'bKash Merchant',
-        transaction_ref: `INV-${Date.now().toString().slice(-6)}`,
-        note: '',
+      await api.recordStudentPayment({
+        ...invoiceForm,
+        course_ids: selectedCourseIds,
       });
+      setShowCreateModal(false);
+      setSelectedCourseIds([]);
+      setStudentSearchQuery('');
+      setIsStudentDropdownOpen(false);
       await fetchData();
     } catch (err: any) {
       alert(err.message || 'Failed to record tuition invoice');
@@ -170,6 +197,74 @@ export const AdminStudentPaymentsPage: React.FC = () => {
       return matchSearch && matchStatus && matchCourse;
     });
   }, [payments, search, statusFilter, courseFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredPayments.length / pageSize));
+  const paginatedPayments = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredPayments.slice(start, start + pageSize);
+  }, [filteredPayments, currentPage, pageSize]);
+
+  const selectedStudent = useMemo(() => {
+    return students.find((s) => s.id === invoiceForm.student_id) || null;
+  }, [students, invoiceForm.student_id]);
+
+  const filteredStudents = useMemo(() => {
+    const q = studentSearchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return students.filter(
+      (s) =>
+        (s.student_id && s.student_id.toLowerCase().includes(q)) ||
+        (s.full_name && s.full_name.toLowerCase().includes(q)) ||
+        (s.email && s.email.toLowerCase().includes(q))
+    ).slice(0, 10);
+  }, [students, studentSearchQuery]);
+
+  const handleSelectStudent = (s: User) => {
+    setInvoiceForm((prev) => ({ ...prev, student_id: s.id }));
+    setStudentSearchQuery('');
+    setIsStudentDropdownOpen(false);
+  };
+
+  const handleToggleCourse = (courseId: string) => {
+    setSelectedCourseIds((prev) => {
+      const next = prev.includes(courseId)
+        ? prev.filter((id) => id !== courseId)
+        : [...prev, courseId];
+
+      const selectedCoursesList = courses.filter((c) => next.includes(c.id));
+      const calculatedTotal = selectedCoursesList.reduce((sum, c) => sum + Number(c.price || 15000), 0);
+
+      setInvoiceForm((f) => ({
+        ...f,
+        course_id: next.length > 0 ? next[0] : '',
+        total_amount: calculatedTotal > 0 ? calculatedTotal.toFixed(2) : f.total_amount,
+        paid_amount: calculatedTotal > 0 ? calculatedTotal.toFixed(2) : f.paid_amount,
+        title:
+          selectedCoursesList.length === 1
+            ? `Tuition Fee: ${selectedCoursesList[0].title}`
+            : selectedCoursesList.length > 1
+            ? `Tuition Billing (${selectedCoursesList.length} Courses)`
+            : f.title,
+      }));
+
+      return next;
+    });
+  };
+
+  const studentExistingDue = useMemo(() => {
+    if (!invoiceForm.student_id) return 0;
+    return payments
+      .filter((p) => p.student_id === invoiceForm.student_id)
+      .reduce((sum, p) => sum + Number(p.due_amount || 0), 0);
+  }, [payments, invoiceForm.student_id]);
+
+  const currentInvoiceDue = useMemo(() => {
+    return Math.max(0, Number(invoiceForm.total_amount || 0) - Number(invoiceForm.paid_amount || 0));
+  }, [invoiceForm.total_amount, invoiceForm.paid_amount]);
+
+  const aggregateStudentDue = useMemo(() => {
+    return studentExistingDue + currentInvoiceDue;
+  }, [studentExistingDue, currentInvoiceDue]);
 
   const studentsWithDues = useMemo(() => {
     const duesMap = new Set<string>();
@@ -269,7 +364,7 @@ export const AdminStudentPaymentsPage: React.FC = () => {
             </button>
 
             <button
-              onClick={() => setShowCreateModal(true)}
+              onClick={handleOpenCreateModal}
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs shadow-sm transition"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -491,7 +586,8 @@ export const AdminStudentPaymentsPage: React.FC = () => {
               </p>
             </div>
             <span className="text-[11px] font-mono text-slate-600 font-semibold self-start sm:self-auto">
-              Showing {filteredPayments.length} of {payments.length} transactions
+              Showing {filteredPayments.length > 0 ? (currentPage - 1) * pageSize + 1 : 0} -{' '}
+              {Math.min(currentPage * pageSize, filteredPayments.length)} of {filteredPayments.length} transactions
             </span>
           </div>
 
@@ -511,7 +607,7 @@ export const AdminStudentPaymentsPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {filteredPayments.map((p) => {
+                {paginatedPayments.map((p) => {
                   const isDue = Number(p.due_amount) > 0;
                   const isOverdue = isDue && p.due_date && new Date(p.due_date) < new Date();
 
@@ -640,6 +736,61 @@ export const AdminStudentPaymentsPage: React.FC = () => {
             </table>
           </div>
 
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs font-mono">
+              <span className="text-[11px] text-slate-500">
+                Page <strong className="text-slate-800">{currentPage}</strong> of <strong className="text-slate-800">{totalPages}</strong> (10 records per page)
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="px-2.5 py-1 border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 font-medium transition inline-flex items-center gap-1 text-xs"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  <span>Previous</span>
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                  if (
+                    page === 1 ||
+                    page === totalPages ||
+                    (page >= currentPage - 1 && page <= currentPage + 1)
+                  ) {
+                    return (
+                      <button
+                        key={page}
+                        type="button"
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-7 h-7 text-xs font-bold border transition ${
+                          currentPage === page
+                            ? 'bg-slate-900 border-slate-900 text-white'
+                            : 'border-slate-300 bg-white hover:bg-slate-100 text-slate-700'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    );
+                  }
+                  if (page === currentPage - 2 || page === currentPage + 2) {
+                    return <span key={page} className="px-1 text-slate-400">…</span>;
+                  }
+                  return null;
+                })}
+                <button
+                  type="button"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  className="px-2.5 py-1 border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 font-medium transition inline-flex items-center gap-1 text-xs"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Table Summary Footer */}
           <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs font-mono">
             <div className="text-slate-500">
@@ -658,9 +809,9 @@ export const AdminStudentPaymentsPage: React.FC = () => {
 
       {/* Modal 1: Generate Tuition Invoice */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="border border-slate-300 bg-white max-w-xl w-full p-6 shadow-xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="border border-slate-300 bg-white max-w-xl w-full max-h-[90vh] flex flex-col shadow-xl my-auto">
+            <div className="flex items-center justify-between p-5 border-b border-slate-200 shrink-0 bg-white">
               <div>
                 <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold">
                   Office of the Bursar • Form INV-01
@@ -670,31 +821,176 @@ export const AdminStudentPaymentsPage: React.FC = () => {
                 </h3>
               </div>
               <button
+                type="button"
                 onClick={() => setShowCreateModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-700 border border-slate-200 hover:border-slate-400 transition"
+                className="p-1.5 text-slate-400 hover:text-slate-700 border border-slate-200 hover:border-slate-400 transition"
                 title="Close"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateInvoice} className="space-y-4">
-              <div>
-                <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1">
-                  Select Student Account *
-                </label>
-                <select
-                  value={invoiceForm.student_id}
-                  onChange={(e) => setInvoiceForm({ ...invoiceForm, student_id: e.target.value })}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 bg-white font-medium focus:outline-none focus:border-slate-900"
-                >
-                  {students.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.full_name} ({s.student_id || 'ID N/A'}) • {s.email}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <form onSubmit={handleCreateInvoice} className="flex flex-col flex-1 overflow-hidden">
+              <div className="p-5 overflow-y-auto flex-1 space-y-4">
+                {/* Searchable Student Selection */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold">
+                      Select Student Account (Search by Student ID or Name) *
+                    </label>
+                    {selectedStudent && (
+                      <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2">
+                        Account Verified
+                      </span>
+                    )}
+                  </div>
+
+                  {selectedStudent ? (
+                    <div className="border border-slate-300 bg-slate-50 p-2.5 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {selectedStudent.avatar_url ? (
+                          <img
+                            src={selectedStudent.avatar_url}
+                            alt=""
+                            className="w-9 h-9 rounded-none object-cover border border-slate-300 shrink-0"
+                          />
+                        ) : (
+                          <div className="w-9 h-9 bg-slate-200 border border-slate-300 font-mono font-bold text-xs flex items-center justify-center shrink-0">
+                            {getInitials(selectedStudent.full_name)}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900 text-xs truncate">{selectedStudent.full_name}</span>
+                            <span className="px-1.5 py-0.5 bg-brand-50 border border-brand-200 text-brand-700 font-mono font-bold text-[10px] shrink-0">
+                              {selectedStudent.student_id ? `ID: ${selectedStudent.student_id}` : 'ID: N/A'}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 font-mono truncate">
+                            {selectedStudent.email} • {selectedStudent.department || 'General'}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setInvoiceForm(f => ({ ...f, student_id: '' }));
+                          setStudentSearchQuery('');
+                          setIsStudentDropdownOpen(true);
+                        }}
+                        className="ml-2 px-2.5 py-1 text-[11px] border border-slate-300 bg-white hover:bg-slate-100 font-mono font-medium text-slate-700 transition shrink-0 flex items-center gap-1 shadow-2xs"
+                        title="Click to search another student"
+                      >
+                        <X className="w-3 h-3 text-slate-500" />
+                        <span>Change / Search Another</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <div className="relative">
+                        <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                        <input
+                          type="text"
+                          placeholder="Search by Student ID (e.g. CS-2024-001) or name..."
+                          value={studentSearchQuery}
+                          onChange={(e) => {
+                            setStudentSearchQuery(e.target.value);
+                            setIsStudentDropdownOpen(true);
+                          }}
+                          onFocus={() => {
+                            if (studentSearchQuery.trim()) {
+                              setIsStudentDropdownOpen(true);
+                            }
+                          }}
+                          className="w-full pl-9 pr-8 py-2 text-xs border border-slate-300 focus:outline-none focus:border-slate-900 font-medium bg-white"
+                        />
+                        {studentSearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setStudentSearchQuery('');
+                              setIsStudentDropdownOpen(false);
+                            }}
+                            className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
+                            title="Clear search"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Search Recommendation Dropdown - only appears when typing */}
+                      {isStudentDropdownOpen && studentSearchQuery.trim().length > 0 && (
+                        <div className="absolute z-30 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-white border border-slate-300 shadow-xl divide-y divide-slate-100">
+                          <div className="p-1.5 bg-slate-50 border-b border-slate-200 text-[10px] font-mono text-slate-500 uppercase font-bold flex justify-between items-center">
+                            <span>
+                              Recommended Student Accounts ({filteredStudents.length})
+                            </span>
+                            <span className="text-[9px] text-slate-400">Click to Select</span>
+                          </div>
+
+                          {filteredStudents.length > 0 ? (
+                            filteredStudents.map((s) => {
+                              const studentDues = payments
+                                .filter(p => p.student_id === s.id)
+                                .reduce((sum, p) => sum + Number(p.due_amount || 0), 0);
+                              return (
+                                <button
+                                  key={s.id}
+                                  type="button"
+                                  onClick={() => handleSelectStudent(s)}
+                                  className="w-full px-3 py-2 text-left hover:bg-slate-50 flex items-center justify-between text-xs transition group"
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                                    {s.avatar_url ? (
+                                      <img
+                                        src={s.avatar_url}
+                                        alt=""
+                                        className="w-7 h-7 rounded-none object-cover border border-slate-200 shrink-0"
+                                      />
+                                    ) : (
+                                      <div className="w-7 h-7 bg-slate-100 border border-slate-200 font-mono font-bold text-[10px] flex items-center justify-center shrink-0">
+                                        {getInitials(s.full_name)}
+                                      </div>
+                                    )}
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-semibold text-slate-900 truncate group-hover:text-indigo-600 transition">
+                                          {s.full_name}
+                                        </span>
+                                        <span className="px-1.5 py-0.2 bg-slate-100 border border-slate-300 text-slate-700 font-mono font-bold text-[10px] shrink-0">
+                                          {s.student_id ? `ID: ${s.student_id}` : 'ID: N/A'}
+                                        </span>
+                                      </div>
+                                      <div className="text-[10px] text-slate-500 font-mono truncate">{s.email}</div>
+                                    </div>
+                                  </div>
+                                  {studentDues > 0 ? (
+                                    <span className="text-[10px] font-mono text-rose-700 font-bold bg-rose-50 px-1.5 py-0.5 border border-rose-200 shrink-0">
+                                      Due: ৳{studentDues.toLocaleString()}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] font-mono text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 border border-emerald-200 shrink-0">
+                                      Cleared
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })
+                          ) : (
+                            <div className="px-3 py-4 text-xs text-slate-500 text-center font-mono">
+                              No student found matching "{studentSearchQuery}".
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <p className="text-[10px] text-slate-500 font-mono mt-1">
+                        Type a student ID (e.g. CS-2024-001) or name to see instant recommendations.
+                      </p>
+                    </div>
+                  )}
+                </div>
 
               <div>
                 <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1">
@@ -710,22 +1006,51 @@ export const AdminStudentPaymentsPage: React.FC = () => {
                 />
               </div>
 
+              {/* Multi-Course Selection Checkboxes */}
               <div>
-                <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1">
-                  Linked Academic Course (Optional)
-                </label>
-                <select
-                  value={invoiceForm.course_id}
-                  onChange={(e) => setInvoiceForm({ ...invoiceForm, course_id: e.target.value })}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 bg-white font-medium focus:outline-none focus:border-slate-900"
-                >
-                  <option value="">General Semester Tuition (All Courses)</option>
-                  {courses.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.title}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] font-mono uppercase text-slate-600 font-bold">
+                    Select Academic Courses for Billing &amp; Enrollment
+                  </label>
+                  <span className="text-[10px] font-mono text-slate-500">
+                    {selectedCourseIds.length} course{selectedCourseIds.length !== 1 ? 's' : ''} selected
+                  </span>
+                </div>
+                <div className="border border-slate-300 max-h-40 overflow-y-auto divide-y divide-slate-100 bg-white">
+                  {courses.map((c) => {
+                    const isChecked = selectedCourseIds.includes(c.id);
+                    const cPrice = Number(c.price || 15000);
+                    return (
+                      <label
+                        key={c.id}
+                        className={`flex items-center justify-between px-3 py-2 text-xs cursor-pointer transition select-none ${
+                          isChecked ? 'bg-amber-50/80 font-medium' : 'hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => handleToggleCourse(c.id)}
+                            className="w-3.5 h-3.5 rounded-none border-slate-300 text-slate-900 focus:ring-0 cursor-pointer shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <div className="font-semibold text-slate-900 truncate">{c.title}</div>
+                            <div className="text-[10px] text-slate-500 font-mono">
+                              {c.subject_name || 'Deliverable Course'} {c.subject_code ? `• ${c.subject_code}` : ''}
+                            </div>
+                          </div>
+                        </div>
+                        <span className="font-mono font-bold text-slate-800 shrink-0 text-xs">
+                          ৳ {cPrice.toLocaleString()}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] text-slate-500 font-mono mt-1">
+                  Selected courses automatically recalculate total billing and enroll the student upon posting.
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -759,12 +1084,38 @@ export const AdminStudentPaymentsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Dynamic Due Preview */}
-              <div className="p-3 bg-slate-50 border border-slate-200 flex items-center justify-between text-xs font-mono">
-                <span className="text-slate-600">Calculated Arrears / Due:</span>
-                <span className="font-bold text-slate-900">
-                  ৳ {Math.max(0, Number(invoiceForm.total_amount || 0) - Number(invoiceForm.paid_amount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                </span>
+              {/* Dynamic Due & Arrears Preview */}
+              <div className="p-3 bg-slate-50 border border-slate-200 text-xs font-mono space-y-1.5">
+                <div className="flex justify-between text-slate-600">
+                  <span>Student Existing Arrears:</span>
+                  <span className={studentExistingDue > 0 ? 'text-rose-700 font-bold' : 'text-slate-700'}>
+                    ৳ {studentExistingDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>New Invoice Billing Amount:</span>
+                  <span className="font-bold text-slate-900">
+                    ৳ {Number(invoiceForm.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex justify-between text-emerald-700">
+                  <span>Initial Paid Realized:</span>
+                  <span className="font-bold">
+                    ৳ {Number(invoiceForm.paid_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>New Invoice Arrears:</span>
+                  <span className={currentInvoiceDue > 0 ? 'text-amber-700 font-bold' : 'text-slate-500'}>
+                    ৳ {currentInvoiceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex justify-between pt-1.5 border-t border-slate-200 text-slate-900 font-bold">
+                  <span>Total Student Balance Due (Arrears + Current):</span>
+                  <span className={aggregateStudentDue > 0 ? 'text-rose-700 text-sm' : 'text-emerald-700 text-sm'}>
+                    ৳ {aggregateStudentDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -812,7 +1163,10 @@ export const AdminStudentPaymentsPage: React.FC = () => {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-200">
+              </div>
+
+              {/* Pinned Footer */}
+              <div className="flex items-center justify-end gap-2.5 p-4 border-t border-slate-200 shrink-0 bg-slate-50">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
@@ -835,9 +1189,9 @@ export const AdminStudentPaymentsPage: React.FC = () => {
 
       {/* Modal 2: Settle Due */}
       {settlingPayment && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="border border-slate-300 bg-white max-w-md w-full p-6 shadow-xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="border border-slate-300 bg-white max-w-md w-full max-h-[90vh] flex flex-col shadow-xl my-auto">
+            <div className="flex items-center justify-between p-5 border-b border-slate-200 shrink-0 bg-white">
               <div>
                 <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold">
                   Bursar Clearing House • Form SET-02
@@ -847,90 +1201,95 @@ export const AdminStudentPaymentsPage: React.FC = () => {
                 </h3>
               </div>
               <button
+                type="button"
                 onClick={() => setSettlingPayment(null)}
-                className="p-1 text-slate-400 hover:text-slate-700 border border-slate-200 hover:border-slate-400 transition"
+                className="p-1.5 text-slate-400 hover:text-slate-700 border border-slate-200 hover:border-slate-400 transition"
+                title="Close"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Invoice Target Context */}
-            <div className="p-3 bg-slate-50 border border-slate-200 text-xs font-mono space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Student:</span>
-                <span className="font-bold text-slate-900">{settlingPayment.student_name}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Student ID:</span>
-                <span className="text-slate-800">{settlingPayment.student_identifier || 'N/A'}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Invoice:</span>
-                <span className="text-slate-800 truncate max-w-[200px]">{settlingPayment.title}</span>
-              </div>
-              <div className="flex items-center justify-between pt-1.5 border-t border-slate-200">
-                <span className="text-rose-700 font-bold">Outstanding Balance:</span>
-                <span className="font-bold text-sm text-rose-700">
-                  ৳ {Number(settlingPayment.due_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-            </div>
-
-            <form onSubmit={handleSettleDue} className="space-y-4">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[11px] font-mono uppercase text-slate-600 font-bold">
-                    Amount to Disburse / Clear (৳ BDT) *
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setSettleAmount(String(settlingPayment.due_amount))}
-                    className="text-[10px] font-mono text-emerald-700 hover:underline font-bold"
-                  >
-                    Clear Full Balance
-                  </button>
+            <form onSubmit={handleSettleDue} className="flex flex-col flex-1 overflow-hidden">
+              <div className="p-5 overflow-y-auto flex-1 space-y-4">
+                {/* Invoice Target Context */}
+                <div className="p-3 bg-slate-50 border border-slate-200 text-xs font-mono space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Student:</span>
+                    <span className="font-bold text-slate-900">{settlingPayment.student_name}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Student ID:</span>
+                    <span className="text-slate-800">{settlingPayment.student_identifier || 'N/A'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Invoice:</span>
+                    <span className="text-slate-800 truncate max-w-[200px]">{settlingPayment.title}</span>
+                  </div>
+                  <div className="flex items-center justify-between pt-1.5 border-t border-slate-200">
+                    <span className="text-rose-700 font-bold">Outstanding Balance:</span>
+                    <span className="font-bold text-sm text-rose-700">
+                      ৳ {Number(settlingPayment.due_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
                 </div>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  max={settlingPayment.due_amount}
-                  value={settleAmount}
-                  onChange={(e) => setSettleAmount(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 focus:outline-none focus:border-slate-900 font-mono font-bold"
-                />
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-mono uppercase text-slate-600 font-bold">
+                      Amount to Disburse / Clear (৳ BDT) *
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setSettleAmount(String(settlingPayment.due_amount))}
+                      className="text-[10px] font-mono text-emerald-700 hover:underline font-bold"
+                    >
+                      Clear Full Balance
+                    </button>
+                  </div>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    max={settlingPayment.due_amount}
+                    value={settleAmount}
+                    onChange={(e) => setSettleAmount(e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-slate-300 focus:outline-none focus:border-slate-900 font-mono font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1">
+                    Settlement Payment Rail
+                  </label>
+                  <select
+                    value={settleMethod}
+                    onChange={(e) => setSettleMethod(e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-slate-300 bg-white font-medium focus:outline-none focus:border-slate-900"
+                  >
+                    <option value="bKash Merchant">bKash Merchant</option>
+                    <option value="Nagad">Nagad</option>
+                    <option value="Bank Transfer (BEFTN/NPSB)">Bank Transfer (BEFTN/NPSB)</option>
+                    <option value="Dutch-Bangla Bank (DBBL)">Dutch-Bangla Bank (DBBL)</option>
+                    <option value="Cash at Bursar Office">Cash at Bursar Office</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1">
+                    Receipt / Bank Deposit Slip Ref
+                  </label>
+                  <input
+                    type="text"
+                    value={settleRef}
+                    onChange={(e) => setSettleRef(e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-slate-300 focus:outline-none focus:border-slate-900 font-mono"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1">
-                  Settlement Payment Rail
-                </label>
-                <select
-                  value={settleMethod}
-                  onChange={(e) => setSettleMethod(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 bg-white font-medium focus:outline-none focus:border-slate-900"
-                >
-                  <option value="bKash Merchant">bKash Merchant</option>
-                  <option value="Nagad">Nagad</option>
-                  <option value="Bank Transfer (BEFTN/NPSB)">Bank Transfer (BEFTN/NPSB)</option>
-                  <option value="Dutch-Bangla Bank (DBBL)">Dutch-Bangla Bank (DBBL)</option>
-                  <option value="Cash at Bursar Office">Cash at Bursar Office</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-mono uppercase text-slate-600 font-bold mb-1">
-                  Receipt / Bank Deposit Slip Ref
-                </label>
-                <input
-                  type="text"
-                  value={settleRef}
-                  onChange={(e) => setSettleRef(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 focus:outline-none focus:border-slate-900 font-mono"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-200">
+              {/* Pinned Footer */}
+              <div className="flex items-center justify-end gap-2.5 p-4 border-t border-slate-200 shrink-0 bg-slate-50">
                 <button
                   type="button"
                   onClick={() => setSettlingPayment(null)}
@@ -953,10 +1312,10 @@ export const AdminStudentPaymentsPage: React.FC = () => {
 
       {/* Modal 3: Official University Fee Receipt Voucher */}
       {viewingReceipt && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="border border-slate-400 bg-white max-w-lg w-full p-6 sm:p-8 shadow-2xl space-y-5">
-            {/* Slip Header */}
-            <div className="flex items-start justify-between border-b-2 border-slate-900 pb-4">
+        <div className="printable-voucher-modal fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="printable-voucher-card border border-slate-400 bg-white max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl my-auto print:max-h-none print:shadow-none print:border-slate-800 print:w-full print:max-w-none">
+            {/* Slip Header - Pinned */}
+            <div className="flex items-start justify-between p-5 border-b-2 border-slate-900 shrink-0 bg-white">
               <div>
                 <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">
                   EDUSATHI REGISTRAR &amp; BURSAR
@@ -969,93 +1328,159 @@ export const AdminStudentPaymentsPage: React.FC = () => {
                 </p>
               </div>
               <button
+                type="button"
                 onClick={() => setViewingReceipt(null)}
-                className="p-1 text-slate-400 hover:text-slate-700 border border-slate-200 hover:border-slate-400 transition"
+                className="print:hidden p-1.5 text-slate-400 hover:text-slate-700 border border-slate-200 hover:border-slate-400 transition"
+                title="Close"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Receipt Identification Grid */}
-            <div className="grid grid-cols-2 gap-4 text-xs font-mono border-b border-slate-200 pb-4">
-              <div>
-                <span className="text-[10px] uppercase text-slate-500 font-bold block">Student Name</span>
-                <span className="font-semibold text-slate-900 text-sm block mt-0.5">
-                  {viewingReceipt.student_name || 'N/A'}
-                </span>
-                <span className="text-[11px] text-slate-500 block">
-                  ID: {viewingReceipt.student_identifier || 'N/A'}
-                </span>
+            {/* Scrollable Receipt Body (Unclipped in print) */}
+            <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-5 print:overflow-visible print:max-h-none print:p-4">
+              {/* Receipt Identification Grid */}
+              <div className="grid grid-cols-2 gap-4 text-xs font-mono border-b border-slate-200 pb-4">
+                <div>
+                  <span className="text-[10px] uppercase text-slate-500 font-bold block">Student Name</span>
+                  <span className="font-semibold text-slate-900 text-sm block mt-0.5">
+                    {viewingReceipt.student_name || 'N/A'}
+                  </span>
+                  <span className="text-[11px] text-slate-500 block">
+                    ID: {viewingReceipt.student_identifier || 'N/A'}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] uppercase text-slate-500 font-bold block">Transaction Date</span>
+                  <span className="text-slate-800 block mt-0.5">
+                    {viewingReceipt.payment_date ? new Date(viewingReceipt.payment_date).toLocaleDateString() : new Date().toLocaleDateString()}
+                  </span>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">
+                    Rail: {viewingReceipt.payment_method || 'Standard Rail'}
+                  </span>
+                </div>
               </div>
-              <div className="text-right">
-                <span className="text-[10px] uppercase text-slate-500 font-bold block">Transaction Date</span>
-                <span className="text-slate-800 block mt-0.5">
-                  {viewingReceipt.payment_date ? new Date(viewingReceipt.payment_date).toLocaleDateString() : new Date().toLocaleDateString()}
-                </span>
-                <span className="text-[10px] text-slate-500 block mt-0.5">
-                  Rail: {viewingReceipt.payment_method || 'Standard Rail'}
-                </span>
-              </div>
-            </div>
 
-            {/* Voucher Details Table */}
-            <div className="border border-slate-200 text-xs">
-              <div className="bg-slate-100 p-2.5 font-mono text-[10px] uppercase font-bold text-slate-700 flex justify-between">
-                <span>Description of Assessment / Course</span>
-                <span>Amount</span>
-              </div>
-              <div className="p-3 space-y-2">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="font-bold text-slate-900">{viewingReceipt.title}</div>
-                    <div className="text-[11px] text-slate-500">
-                      {viewingReceipt.course_title || 'General Semester Tuition'}
+              {/* Voucher Details Table */}
+              <div className="border border-slate-200 text-xs">
+                <div className="bg-slate-100 p-2.5 font-mono text-[10px] uppercase font-bold text-slate-700 flex justify-between">
+                  <span>Description of Assessment / Course</span>
+                  <span>Amount</span>
+                </div>
+                <div className="p-3 space-y-2">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="font-bold text-slate-900">{viewingReceipt.title}</div>
+                      <div className="text-[11px] text-slate-500">
+                        {viewingReceipt.course_title || 'General Semester Tuition'}
+                      </div>
+                    </div>
+                    <div className="font-mono font-bold text-slate-900">
+                      ৳ {Number(viewingReceipt.total_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </div>
                   </div>
-                  <div className="font-mono font-bold text-slate-900">
-                    ৳ {Number(viewingReceipt.total_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+
+                  <div className="pt-2 border-t border-slate-100 space-y-1 text-[11px] font-mono">
+                    <div className="flex justify-between text-slate-600">
+                      <span>Total Amount Invoiced:</span>
+                      <span>৳ {Number(viewingReceipt.total_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between text-emerald-700 font-bold">
+                      <span>Total Amount Cleared:</span>
+                      <span>৳ {Number(viewingReceipt.paid_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-900 font-bold pt-1 border-t border-slate-200">
+                      <span>Outstanding Arrears:</span>
+                      <span className={Number(viewingReceipt.due_amount) > 0 ? 'text-rose-700' : 'text-slate-400'}>
+                        ৳ {Number(viewingReceipt.due_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
                   </div>
                 </div>
+              </div>
 
-                <div className="pt-2 border-t border-slate-100 space-y-1 text-[11px] font-mono">
-                  <div className="flex justify-between text-slate-600">
-                    <span>Total Amount Invoiced:</span>
-                    <span>৳ {Number(viewingReceipt.total_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+              {/* Itemized Installment History & Partial Settlement Ledger */}
+              <div className="border border-slate-200 text-xs">
+                <div className="bg-slate-100 p-2.5 font-mono text-[10px] uppercase font-bold text-slate-700 flex justify-between items-center">
+                  <span>Installment Disbursements &amp; Transaction History</span>
+                  <span className="text-[9px] text-slate-500 font-normal">
+                    {viewingReceipt.transactions && viewingReceipt.transactions.length > 0
+                      ? `${viewingReceipt.transactions.length} Payment Event(s)`
+                      : '1 Record'}
+                  </span>
+                </div>
+
+                {viewingReceipt.transactions && viewingReceipt.transactions.length > 0 ? (
+                  <div className="overflow-x-auto print:overflow-visible">
+                    <table className="w-full text-left border-collapse text-[11px] font-mono print:text-[10px] print:w-full">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200 text-[9px] uppercase text-slate-500">
+                          <th className="py-2 px-2.5 font-bold">#</th>
+                          <th className="py-2 px-2.5 font-bold">Date</th>
+                          <th className="py-2 px-2.5 font-bold">Medium / Rail</th>
+                          <th className="py-2 px-2.5 font-bold">Trx Ref</th>
+                          <th className="py-2 px-2.5 font-bold text-right">Amount Paid</th>
+                          <th className="py-2 px-2.5 font-bold text-right">Remaining Due</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {viewingReceipt.transactions.map((tx, idx) => (
+                          <tr key={tx.id || idx} className="hover:bg-slate-50/50">
+                            <td className="py-2 px-2.5 text-slate-400 font-bold">#{idx + 1}</td>
+                            <td className="py-2 px-2.5 text-slate-700 whitespace-nowrap">
+                              {new Date(tx.created_at).toLocaleDateString()}
+                            </td>
+                            <td className="py-2 px-2.5 font-semibold text-slate-800">{tx.payment_method}</td>
+                            <td className="py-2 px-2.5 text-slate-500 text-[10px]">{tx.transaction_ref || 'N/A'}</td>
+                            <td className="py-2 px-2.5 text-right font-bold text-emerald-700">
+                              ৳ {Number(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="py-2 px-2.5 text-right font-bold text-rose-700">
+                              ৳ {Number(tx.balance_due_after).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                  <div className="flex justify-between text-emerald-700 font-bold">
-                    <span>Total Amount Cleared:</span>
-                    <span>৳ {Number(viewingReceipt.paid_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                ) : Number(viewingReceipt.paid_amount) > 0 ? (
+                  <div className="p-3 text-[11px] font-mono flex justify-between items-center bg-slate-50/50">
+                    <div>
+                      <span className="font-bold text-slate-800">Initial Settlement</span>
+                      <span className="text-[10px] text-slate-500 ml-2">via {viewingReceipt.payment_method || 'Standard Rail'}</span>
+                    </div>
+                    <div className="font-bold text-emerald-700">
+                      ৳ {Number(viewingReceipt.paid_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </div>
                   </div>
-                  <div className="flex justify-between text-slate-900 font-bold pt-1 border-t border-slate-200">
-                    <span>Outstanding Arrears:</span>
-                    <span className={Number(viewingReceipt.due_amount) > 0 ? 'text-rose-700' : 'text-slate-400'}>
-                      ৳ {Number(viewingReceipt.due_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    </span>
+                ) : (
+                  <div className="p-3 text-[11px] font-mono text-slate-500 italic bg-slate-50/30 text-center">
+                    No installment payments recorded yet. Full balance of ৳ {Number(viewingReceipt.due_amount).toLocaleString()} is outstanding.
                   </div>
+                )}
+              </div>
+
+              {/* Verification Stamp Box */}
+              <div className="flex items-center justify-between p-3 border border-slate-200 bg-slate-50 text-[11px] font-mono">
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Status</span>
+                  <span className={`font-bold uppercase ${viewingReceipt.status === 'paid' ? 'text-emerald-700' : 'text-amber-700'}`}>
+                    {viewingReceipt.status === 'paid' ? 'VERIFIED • FULLY CLEARED' : `PARTIAL PAYMENT • ৳ ${Number(viewingReceipt.due_amount).toLocaleString()} ARREARS`}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Official Seal</span>
+                  <span className="text-slate-700 font-bold">BURSAR OFFICE</span>
                 </div>
               </div>
             </div>
 
-            {/* Verification Stamp Box */}
-            <div className="flex items-center justify-between p-3 border border-slate-200 bg-slate-50 text-[11px] font-mono">
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Status</span>
-                <span className={`font-bold uppercase ${viewingReceipt.status === 'paid' ? 'text-emerald-700' : 'text-amber-700'}`}>
-                  {viewingReceipt.status === 'paid' ? 'VERIFIED • FULLY CLEARED' : `PARTIAL PAYMENT • ৳ ${Number(viewingReceipt.due_amount).toLocaleString()} ARREARS`}
-                </span>
-              </div>
-              <div className="text-right">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Official Seal</span>
-                <span className="text-slate-700 font-bold">BURSAR OFFICE</span>
-              </div>
-            </div>
-
-            {/* Footer Buttons */}
-            <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+            {/* Pinned Footer Buttons */}
+            <div className="print:hidden flex items-center justify-between p-4 border-t border-slate-200 shrink-0 bg-slate-50">
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="px-3.5 py-1.5 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-mono font-medium transition inline-flex items-center gap-1.5"
+                className="px-3.5 py-1.5 border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-xs font-mono font-medium transition inline-flex items-center gap-1.5"
               >
                 <Printer className="w-3.5 h-3.5" />
                 <span>Print Official Slip</span>

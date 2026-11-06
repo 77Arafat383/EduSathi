@@ -151,6 +151,7 @@ export const api = {
   },
   getTeacherSalariesSummary: () => request<any>('/finance/salaries/summary'),
   recordTeacherSalary: (payload: any) => request<any>('/finance/salaries', { method: 'POST', body: JSON.stringify(payload) }),
+  disburseTeacherSalary: (salaryId: string) => request<any>(`/finance/salaries/${salaryId}/disburse`, { method: 'PATCH' }),
   getTeacherFinanceDetails: (teacherId: string) => request<any>(`/finance/teachers/${teacherId}/compensation`),
 
   // Student Payments & Dues
@@ -170,4 +171,6 @@ export const api = {
   purchaseCoursePayment: (payload: { course_id: string; amount_to_pay?: number; payment_method?: string; transaction_ref?: string; note?: string }) =>
     request<any>('/me/payments/buy-course', { method: 'POST', body: JSON.stringify(payload) }),
   getMyTeacherSalaries: () => request<any>('/me/salaries'),
+  requestTeacherSalary: (payload: { course_id?: string; amount: number; pay_period: string; note?: string }) =>
+    request<any>('/me/salaries/request', { method: 'POST', body: JSON.stringify(payload) }),
 };
