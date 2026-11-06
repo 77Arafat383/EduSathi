@@ -74,12 +74,12 @@ const aiLimiter = rateLimit({
   },
 });
 
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/register', authLimiter);
-app.use('/api/ai', aiLimiter);
+app.use(['/api/auth/login', '/auth/login'], authLimiter);
+app.use(['/api/auth/register', '/auth/register'], authLimiter);
+app.use(['/api/ai', '/ai'], aiLimiter);
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
+// Health check endpoint (accessible via /api/health or /health)
+app.get(['/api/health', '/health'], (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
@@ -88,8 +88,9 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Main API Router
+// Main API Router (mount under /api and root / for seamless compatibility)
 app.use('/api', apiRouter);
+app.use('/', apiRouter);
 
 // 404 Route handler
 app.use('*', (req, res) => {

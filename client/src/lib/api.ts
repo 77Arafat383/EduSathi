@@ -1,4 +1,13 @@
-const API_BASE = (import.meta as any).env?.VITE_API_URL || '/api';
+function resolveApiBase(): string {
+  const envUrl = ((import.meta as any).env?.VITE_API_URL || '').trim();
+  if (!envUrl) {
+    return '/api';
+  }
+  const cleanUrl = envUrl.replace(/\/+$/, '');
+  return cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
+}
+
+const API_BASE = resolveApiBase();
 
 export function getToken(): string | null {
   return localStorage.getItem('edusathi_token');
