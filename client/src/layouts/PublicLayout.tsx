@@ -1,10 +1,30 @@
-import React from 'react';
-import { Outlet, Link } from 'react-router-dom';
-import { GraduationCap, ArrowRight, Github, Linkedin, Twitter, Youtube, Facebook } from 'lucide-react';
+import React, { useState } from 'react';
+import { Outlet, Link, useLocation } from 'react-router-dom';
+import {
+  GraduationCap,
+  ArrowRight,
+  Menu,
+  X,
+  Home,
+  Sparkles,
+  Info,
+  LogIn,
+  UserPlus,
+  LayoutDashboard,
+  Github,
+  Linkedin,
+  Twitter,
+  Youtube,
+  Facebook,
+} from 'lucide-react';
 import { useAuth } from '../app/providers';
 
 export const PublicLayout: React.FC = () => {
   const { user } = useAuth();
+  const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const currentPath = location.pathname;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -23,33 +43,185 @@ export const PublicLayout: React.FC = () => {
             </div>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-600">
-            <Link to="/" className="hover:text-brand-600 transition">Home</Link>
-            <Link to="/features" className="hover:text-brand-600 transition">Features</Link>
-            <Link to="/about" className="hover:text-brand-600 transition">About Us</Link>
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center gap-8 text-sm font-semibold">
+            <Link
+              to="/"
+              className={`transition ${
+                currentPath === '/' ? 'text-brand-600 font-bold' : 'text-slate-600 hover:text-brand-600'
+              }`}
+            >
+              Home
+            </Link>
+            <Link
+              to="/features"
+              className={`transition ${
+                currentPath === '/features' ? 'text-brand-600 font-bold' : 'text-slate-600 hover:text-brand-600'
+              }`}
+            >
+              Features
+            </Link>
+            <Link
+              to="/about"
+              className={`transition ${
+                currentPath === '/about' ? 'text-brand-600 font-bold' : 'text-slate-600 hover:text-brand-600'
+              }`}
+            >
+              About Us
+            </Link>
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {user ? (
               <Link
                 to={`/${user.role}`}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow-sm transition"
+                className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow-sm transition"
               >
-                Go to Dashboard <ArrowRight className="w-4 h-4" />
+                <span className="hidden sm:inline">Go to Dashboard</span>
+                <span className="sm:hidden">Dashboard</span>
+                <ArrowRight className="w-4 h-4" />
               </Link>
             ) : (
               <>
                 <Link
+                  to="/login"
+                  className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 text-slate-700 hover:text-slate-950 text-xs font-bold transition"
+                >
+                  Sign In
+                </Link>
+                <Link
                   to="/register"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-sm transition"
+                  className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-sm transition"
                 >
                   Get Started
                 </Link>
               </>
             )}
+
+            {/* Mobile Hamburger Button */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle mobile menu"
+              className="md:hidden w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200/80 flex items-center justify-center text-slate-700 transition"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
         </div>
       </header>
+
+      {/* Mobile Page Switcher (Sticky Tap Bar) */}
+      <nav
+        aria-label="Mobile Page Switcher"
+        className="md:hidden bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-3 py-2 sticky top-20 z-30 shadow-xs"
+      >
+        <div className="flex items-center justify-between gap-1 max-w-md mx-auto bg-slate-100/90 p-1 rounded-xl">
+          <Link
+            to="/"
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
+              currentPath === '/'
+                ? 'bg-white text-brand-600 shadow-sm font-bold'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Home className="w-3.5 h-3.5" />
+            <span>Home</span>
+          </Link>
+          <Link
+            to="/features"
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
+              currentPath === '/features'
+                ? 'bg-white text-brand-600 shadow-sm font-bold'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Features</span>
+          </Link>
+          <Link
+            to="/about"
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
+              currentPath === '/about'
+                ? 'bg-white text-brand-600 shadow-sm font-bold'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Info className="w-3.5 h-3.5" />
+            <span>About Us</span>
+          </Link>
+        </div>
+      </nav>
+
+      {/* Mobile Drawer Dropdown Menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden bg-white border-b border-slate-200/90 shadow-lg px-4 pt-3 pb-5 space-y-3 sticky top-[125px] z-30 animate-in fade-in duration-150">
+          <div className="space-y-1">
+            <Link
+              to="/"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
+                currentPath === '/' ? 'bg-brand-50 text-brand-700 font-bold' : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <Home className="w-4 h-4 text-brand-600" />
+              <span>Home (Overview)</span>
+            </Link>
+            <Link
+              to="/features"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
+                currentPath === '/features' ? 'bg-brand-50 text-brand-700 font-bold' : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <Sparkles className="w-4 h-4 text-brand-600" />
+              <span>Features &amp; Curriculum</span>
+            </Link>
+            <Link
+              to="/about"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
+                currentPath === '/about' ? 'bg-brand-50 text-brand-700 font-bold' : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <Info className="w-4 h-4 text-brand-600" />
+              <span>About EduSathi</span>
+            </Link>
+          </div>
+
+          <div className="pt-2 border-t border-slate-100 flex flex-col gap-2">
+            {user ? (
+              <Link
+                to={`/${user.role}`}
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow-sm transition"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                Go to Dashboard
+              </Link>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <Link
+                  to="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl transition"
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  Sign In
+                </Link>
+                <Link
+                  to="/register"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-sm transition"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  Get Started
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Main Outlet */}
       <main className="flex-1">

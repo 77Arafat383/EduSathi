@@ -274,69 +274,32 @@ export const FeaturesPage: React.FC = () => {
 
       {/* Security & Infrastructure Highlights */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="relative overflow-hidden rounded-3xl bg-[#0a0f1d] border border-slate-800 shadow-2xl p-8 sm:p-12 space-y-10">
-          {/* Ambient Lighting & Technical Grid Overlay */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-brand-500/10 via-slate-900/0 to-transparent pointer-events-none" />
-          <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[580px] h-[280px] bg-gradient-to-b from-brand-400/20 via-emerald-500/10 to-transparent blur-3xl pointer-events-none rounded-full" />
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:32px_32px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
-          <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-brand-400/50 to-transparent" />
-
-          {/* Header Content */}
-          <div className="relative z-10 max-w-2xl space-y-3">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-950/80 border border-brand-500/30 text-brand-300 text-[11px] font-semibold tracking-wide shadow-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse" />
-              <span>Enterprise Grade Security</span>
-            </div>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-snug">
-              Engineered with Zero-Trust Security &amp; Peak Reliability
+        <div className="p-8 sm:p-10 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-8">
+          <div className="max-w-2xl">
+            <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-brand-50 text-brand-700">
+              Enterprise Grade
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-3">
+              Built on Modern Security &amp; Performance Standards
             </h2>
-            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-              Academic records, assessment keys, and student credentials are protected at every network boundary with strict cryptographic controls.
+            <p className="text-xs sm:text-sm text-slate-500 mt-2">
+              Our engineering architecture guards academic data integrity while maintaining sub-second query performance.
             </p>
           </div>
 
-          {/* Cards Grid */}
-          <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 pt-2">
             {securityBadges.map((badge, idx) => {
               const Icon = badge.icon;
               return (
-                <div
-                  key={idx}
-                  className="group relative p-6 rounded-2xl bg-gradient-to-b from-slate-900/80 via-slate-900/40 to-slate-950/80 border border-slate-800/90 hover:border-brand-500/40 transition-all duration-300 hover:shadow-xl hover:shadow-brand-500/5 hover:-translate-y-0.5 flex flex-col justify-between"
-                >
-                  <div className="space-y-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500/20 to-teal-500/10 border border-brand-500/25 flex items-center justify-center text-brand-300 group-hover:scale-105 group-hover:border-brand-400/40 group-hover:text-brand-200 transition-all duration-300 shadow-sm">
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    <h4 className="text-sm font-bold text-slate-100 group-hover:text-white transition-colors">
-                      {badge.title}
-                    </h4>
-                    <p className="text-xs text-slate-400 leading-relaxed group-hover:text-slate-300 transition-colors">
-                      {badge.desc}
-                    </p>
+                <div key={idx} className="p-5 rounded-2xl bg-slate-50/80 border border-slate-200/80 space-y-2">
+                  <div className="w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center text-brand-600">
+                    <Icon className="w-4 h-4" />
                   </div>
-                  <div className="mt-4 pt-3 border-t border-slate-800/60 flex items-center gap-1.5 text-[11px] text-brand-400/80 font-medium">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-brand-400" />
-                    <span>Verified Active</span>
-                  </div>
+                  <h4 className="text-sm font-bold text-slate-900">{badge.title}</h4>
+                  <p className="text-xs text-slate-500 leading-relaxed">{badge.desc}</p>
                 </div>
               );
             })}
-          </div>
-
-          {/* Enterprise Guarantee Footer Strip */}
-          <div className="relative z-10 pt-6 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-4 text-[11px] sm:text-xs text-slate-400 font-medium">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-brand-400" />
-              <span>Full compliance with OWASP Top 10 security standards</span>
-            </div>
-            <div className="flex items-center gap-4 text-slate-500">
-              <span>99.9% Uptime Guarantee</span>
-              <span>•</span>
-              <span>Sub-second Query Latency</span>
-              <span>•</span>
-              <span>End-to-End Encryption</span>
-            </div>
           </div>
         </div>
       </section>

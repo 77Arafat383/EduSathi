@@ -168,22 +168,22 @@ export const AboutPage: React.FC = () => {
 
       {/* Institutional Pledge Banner */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="p-8 sm:p-10 rounded-3xl bg-slate-900 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="p-8 sm:p-10 rounded-3xl bg-white border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="flex items-center gap-2 text-brand-400 text-xs font-bold uppercase tracking-wider">
+            <div className="flex items-center gap-2 text-brand-600 text-xs font-bold uppercase tracking-wider">
               <ShieldCheck className="w-4 h-4" />
               <span>Our Institutional Commitment</span>
             </div>
-            <h3 className="text-xl sm:text-2xl font-extrabold tracking-tight">
+            <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
               Honest Software for Serious Learning
             </h3>
-            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+            <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
               EduSathi is designed with zero intrusive surveillance software, no commercial lock-in, and strict privacy boundaries that respect student and teacher autonomy.
             </p>
           </div>
           <Link
             to="/features"
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white text-slate-900 hover:bg-slate-100 text-xs font-bold transition shrink-0 shadow-sm"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold transition shrink-0 shadow-sm"
           >
             Explore Platform Features <ArrowRight className="w-4 h-4" />
           </Link>
