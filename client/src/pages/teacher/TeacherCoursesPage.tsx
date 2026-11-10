@@ -733,7 +733,7 @@ export const TeacherCoursesPage: React.FC = () => {
                     <div className="block md:hidden p-3 space-y-2.5 bg-slate-50/60">
                       {filteredRosterStudents.map((st) => (
                         <div key={st.id} className="p-3.5 space-y-2.5 bg-white rounded-xl border border-slate-200/90 shadow-2xs max-w-full overflow-hidden break-words">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center justify-between gap-2.5">
                             <div className="flex items-center gap-2.5 min-w-0 flex-1">
                               <img
                                 src={
@@ -744,11 +744,11 @@ export const TeacherCoursesPage: React.FC = () => {
                                 className="w-9 h-9 rounded-full object-cover border border-slate-200 shrink-0"
                               />
                               <div className="min-w-0 flex-1">
-                                <span className="font-bold text-slate-900 block break-words text-xs">{st.full_name}</span>
-                                <span className="text-[10px] text-slate-400 block break-all mt-0.5">{st.email}</span>
+                                <span className="font-bold text-slate-900 block truncate text-xs">{st.full_name}</span>
+                                <span className="text-[10px] text-slate-400 block truncate mt-0.5">{st.email}</span>
                               </div>
                             </div>
-                            <span className="font-mono text-brand-600 bg-brand-50 border border-brand-200/80 px-2 py-0.5 rounded text-[11px] font-extrabold shrink-0">
+                            <span className="font-mono text-brand-600 bg-brand-50 border border-brand-200/80 px-2 py-0.5 rounded text-[11px] font-extrabold shrink-0 max-w-[110px] truncate">
                               {st.student_id || 'CS-2026'}
                             </span>
                           </div>

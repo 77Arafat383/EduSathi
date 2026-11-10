@@ -648,7 +648,7 @@ export const AdminUsersPage: React.FC = () => {
           <div className="block md:hidden p-3.5 space-y-3.5 bg-slate-50/60">
             {currentDisplayList.map((admin) => (
               <div key={admin.id} className="p-4 space-y-3 bg-white rounded-2xl border border-slate-200/90 shadow-2xs max-w-full overflow-hidden break-words">
-                <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="flex items-start justify-between gap-2.5">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <img
                       src={admin.avatar_url || DEFAULT_NEUTRAL_AVATAR}
@@ -656,8 +656,8 @@ export const AdminUsersPage: React.FC = () => {
                       className="w-10 h-10 rounded-full object-cover ring-1 ring-slate-200 shrink-0"
                     />
                     <div className="min-w-0 flex-1">
-                      <span className="font-extrabold text-slate-900 block break-words text-sm leading-snug">{admin.full_name}</span>
-                      <span className="text-[11px] text-slate-400 block break-all mt-0.5">{admin.email}</span>
+                      <span className="font-extrabold text-slate-900 block truncate text-sm leading-snug">{admin.full_name}</span>
+                      <span className="text-[11px] text-slate-400 block truncate mt-0.5">{admin.email}</span>
                     </div>
                   </div>
                   <StatusBadge status={admin.status || 'active'} size="sm" />
@@ -935,9 +935,9 @@ export const AdminUsersPage: React.FC = () => {
                                 <span className="font-mono font-black text-slate-900 text-sm">
                                   ৳ {Number(sal.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </span>
-                                <div className="text-right text-[11px] text-slate-500 break-all">
+                                <div className="text-right text-[11px] text-slate-500 truncate max-w-[180px]">
                                   <span>{sal.payment_method}</span>
-                                  <span className="font-mono text-[10px] block text-slate-400 break-all">{sal.transaction_ref}</span>
+                                  <span className="font-mono text-[10px] block text-slate-400 truncate">{sal.transaction_ref}</span>
                                 </div>
                               </div>
                             </div>
@@ -1251,7 +1251,7 @@ export const AdminUsersPage: React.FC = () => {
 
                               <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 pt-0.5">
                                 <span>{pay.payment_method || 'Bank Transfer'}</span>
-                                <span className="font-mono text-[10px] text-slate-400 break-all">{pay.transaction_ref}</span>
+                                <span className="font-mono text-[10px] text-slate-400 truncate max-w-[180px]">{pay.transaction_ref}</span>
                               </div>
                             </div>
                           ))}

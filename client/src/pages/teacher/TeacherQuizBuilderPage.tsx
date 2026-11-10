@@ -1427,8 +1427,8 @@ export const TeacherQuizBuilderPage: React.FC = () => {
                                   )}
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                  <div className="font-extrabold text-slate-900 text-sm break-words leading-snug">{att.student_name}</div>
-                                  <div className="text-[11px] text-slate-400 break-all mt-0.5">
+                                  <div className="font-extrabold text-slate-900 text-sm truncate leading-snug">{att.student_name}</div>
+                                  <div className="text-[11px] text-slate-400 truncate mt-0.5">
                                     {att.student_code || att.student_email}
                                   </div>
                                 </div>

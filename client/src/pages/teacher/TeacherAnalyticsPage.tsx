@@ -1718,7 +1718,7 @@ export const TeacherAnalyticsPage: React.FC = () => {
 
                       return (
                         <div key={st.id} className="p-4 space-y-3 bg-white rounded-2xl border border-slate-200/90 shadow-2xs max-w-full overflow-hidden break-words">
-                          <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="flex items-start justify-between gap-2.5">
                             <div className="flex items-center gap-2.5 min-w-0 flex-1">
                               <img
                                 src={
@@ -1726,14 +1726,14 @@ export const TeacherAnalyticsPage: React.FC = () => {
                                   `https://ui-avatars.com/api/?name=${encodeURIComponent(st.full_name)}&background=2563eb&color=fff`
                                 }
                                 alt={st.full_name}
-                                className="w-9 h-9 rounded-full object-cover border border-slate-200 shrink-0"
+                                className="w-10 h-10 rounded-full object-cover border border-slate-200 shrink-0"
                               />
                               <div className="min-w-0 flex-1">
-                                <span className="font-extrabold text-slate-900 block break-words text-sm leading-snug">{st.full_name}</span>
-                                <span className="text-[11px] text-slate-400 block break-all mt-0.5">{st.email}</span>
+                                <span className="font-extrabold text-slate-900 block truncate text-sm leading-snug">{st.full_name}</span>
+                                <span className="text-[11px] text-slate-400 block truncate mt-0.5">{st.email}</span>
                               </div>
                             </div>
-                            <span className="font-mono text-brand-600 bg-brand-50 border border-brand-200/80 px-2 py-0.5 rounded text-[11px] font-extrabold shrink-0">
+                            <span className="font-mono text-brand-600 bg-brand-50 border border-brand-200/80 px-2 py-0.5 rounded text-[11px] font-extrabold shrink-0 max-w-[110px] truncate">
                               {st.student_code || 'CS-2026'}
                             </span>
                           </div>

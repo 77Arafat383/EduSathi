@@ -1284,11 +1284,11 @@ export const TeacherGradebookPage: React.FC = () => {
                                 className="w-10 h-10 rounded-xl object-cover ring-1 ring-slate-200 shrink-0"
                               />
                               <div className="min-w-0 flex-1">
-                                <span className="font-extrabold text-slate-900 block break-words text-sm leading-snug">{st.full_name}</span>
-                                <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400 break-all mt-0.5">
+                                <span className="font-extrabold text-slate-900 block truncate text-sm leading-snug">{st.full_name}</span>
+                                <div className="flex items-center gap-1.5 text-[11px] text-slate-400 truncate mt-0.5">
                                   <span className="font-semibold text-brand-600 shrink-0">{st.student_code}</span>
                                   <span>•</span>
-                                  <span className="break-all">{st.email}</span>
+                                  <span className="truncate">{st.email}</span>
                                 </div>
                               </div>
                             </div>

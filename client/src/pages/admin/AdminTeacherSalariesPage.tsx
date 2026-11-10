@@ -671,30 +671,30 @@ export const AdminTeacherSalariesPage: React.FC = () => {
             {paginatedSalaries.map((sal) => (
               <div key={sal.id} className="p-4 space-y-3 bg-white rounded-2xl border border-slate-200/90 shadow-2xs max-w-full overflow-hidden break-words">
                 {/* Faculty Header */}
-                <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="flex items-start justify-between gap-2.5">
                   <div className="flex items-center gap-2.5 min-w-0 flex-1">
                     {sal.teacher_avatar ? (
                       <img
                         src={sal.teacher_avatar}
                         alt={sal.teacher_name || 'Faculty'}
-                        className="w-9 h-9 rounded-xl object-cover border border-slate-200 shrink-0"
+                        className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
                       />
                     ) : (
-                      <div className="w-9 h-9 bg-slate-100 border border-slate-200 text-slate-700 font-mono font-bold text-xs flex items-center justify-center shrink-0 rounded-xl">
+                      <div className="w-10 h-10 bg-slate-100 border border-slate-200 text-slate-700 font-mono font-bold text-xs flex items-center justify-center shrink-0 rounded-xl">
                         {getInitials(sal.teacher_name)}
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <div className="font-extrabold text-slate-900 break-words text-sm leading-snug">
+                      <div className="font-extrabold text-slate-900 text-sm leading-snug truncate">
                         {sal.teacher_name || 'Faculty Member'}
                       </div>
-                      <div className="text-[10px] text-slate-400 font-mono break-all mt-0.5">
+                      <div className="text-[10px] text-slate-400 font-mono truncate mt-0.5">
                         {sal.teacher_email}
                       </div>
                     </div>
                   </div>
 
-                  <span className="px-2 py-0.5 bg-slate-100 border border-slate-200 text-slate-800 text-[10px] font-mono shrink-0">
+                  <span className="px-2 py-0.5 bg-slate-100 border border-slate-200 text-slate-800 text-[10px] font-mono shrink-0 max-w-[120px] truncate">
                     {sal.teacher_department || 'Academic'}
                   </span>
                 </div>
@@ -754,7 +754,7 @@ export const AdminTeacherSalariesPage: React.FC = () => {
                   <span className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-mono shrink-0">
                     {sal.payment_method || 'Bank Transfer'}
                   </span>
-                  <span className="font-mono text-[10px] text-slate-400 break-all">
+                  <span className="font-mono text-[10px] text-slate-400 truncate max-w-[180px]">
                     Ref: {sal.transaction_ref || 'TRX-DEFAULT'}
                   </span>
                 </div>

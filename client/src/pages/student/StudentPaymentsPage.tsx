@@ -692,16 +692,16 @@ export const StudentPaymentsPage: React.FC = () => {
 
                       return (
                         <div key={p.id} className="p-4 space-y-3 bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden break-words max-w-full">
-                          <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="flex items-start justify-between gap-2.5">
                             <div className="min-w-0 flex-1">
                               <h4 className="text-xs font-bold text-slate-900 leading-snug break-words">{p.title}</h4>
                               {p.course_title && (
-                                <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 break-words">
+                                <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 truncate">
                                   <BookOpen className="w-3 h-3 text-brand-600 shrink-0" />
                                   <span className="truncate">{p.course_title}</span>
                                 </div>
                               )}
-                              <div className="text-[10px] font-mono text-slate-400 mt-1 break-all">
+                              <div className="text-[10px] font-mono text-slate-400 mt-1 truncate">
                                 #{p.transaction_ref || p.id} •{' '}
                                 {p.payment_date
                                   ? new Date(p.payment_date).toLocaleDateString()

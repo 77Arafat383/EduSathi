@@ -747,27 +747,27 @@ export const AdminStudentPaymentsPage: React.FC = () => {
               return (
                 <div key={p.id} className="p-4 space-y-3 bg-white rounded-2xl border border-slate-200/90 shadow-2xs max-w-full overflow-hidden break-words">
                   {/* Student Header */}
-                  <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="flex items-start justify-between gap-2.5">
                     <div className="flex items-center gap-2.5 min-w-0 flex-1">
                       {p.student_avatar ? (
                         <img
                           src={p.student_avatar}
                           alt={p.student_name || 'Student'}
-                          className="w-9 h-9 rounded-xl object-cover border border-slate-200 shrink-0"
+                          className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
                         />
                       ) : (
-                        <div className="w-9 h-9 bg-slate-100 border border-slate-200 text-slate-700 font-mono font-bold text-xs flex items-center justify-center shrink-0 rounded-xl">
+                        <div className="w-10 h-10 bg-slate-100 border border-slate-200 text-slate-700 font-mono font-bold text-xs flex items-center justify-center shrink-0 rounded-xl">
                           {getInitials(p.student_name)}
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
-                        <div className="font-extrabold text-slate-900 break-words text-sm leading-snug">
+                        <div className="font-extrabold text-slate-900 text-sm leading-snug truncate">
                           {p.student_name || 'Student Account'}
                         </div>
-                        <div className="text-[10px] text-slate-400 font-mono flex flex-wrap items-center gap-1 mt-0.5 break-all">
+                        <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1 mt-0.5 truncate">
                           <span className="font-bold text-slate-600 shrink-0">{p.student_identifier || 'ID: N/A'}</span>
                           <span>•</span>
-                          <span className="break-all">{p.student_email}</span>
+                          <span className="truncate">{p.student_email}</span>
                         </div>
                       </div>
                     </div>
@@ -788,7 +788,7 @@ export const AdminStudentPaymentsPage: React.FC = () => {
                   <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 space-y-0.5 text-xs break-words">
                     <div className="font-bold text-slate-800 leading-tight break-words">{p.title}</div>
                     <div className="text-[11px] text-slate-500 break-words">{p.course_title || 'General Semester Tuition'}</div>
-                    <div className="text-[10px] font-mono text-slate-400 break-all">Ref: {p.transaction_ref || 'N/A'}</div>
+                    <div className="text-[10px] font-mono text-slate-400 truncate max-w-[200px]">Ref: {p.transaction_ref || 'N/A'}</div>
                   </div>
 
                   {/* 3-Column Financial Grid */}

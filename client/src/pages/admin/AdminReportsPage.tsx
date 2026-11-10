@@ -908,12 +908,12 @@ export const AdminReportsPage: React.FC = () => {
 
                   return (
                     <div key={s.id} className="p-4 space-y-3 bg-white rounded-2xl border border-slate-200/90 shadow-2xs max-w-full overflow-hidden break-words">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="flex items-start justify-between gap-2.5">
                         <div className="min-w-0 flex-1">
-                          <span className="font-extrabold text-slate-900 block text-xs break-words">{s.full_name}</span>
-                          <span className="text-[10px] text-slate-400 font-mono block break-all mt-0.5">{s.email}</span>
+                          <span className="font-extrabold text-slate-900 block text-xs truncate">{s.full_name}</span>
+                          <span className="text-[10px] text-slate-400 font-mono block truncate mt-0.5">{s.email}</span>
                         </div>
-                        <span className="font-mono font-bold text-brand-600 bg-brand-50 border border-brand-200/80 px-2 py-0.5 rounded text-[11px] shrink-0 break-all">
+                        <span className="font-mono font-bold text-brand-600 bg-brand-50 border border-brand-200/80 px-2 py-0.5 rounded text-[11px] shrink-0 max-w-[120px] truncate">
                           {s.student_id || `STD-${s.id.replace('usr_', '').slice(0, 7).toUpperCase()}`}
                         </span>
                       </div>
@@ -1101,12 +1101,12 @@ export const AdminReportsPage: React.FC = () => {
 
                   return (
                     <div key={f.id} className="p-4 space-y-3 bg-white rounded-2xl border border-slate-200/90 shadow-2xs max-w-full overflow-hidden break-words">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="flex items-start justify-between gap-2.5">
                         <div className="min-w-0 flex-1">
-                          <span className="font-extrabold text-slate-900 block text-xs break-words">{f.full_name}</span>
-                          <span className="text-[10px] text-slate-400 font-mono block break-all mt-0.5">{f.email}</span>
+                          <span className="font-extrabold text-slate-900 block text-xs truncate">{f.full_name}</span>
+                          <span className="text-[10px] text-slate-400 font-mono block truncate mt-0.5">{f.email}</span>
                         </div>
-                        <span className={`inline-block px-2 py-0.5 text-[10px] font-mono uppercase font-bold border rounded shrink-0 ${coursesCount >= 3
+                        <span className={`inline-block px-2 py-0.5 text-[10px] font-mono uppercase font-bold border rounded shrink-0 max-w-[120px] truncate ${coursesCount >= 3
                           ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
                           : coursesCount >= 1
                             ? 'bg-emerald-50 text-emerald-800 border-emerald-200'

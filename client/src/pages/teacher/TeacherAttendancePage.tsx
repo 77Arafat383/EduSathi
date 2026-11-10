@@ -947,7 +947,7 @@ export const TeacherAttendancePage: React.FC = () => {
                       const currentStatus = attendanceMap[st.id] || 'absent';
                       return (
                         <div key={st.id} className="p-4 space-y-3 bg-white rounded-2xl border border-slate-200/90 shadow-2xs max-w-full overflow-hidden break-words">
-                          <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="flex items-start justify-between gap-2.5">
                             <div className="flex items-center gap-3 min-w-0 flex-1">
                               <img
                                 src={st.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
@@ -955,11 +955,11 @@ export const TeacherAttendancePage: React.FC = () => {
                                 className="w-10 h-10 rounded-xl object-cover ring-1 ring-slate-200 shrink-0"
                               />
                               <div className="min-w-0 flex-1">
-                                <span className="font-extrabold text-slate-900 block break-words text-sm leading-snug">{st.full_name}</span>
-                                <span className="text-[11px] text-slate-400 block break-all mt-0.5">{st.email}</span>
+                                <span className="font-extrabold text-slate-900 block truncate text-sm leading-snug">{st.full_name}</span>
+                                <span className="text-[11px] text-slate-400 block truncate mt-0.5">{st.email}</span>
                               </div>
                             </div>
-                            <span className="px-2.5 py-1 rounded-lg bg-brand-50 border border-brand-200/80 font-mono font-extrabold text-brand-600 text-xs shrink-0">
+                            <span className="px-2.5 py-1 rounded-lg bg-brand-50 border border-brand-200/80 font-mono font-extrabold text-brand-600 text-xs shrink-0 max-w-[110px] truncate">
                               {st.student_code || st.id}
                             </span>
                           </div>

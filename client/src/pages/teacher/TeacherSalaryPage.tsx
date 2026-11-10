@@ -605,7 +605,7 @@ export const TeacherSalaryPage: React.FC = () => {
                           <Building className="w-3 h-3 text-slate-400" />
                           <span>{sal.payment_method || 'Bank Transfer'}</span>
                         </span>
-                        <span className="font-mono font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded break-all">
+                        <span className="font-mono font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded truncate max-w-[160px]">
                           {sal.transaction_ref || 'TRX-DEFAULT'}
                         </span>
                       </div>
