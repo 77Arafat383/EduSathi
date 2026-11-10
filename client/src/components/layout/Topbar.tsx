@@ -106,9 +106,9 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
     });
   }, [activeAttendanceSessions, nowTime, user]);
 
-  // Close dropdowns on outside click
+  // Close dropdowns on outside click or touch
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       if (userDropdownRef.current && !userDropdownRef.current.contains(event.target as Node)) {
         setShowUserDropdown(false);
       }
@@ -117,7 +117,11 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, []);
 
   // Filter notifications by role:
@@ -232,7 +236,7 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
           </button>
 
           {showNotifDropdown && (
-            <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-xl border border-slate-200/90 py-3 z-50 animate-fade-in">
+            <div className="fixed sm:absolute top-16 sm:top-full left-3 right-3 sm:left-auto sm:right-0 mt-2 sm:w-96 max-w-[calc(100vw-1.5rem)] bg-white rounded-2xl shadow-2xl border border-slate-200/90 py-3 z-50 animate-fade-in">
               <div className="flex items-center justify-between px-4 pb-2 border-b border-slate-100">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-slate-800">
@@ -254,7 +258,7 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
                 )}
               </div>
 
-              <div className="max-h-80 overflow-y-auto divide-y divide-slate-50">
+              <div className="max-h-[60vh] sm:max-h-80 overflow-y-auto divide-y divide-slate-50 overscroll-contain">
                 {/* Live Attendance Calls (Only shows when timer is on; vanishes when marked present or timer expires) */}
                 {liveAttendanceCalls.map((sess) => {
                   const presentMs = sess.present_until ? new Date(sess.present_until).getTime() : 0;
@@ -402,7 +406,7 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
 
           {/* Dropdown Menu */}
           {showUserDropdown && (
-            <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-200/90 py-2 z-50 animate-fade-in divide-y divide-slate-100">
+            <div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-1.5rem)] bg-white rounded-2xl shadow-xl border border-slate-200/90 py-2 z-50 animate-fade-in divide-y divide-slate-100">
               {/* Profile Card Header */}
               <div className="px-4 py-3 flex items-center gap-3">
                 <div className="relative group shrink-0">
