@@ -499,7 +499,7 @@ export const StudentAiAssistantPage: React.FC = () => {
 
           {/* AI Model Selection Dropdown Menu */}
           {showMenu && (
-            <div className="absolute right-0 top-full mt-2 w-84 sm:w-96 bg-white rounded-2xl shadow-xl border border-slate-200/90 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="fixed sm:absolute top-16 sm:top-full left-3 right-3 sm:left-auto sm:right-0 mt-2 sm:w-96 max-w-[calc(100vw-1.5rem)] bg-white rounded-2xl shadow-xl border border-slate-200/90 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
               <div className="p-3.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
                 <div>
                   <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">

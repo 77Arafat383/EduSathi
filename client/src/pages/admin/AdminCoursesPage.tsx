@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { Course, Subject, CourseTeacher, CourseStudent, User, DEFAULT_NEUTRAL_AVATAR } from '../../types';
+import { formatUserOption, truncateOption } from '../../lib/formatters';
 import { StatusBadge } from '../../components/common/StatusBadge';
 
 export const AdminCoursesPage: React.FC = () => {
@@ -801,7 +802,8 @@ export const AdminCoursesPage: React.FC = () => {
           ) : (
             /* Table View */
             <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
+              {/* Desktop / Laptop View: Unaltered Table */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
@@ -931,6 +933,132 @@ export const AdminCoursesPage: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+
+              {/* Mobile View: High-Readability Vertical Cards */}
+              <div className="block md:hidden p-3.5 space-y-3.5 bg-slate-50/60">
+                {filteredCourses.map((course) => (
+                  <div key={course.id} className="p-4 space-y-3 bg-white rounded-2xl border border-slate-200/90 shadow-2xs max-w-full overflow-hidden break-words">
+                    <div className="flex items-start gap-3">
+                      <img
+                        src={course.banner_url || 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=100'}
+                        alt={course.title}
+                        className="w-12 h-12 rounded-xl object-cover border border-slate-200 shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center justify-between gap-1">
+                          <span className="text-[10px] font-bold text-brand-600 uppercase font-mono">
+                            {course.subject_code || 'TRACK'}
+                          </span>
+                          <StatusBadge status={course.status} size="sm" />
+                        </div>
+                        <h4 className="font-extrabold text-slate-900 text-sm break-words mt-0.5 leading-snug">{course.title}</h4>
+                        <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1 min-w-0">
+                          <img
+                            src={course.teacher_avatar || DEFAULT_NEUTRAL_AVATAR}
+                            alt={course.teacher_name || 'Faculty'}
+                            className="w-4 h-4 rounded-full object-cover shrink-0"
+                          />
+                          <span className="truncate">{course.teacher_name || 'Assigned Faculty'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stats & Price Grid */}
+                    <div className="grid grid-cols-4 gap-2 text-center bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs">
+                      <div>
+                        <span className="text-[9px] text-slate-400 font-bold uppercase block">Faculty</span>
+                        <button
+                          type="button"
+                          onClick={() => openRosterModal(course, 'teachers')}
+                          className="font-bold text-emerald-700 text-xs mt-0.5 hover:underline"
+                        >
+                          {course.teacher_count || 1}
+                        </button>
+                      </div>
+                      <div>
+                        <span className="text-[9px] text-slate-400 font-bold uppercase block">Students</span>
+                        <button
+                          type="button"
+                          onClick={() => openRosterModal(course, 'students')}
+                          className="font-bold text-indigo-700 text-xs mt-0.5 hover:underline"
+                        >
+                          {course.student_count || 0}
+                        </button>
+                      </div>
+                      <div>
+                        <span className="text-[9px] text-slate-400 font-bold uppercase block">Lessons</span>
+                        <span className="font-bold text-slate-800 text-xs mt-0.5 block">{course.lesson_count || 0}</span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] text-slate-400 font-bold uppercase block">Tuition</span>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenQuickPrice(course)}
+                          className="font-black text-emerald-800 text-xs mt-0.5 block truncate hover:underline"
+                        >
+                          ৳{(course.price !== undefined ? course.price : 15000).toLocaleString()}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Actions: Stacks cleanly without overflowing on mobile */}
+                    <div className="space-y-2 pt-1">
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openRosterModal(course)}
+                          className="w-full py-2 px-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-2xs transition inline-flex items-center justify-center gap-1.5"
+                        >
+                          <Users className="w-3.5 h-3.5 text-brand-300 shrink-0" />
+                          <span className="truncate">Roster</span>
+                        </button>
+
+                        <Link
+                          to={`/teacher/analytics?courseId=${course.id}&tab=syllabus`}
+                          className="w-full py-2 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition inline-flex items-center justify-center gap-1.5 text-center"
+                          title="Curriculum Studio"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                          <span className="truncate">Curriculum</span>
+                        </Link>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleCourseStatus(course)}
+                          className={`w-full py-2 px-1 text-xs font-bold rounded-xl border transition text-center truncate ${course.status === 'published'
+                              ? 'border-amber-200 text-amber-700 hover:bg-amber-50'
+                              : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                            }`}
+                        >
+                          {course.status === 'published' ? 'Draft' : 'Publish'}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleOpenCourseModal(course)}
+                          className="w-full py-2 px-1 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-xs transition inline-flex items-center justify-center gap-1"
+                          title="Edit Course"
+                        >
+                          <Edit2 className="w-3.5 h-3.5 shrink-0" />
+                          <span>Edit</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setDeleteCourseId(course.id)}
+                          className="w-full py-2 px-1 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-xs transition inline-flex items-center justify-center gap-1"
+                          title="Delete Course"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                          <span>Delete</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -972,11 +1100,11 @@ export const AdminCoursesPage: React.FC = () => {
             </div>
 
             {/* Roster Navigation Tabs */}
-            <div className="px-6 pt-4 pb-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-4 shrink-0">
+            <div className="px-4 sm:px-6 pt-4 pb-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-4 shrink-0 overflow-x-auto no-scrollbar">
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setRosterTab('teachers')}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${rosterTab === 'teachers'
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap shrink-0 ${rosterTab === 'teachers'
                       ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80'
                       : 'text-slate-600 hover:text-slate-900'
                     }`}
@@ -987,7 +1115,7 @@ export const AdminCoursesPage: React.FC = () => {
 
                 <button
                   onClick={() => setRosterTab('students')}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${rosterTab === 'students'
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap shrink-0 ${rosterTab === 'students'
                       ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80'
                       : 'text-slate-600 hover:text-slate-900'
                     }`}
@@ -997,7 +1125,7 @@ export const AdminCoursesPage: React.FC = () => {
                 </button>
               </div>
 
-              <div className="text-[11px] text-slate-500 hidden sm:block">
+              <div className="text-[11px] text-slate-500 hidden sm:block whitespace-nowrap shrink-0">
                 Institutional Course ID: <span className="font-mono font-bold text-slate-700">{rosterCourse.id}</span>
               </div>
             </div>
@@ -1026,16 +1154,16 @@ export const AdminCoursesPage: React.FC = () => {
                       </p>
                     </div>
 
-                    <form onSubmit={handleAssignTeacher} className="flex items-center gap-2 w-full sm:w-auto">
+                    <form onSubmit={handleAssignTeacher} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                       <select
                         value={selectedTeacherId}
                         onChange={(e) => setSelectedTeacherId(e.target.value)}
-                        className="px-3 py-2 text-xs rounded-xl border border-emerald-200 bg-white font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 min-w-[200px]"
+                        className="px-3 py-2 text-xs rounded-xl border border-emerald-200 bg-white font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 w-full sm:w-auto min-w-0 sm:min-w-[200px]"
                       >
                         <option value="">Select Instructor...</option>
                         {availableTeachersToAssign.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.full_name} ({t.department || 'Faculty'})
+                          <option key={t.id} value={t.id} title={`${t.full_name} (${t.email})`}>
+                            {formatUserOption(t.full_name, t.department || t.email)}
                           </option>
                         ))}
                       </select>
@@ -1043,7 +1171,7 @@ export const AdminCoursesPage: React.FC = () => {
                       <button
                         type="submit"
                         disabled={submitting || !selectedTeacherId}
-                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition disabled:opacity-50 whitespace-nowrap"
+                        className="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition disabled:opacity-50 whitespace-nowrap justify-center flex items-center"
                       >
                         {submitting ? 'Assigning...' : 'Assign Faculty'}
                       </button>
@@ -1119,16 +1247,16 @@ export const AdminCoursesPage: React.FC = () => {
                       </p>
                     </div>
 
-                    <form onSubmit={handleEnrollStudent} className="flex items-center gap-2 w-full sm:w-auto">
+                    <form onSubmit={handleEnrollStudent} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                       <select
                         value={selectedStudentId}
                         onChange={(e) => setSelectedStudentId(e.target.value)}
-                        className="px-3 py-2 text-xs rounded-xl border border-indigo-200 bg-white font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 min-w-[220px]"
+                        className="px-3 py-2 text-xs rounded-xl border border-indigo-200 bg-white font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 w-full sm:w-auto min-w-0 sm:min-w-[220px]"
                       >
                         <option value="">Select Registered Student...</option>
                         {availableStudentsToEnroll.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.full_name} ({s.student_id || s.email})
+                          <option key={s.id} value={s.id} title={`${s.full_name} (${s.email})`}>
+                            {formatUserOption(s.full_name, s.student_id || s.email)}
                           </option>
                         ))}
                       </select>
@@ -1136,7 +1264,7 @@ export const AdminCoursesPage: React.FC = () => {
                       <button
                         type="submit"
                         disabled={submitting || !selectedStudentId}
-                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition disabled:opacity-50 whitespace-nowrap"
+                        className="w-full sm:w-auto px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition disabled:opacity-50 whitespace-nowrap justify-center flex items-center"
                       >
                         {submitting ? 'Enrolling...' : 'Enroll Student'}
                       </button>
@@ -1170,7 +1298,8 @@ export const AdminCoursesPage: React.FC = () => {
                       </div>
                     ) : (
                       <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-sm">
-                        <div className="overflow-x-auto">
+                        {/* Desktop / Laptop View: Unaltered Table */}
+                        <div className="hidden md:block overflow-x-auto">
                           <table className="w-full text-left border-collapse text-xs">
                             <thead>
                               <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
@@ -1235,6 +1364,55 @@ export const AdminCoursesPage: React.FC = () => {
                               ))}
                             </tbody>
                           </table>
+                        </div>
+
+                        {/* Mobile View: High-Readability Vertical Cards */}
+                        <div className="block md:hidden p-3 space-y-2.5 bg-slate-50/60">
+                          {filteredRosterStudents.map((s) => (
+                            <div key={s.id} className="p-3.5 space-y-2.5 bg-white rounded-xl border border-slate-200/90 shadow-2xs max-w-full overflow-hidden break-words">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <img
+                                    src={s.avatar_url || DEFAULT_NEUTRAL_AVATAR}
+                                    alt={s.full_name}
+                                    className="w-9 h-9 rounded-full object-cover border border-slate-200 shrink-0"
+                                  />
+                                  <div className="min-w-0">
+                                    <h5 className="font-extrabold text-slate-900 leading-tight text-xs truncate">{s.full_name}</h5>
+                                    <p className="text-[10px] text-slate-400 truncate">{s.email}</p>
+                                  </div>
+                                </div>
+                                <span className="font-mono font-bold text-brand-600 bg-brand-50 border border-brand-200/80 px-2 py-0.5 rounded text-[11px] shrink-0">
+                                  {s.student_id || 'N/A'}
+                                </span>
+                              </div>
+
+                              <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 space-y-1">
+                                <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] text-slate-500 font-semibold">
+                                  <span>Progress: {s.completed_lessons || 0} / {s.total_lessons || 0} lessons</span>
+                                  <span className="font-bold text-slate-800">{s.progress_pct || 0}%</span>
+                                </div>
+                                <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                                  <div
+                                    className="bg-indigo-600 h-full rounded-full"
+                                    style={{ width: `${s.progress_pct || 0}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 pt-0.5">
+                                <span>Enrolled: {s.enrolled_at ? new Date(s.enrolled_at).toLocaleDateString() : 'Active'}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUnenrollStudent(s.id)}
+                                  className="px-2.5 py-1 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-bold transition inline-flex items-center gap-1 shrink-0"
+                                >
+                                  <UserMinus className="w-3 h-3" />
+                                  <span>Remove</span>
+                                </button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}
@@ -1343,8 +1521,8 @@ export const AdminCoursesPage: React.FC = () => {
                       onChange={(e) => setCourseFormData({ ...courseFormData, status: e.target.value as any })}
                       className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 bg-white"
                     >
-                      <option value="published">Published (Visible to Enrolled Students)</option>
-                      <option value="draft">Draft (Curriculum Staging)</option>
+                      <option value="published">Published (Active)</option>
+                      <option value="draft">Draft (Staging)</option>
                       <option value="archived">Archived</option>
                     </select>
                   </div>
@@ -1358,8 +1536,8 @@ export const AdminCoursesPage: React.FC = () => {
                         className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 bg-white"
                       >
                         {allTeachers.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.full_name} ({t.department || 'Faculty'})
+                          <option key={t.id} value={t.id} title={`${t.full_name} (${t.email})`}>
+                            {formatUserOption(t.full_name, t.department || t.email)}
                           </option>
                         ))}
                       </select>

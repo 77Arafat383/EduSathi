@@ -579,57 +579,105 @@ export const StudentProgressPage: React.FC = () => {
                 No assignment grades released by instructors yet.
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50/80 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      <th className="py-3 px-4">Task Name</th>
-                      <th className="py-3 px-4">Course</th>
-                      <th className="py-3 px-4 text-center">Score Awarded</th>
-                      <th className="py-3 px-4">Instructor Feedback</th>
-                      <th className="py-3 px-4 text-right">Released Date</th>
-                      <th className="py-3 px-4 text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-700">
-                    {grades.map((g) => {
-                      const pct =
-                        g.max_score > 0 ? Math.round(((g.score || 0) / g.max_score) * 100) : 0;
+              <>
+                {/* Desktop View: Table */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50/80 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        <th className="py-3 px-4">Task Name</th>
+                        <th className="py-3 px-4">Course</th>
+                        <th className="py-3 px-4 text-center">Score Awarded</th>
+                        <th className="py-3 px-4">Instructor Feedback</th>
+                        <th className="py-3 px-4 text-right">Released Date</th>
+                        <th className="py-3 px-4 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-slate-700">
+                      {grades.map((g) => {
+                        const pct =
+                          g.max_score > 0 ? Math.round(((g.score || 0) / g.max_score) * 100) : 0;
 
-                      return (
-                        <tr key={g.id} className="hover:bg-slate-50/60 transition">
-                          <td className="py-3 px-4 font-bold text-slate-900">
-                            {g.assignment_title}
-                          </td>
-                          <td className="py-3 px-4 text-slate-500 font-medium">
-                            {g.course_title}
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md font-bold font-mono text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              {g.score} / {g.max_score} ({pct}%)
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-slate-600 italic max-w-xs truncate">
-                            {g.feedback ? `"${g.feedback}"` : 'No written feedback provided'}
-                          </td>
-                          <td className="py-3 px-4 text-right text-slate-400 font-mono text-[11px]">
-                            {new Date(g.released_at).toLocaleDateString()}
-                          </td>
-                          <td className="py-3 px-4 text-right">
-                            <Link
-                              to={`/student/assignments/${g.assignment_id || ''}`}
-                              className="inline-flex items-center gap-1 text-[11px] font-bold text-brand-600 hover:underline"
-                            >
-                              <span>View Work</span>
-                              <ArrowRight className="w-3 h-3" />
-                            </Link>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                        return (
+                          <tr key={g.id} className="hover:bg-slate-50/60 transition">
+                            <td className="py-3 px-4 font-bold text-slate-900">
+                              {g.assignment_title}
+                            </td>
+                            <td className="py-3 px-4 text-slate-500 font-medium">
+                              {g.course_title}
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md font-bold font-mono text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                {g.score} / {g.max_score} ({pct}%)
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-slate-600 italic max-w-xs truncate">
+                              {g.feedback ? `"${g.feedback}"` : 'No written feedback provided'}
+                            </td>
+                            <td className="py-3 px-4 text-right text-slate-400 font-mono text-[11px]">
+                              {new Date(g.released_at).toLocaleDateString()}
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <Link
+                                to={`/student/assignments/${g.assignment_id || ''}`}
+                                className="inline-flex items-center gap-1 text-[11px] font-bold text-brand-600 hover:underline"
+                              >
+                                <span>View Work</span>
+                                <ArrowRight className="w-3 h-3" />
+                              </Link>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile View: Card List */}
+                <div className="block md:hidden p-3.5 space-y-3 bg-slate-50/60">
+                  {grades.map((g) => {
+                    const pct =
+                      g.max_score > 0 ? Math.round(((g.score || 0) / g.max_score) * 100) : 0;
+
+                    return (
+                      <div key={g.id} className="p-4 space-y-3 bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden break-words max-w-full">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <h4 className="text-xs font-bold text-slate-900 leading-snug break-words">
+                              {g.assignment_title}
+                            </h4>
+                            <p className="text-[11px] text-slate-500 font-medium mt-0.5 break-words">
+                              {g.course_title}
+                            </p>
+                          </div>
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md font-bold font-mono text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                            {g.score} / {g.max_score} ({pct}%)
+                          </span>
+                        </div>
+
+                        {g.feedback && (
+                          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-600 italic break-words">
+                            "{g.feedback}"
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px]">
+                          <span className="text-slate-400 font-mono">
+                            Released: {new Date(g.released_at).toLocaleDateString()}
+                          </span>
+                          <Link
+                            to={`/student/assignments/${g.assignment_id || ''}`}
+                            className="inline-flex items-center gap-1 font-bold text-brand-600 hover:underline shrink-0"
+                          >
+                            <span>View Work</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </div>
         )}
@@ -642,57 +690,104 @@ export const StudentProgressPage: React.FC = () => {
                 No quiz attempts submitted yet. Complete quizzes from your course workspace.
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50/80 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      <th className="py-3 px-4">Quiz Title</th>
-                      <th className="py-3 px-4">Course</th>
-                      <th className="py-3 px-4 text-center">Final Score</th>
-                      <th className="py-3 px-4 text-center">Status</th>
-                      <th className="py-3 px-4 text-right">Completion Date</th>
-                      <th className="py-3 px-4 text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-700">
-                    {quizResults.map((q) => {
-                      const pct =
-                        q.max_score > 0 ? Math.round(((q.score || 0) / q.max_score) * 100) : 0;
+              <>
+                {/* Desktop View: Table */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50/80 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        <th className="py-3 px-4">Quiz Title</th>
+                        <th className="py-3 px-4">Course</th>
+                        <th className="py-3 px-4 text-center">Final Score</th>
+                        <th className="py-3 px-4 text-center">Status</th>
+                        <th className="py-3 px-4 text-right">Completion Date</th>
+                        <th className="py-3 px-4 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-slate-700">
+                      {quizResults.map((q) => {
+                        const pct =
+                          q.max_score > 0 ? Math.round(((q.score || 0) / q.max_score) * 100) : 0;
 
-                      return (
-                        <tr key={q.id} className="hover:bg-slate-50/60 transition">
-                          <td className="py-3 px-4 font-bold text-slate-900">{q.quiz_title}</td>
-                          <td className="py-3 px-4 text-slate-500 font-medium">
-                            {q.course_title}
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md font-bold font-mono text-[11px] bg-indigo-50 text-indigo-700 border border-indigo-200">
-                              {q.score} / {q.max_score} ({pct}%)
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        return (
+                          <tr key={q.id} className="hover:bg-slate-50/60 transition">
+                            <td className="py-3 px-4 font-bold text-slate-900">{q.quiz_title}</td>
+                            <td className="py-3 px-4 text-slate-500 font-medium">
+                              {q.course_title}
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md font-bold font-mono text-[11px] bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                {q.score} / {q.max_score} ({pct}%)
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <Check className="w-3 h-3" /> Evaluated
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-right text-slate-400 font-mono text-[11px]">
+                              {new Date(q.submitted_at).toLocaleDateString()}
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <Link
+                                to={`/student/quizzes/${q.quiz_id}`}
+                                className="inline-flex items-center gap-1 text-[11px] font-bold text-brand-600 hover:underline"
+                              >
+                                <span>Review Answers</span>
+                                <ArrowRight className="w-3 h-3" />
+                              </Link>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile View: Card List */}
+                <div className="block md:hidden p-3.5 space-y-3 bg-slate-50/60">
+                  {quizResults.map((q) => {
+                    const pct =
+                      q.max_score > 0 ? Math.round(((q.score || 0) / q.max_score) * 100) : 0;
+
+                    return (
+                      <div key={q.id} className="p-4 space-y-3 bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden break-words max-w-full">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <h4 className="text-xs font-bold text-slate-900 leading-snug break-words">
+                              {q.quiz_title}
+                            </h4>
+                            <p className="text-[11px] text-slate-500 font-medium mt-0.5 break-words">
+                              {q.course_title}
+                            </p>
+                          </div>
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md font-bold font-mono text-[11px] bg-indigo-50 text-indigo-700 border border-indigo-200 shrink-0">
+                            {q.score} / {q.max_score} ({pct}%)
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px]">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
                               <Check className="w-3 h-3" /> Evaluated
                             </span>
-                          </td>
-                          <td className="py-3 px-4 text-right text-slate-400 font-mono text-[11px]">
-                            {new Date(q.submitted_at).toLocaleDateString()}
-                          </td>
-                          <td className="py-3 px-4 text-right">
-                            <Link
-                              to={`/student/quizzes/${q.quiz_id}`}
-                              className="inline-flex items-center gap-1 text-[11px] font-bold text-brand-600 hover:underline"
-                            >
-                              <span>Review Answers</span>
-                              <ArrowRight className="w-3 h-3" />
-                            </Link>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                            <span className="text-slate-400 font-mono">
+                              {new Date(q.submitted_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <Link
+                            to={`/student/quizzes/${q.quiz_id}`}
+                            className="inline-flex items-center gap-1 font-bold text-brand-600 hover:underline shrink-0"
+                          >
+                            <span>Review Answers</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </div>
         )}

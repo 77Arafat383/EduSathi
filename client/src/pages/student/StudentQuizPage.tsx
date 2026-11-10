@@ -378,7 +378,7 @@ export const StudentQuizPage: React.FC = () => {
               : 'bg-white/95 border-slate-200 text-slate-900'
           }`}
         >
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div
                 className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
@@ -853,8 +853,8 @@ export const StudentQuizPage: React.FC = () => {
       {/* FLOATING SUBMISSION ACTION BAR (IN EXAM)                                  */}
       {/* ========================================================================= */}
       {!submittedResult && (
-        <div className="sticky bottom-4 bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200/90 shadow-xl flex items-center justify-between gap-4">
-          <div className="text-xs text-slate-600 font-medium">
+        <div className="sticky bottom-4 bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200/90 shadow-xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div className="text-xs text-slate-600 font-medium text-center sm:text-left">
             <span>
               Answered: <strong className="text-brand-600">{answeredCount}</strong> of{' '}
               <strong>{totalQuestions}</strong> questions
@@ -869,7 +869,7 @@ export const StudentQuizPage: React.FC = () => {
           <button
             onClick={() => setShowSubmitModal(true)}
             disabled={submitting || answeredCount === 0}
-            className="px-6 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-2"
+            className="w-full sm:w-auto px-6 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center justify-center gap-2"
           >
             {submitting ? (
               <span>Evaluating on Server...</span>

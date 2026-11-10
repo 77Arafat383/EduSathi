@@ -576,7 +576,8 @@ export const AdminReportsPage: React.FC = () => {
               </span>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Desktop / Laptop View: Unaltered Table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-100 border-b border-slate-200 text-[10px] font-mono uppercase tracking-wider text-slate-600">
@@ -654,6 +655,65 @@ export const AdminReportsPage: React.FC = () => {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile View: High-Readability Vertical Cards */}
+            <div className="block md:hidden p-3.5 space-y-3.5 bg-slate-50/60">
+              {filteredCourses.length === 0 ? (
+                <div className="py-8 text-center text-slate-500 font-mono text-xs bg-white rounded-2xl border border-slate-200/80">
+                  No courses matching the selected filters.
+                </div>
+              ) : (
+                filteredCourses.map((c: any) => {
+                  const total = Number(c.total_lessons || 0);
+                  const completed = Number(c.completed_lessons || 0);
+                  const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+                  return (
+                    <div key={c.id} className="p-4 space-y-3 bg-white rounded-2xl border border-slate-200/90 shadow-2xs max-w-full overflow-hidden break-words">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <span className="font-extrabold text-slate-900 block text-xs break-words">{c.title}</span>
+                          <span className="text-[10px] font-mono text-slate-400 block mt-0.5">ID: {c.id.slice(0, 8)}</span>
+                        </div>
+                        <span className={`inline-block px-2 py-0.5 text-[10px] font-mono uppercase font-bold border rounded shrink-0 ${c.status === 'published'
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                          : 'bg-slate-100 text-slate-600 border-slate-200'
+                          }`}>
+                          {c.status || 'Active'}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs bg-slate-50 p-2 rounded-xl border border-slate-100">
+                        <span className="text-slate-600 break-words">
+                          Faculty: <span className="font-bold text-slate-800">{c.lead_instructor || 'Unassigned'}</span>
+                        </span>
+                        <span className="px-2 py-0.5 bg-white border border-slate-200 text-slate-700 font-mono text-[10px] shrink-0 rounded">
+                          {c.subject_name || 'General Academic'}
+                        </span>
+                      </div>
+
+                      {/* 2-Stat & Progress */}
+                      <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-1 text-xs">
+                          <span className="text-[11px] font-semibold text-slate-700">
+                            {c.enrolled_students || 0} Students Enrolled
+                          </span>
+                          <span className="text-[11px] font-mono text-slate-500">
+                            {completed} / {total} lessons ({progress}%)
+                          </span>
+                        </div>
+                        <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${progress >= 75 ? 'bg-emerald-600' : progress >= 40 ? 'bg-brand-600' : 'bg-amber-500'}`}
+                            style={{ width: `${Math.min(100, progress)}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
@@ -743,7 +803,8 @@ export const AdminReportsPage: React.FC = () => {
               </span>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Desktop / Laptop View: Unaltered Table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-100 border-b border-slate-200 text-[10px] font-mono uppercase tracking-wider text-slate-600">
@@ -831,6 +892,86 @@ export const AdminReportsPage: React.FC = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile View: High-Readability Vertical Cards */}
+            <div className="block md:hidden p-3.5 space-y-3.5 bg-slate-50/60">
+              {filteredStudents.length === 0 ? (
+                <div className="py-8 text-center text-slate-500 font-mono text-xs bg-white rounded-2xl border border-slate-200/80">
+                  No students matching the selected criteria.
+                </div>
+              ) : (
+                filteredStudents.map((s: any) => {
+                  const att = s.attendance_pct !== null && s.attendance_pct !== undefined ? Math.round(Number(s.attendance_pct)) : 95;
+                  const due = Number(s.total_due || 0);
+                  const isLowAttendance = att < 75;
+                  const hasDue = due > 0;
+
+                  return (
+                    <div key={s.id} className="p-4 space-y-3 bg-white rounded-2xl border border-slate-200/90 shadow-2xs max-w-full overflow-hidden break-words">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <span className="font-extrabold text-slate-900 block text-xs break-words">{s.full_name}</span>
+                          <span className="text-[10px] text-slate-400 font-mono block break-all mt-0.5">{s.email}</span>
+                        </div>
+                        <span className="font-mono font-bold text-brand-600 bg-brand-50 border border-brand-200/80 px-2 py-0.5 rounded text-[11px] shrink-0 break-all">
+                          {s.student_id || `STD-${s.id.replace('usr_', '').slice(0, 7).toUpperCase()}`}
+                        </span>
+                      </div>
+
+                      {/* Standing Status Pill */}
+                      <div>
+                        {isLowAttendance ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 border border-rose-200 text-rose-800 text-[10px] font-mono uppercase font-bold rounded">
+                            <AlertTriangle className="w-3 h-3 text-rose-600" />
+                            Attendance Alert (&lt;75%)
+                          </span>
+                        ) : hasDue ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-mono uppercase font-bold rounded">
+                            Accounts Hold (Tuition Due)
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-mono uppercase font-bold rounded">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            Good Standing
+                          </span>
+                        )}
+                      </div>
+
+                      {/* 3-Metrics Grid */}
+                      <div className="grid grid-cols-3 gap-2 text-center bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs">
+                        <div>
+                          <span className="text-[9px] text-slate-400 font-bold uppercase block">Courses</span>
+                          <span className="font-bold text-slate-800 text-xs mt-0.5 block">{s.enrolled_courses || 0}</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] text-slate-400 font-bold uppercase block">Attendance</span>
+                          <span className={`font-black text-xs mt-0.5 block ${
+                            att >= 85 ? 'text-emerald-700' : att >= 75 ? 'text-amber-700' : 'text-rose-700'
+                          }`}>
+                            {att}%
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] text-slate-400 font-bold uppercase block">Tuition</span>
+                          <span className={`font-mono font-black text-xs mt-0.5 block truncate ${
+                            hasDue ? 'text-rose-700' : 'text-emerald-700'
+                          }`}>
+                            {hasDue ? `৳${due.toLocaleString()}` : 'Cleared'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 pt-0.5">
+                        <span>Dept: <span className="font-semibold text-slate-700">{s.department || 'General'}</span></span>
+                        {hasDue && (
+                          <span className="text-[10px] font-mono text-slate-400">Paid: ৳{Number(s.total_paid || 0).toLocaleString()}</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -878,7 +1019,8 @@ export const AdminReportsPage: React.FC = () => {
               </span>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Desktop / Laptop View: Unaltered Table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-100 border-b border-slate-200 text-[10px] font-mono uppercase tracking-wider text-slate-600">
@@ -943,6 +1085,72 @@ export const AdminReportsPage: React.FC = () => {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile View: High-Readability Vertical Cards */}
+            <div className="block md:hidden p-3.5 space-y-3.5 bg-slate-50/60">
+              {filteredFaculty.length === 0 ? (
+                <div className="py-8 text-center text-slate-500 font-mono text-xs bg-white rounded-2xl border border-slate-200/80">
+                  No faculty members found.
+                </div>
+              ) : (
+                filteredFaculty.map((f: any) => {
+                  const coursesCount = Number(f.assigned_courses_count || 0);
+                  const workloadTag =
+                    coursesCount >= 3 ? 'Full Teaching Load' : coursesCount >= 1 ? 'Balanced Load' : 'Unassigned';
+
+                  return (
+                    <div key={f.id} className="p-4 space-y-3 bg-white rounded-2xl border border-slate-200/90 shadow-2xs max-w-full overflow-hidden break-words">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <span className="font-extrabold text-slate-900 block text-xs break-words">{f.full_name}</span>
+                          <span className="text-[10px] text-slate-400 font-mono block break-all mt-0.5">{f.email}</span>
+                        </div>
+                        <span className={`inline-block px-2 py-0.5 text-[10px] font-mono uppercase font-bold border rounded shrink-0 ${coursesCount >= 3
+                          ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
+                          : coursesCount >= 1
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            : 'bg-slate-100 text-slate-600 border-slate-200'
+                          }`}>
+                          {workloadTag}
+                        </span>
+                      </div>
+
+                      {/* 2-Column Stats Grid */}
+                      <div className="grid grid-cols-2 gap-2 text-center bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs">
+                        <div>
+                          <span className="text-[9px] text-slate-400 font-bold uppercase block">Assigned Courses</span>
+                          <span className="font-mono font-black text-slate-900 text-xs mt-0.5 block">{coursesCount} Courses</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] text-slate-400 font-bold uppercase block">Students Taught</span>
+                          <span className="font-mono font-black text-slate-900 text-xs mt-0.5 block">{f.active_students_taught || 0} Students</span>
+                        </div>
+                      </div>
+
+                      {/* Compensation & Last Pay */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-0.5">
+                        <div>
+                          <span className="text-[9px] text-slate-400 font-bold uppercase block">Total Disbursed</span>
+                          <span className="font-mono font-black text-slate-900 text-sm">
+                            ৳ {Number(f.total_salary_paid || 0).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[9px] text-slate-400 font-bold uppercase block">Last Period</span>
+                          <span className="font-mono font-medium text-slate-700 text-xs">
+                            {f.last_pay_period || 'October 2026'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="text-[11px] text-slate-500 pt-0.5 border-t border-slate-50 break-words">
+                        Dept: <span className="font-semibold text-slate-700">{f.department || 'Academic Faculty'}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>

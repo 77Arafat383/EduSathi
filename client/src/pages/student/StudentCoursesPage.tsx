@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { Course, Subject } from '../../types';
+import { truncateOption } from '../../lib/formatters';
 
 export const StudentCoursesPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -306,8 +307,8 @@ export const StudentCoursesPage: React.FC = () => {
           >
             <option value="all">All Departments</option>
             {availableSubjects.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
+              <option key={s.id} value={s.id} title={s.name}>
+                {truncateOption(s.name, 28)}
               </option>
             ))}
           </select>

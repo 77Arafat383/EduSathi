@@ -382,7 +382,7 @@ export const TeacherDashboard: React.FC = () => {
                 {coursesList.map((course) => (
                   <div
                     key={course.id}
-                    className="p-4 rounded-xl border border-slate-200/90 hover:border-slate-300 bg-slate-50/40 hover:bg-white transition-all space-y-3"
+                    className="p-4 rounded-xl border border-slate-200/90 hover:border-slate-300 bg-slate-50/40 hover:bg-white transition-all space-y-3 max-w-full overflow-hidden break-words"
                   >
                     {/* Course Header */}
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">

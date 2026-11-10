@@ -855,7 +855,7 @@ export const AssignmentSubmissionsRoster: React.FC<AssignmentSubmissionsRosterPr
             return (
               <div
                 key={sub.id}
-                className="bg-white rounded-2xl border border-slate-200/90 hover:border-slate-300/90 shadow-2xs hover:shadow-xs transition duration-150 p-5 sm:p-6 space-y-4"
+                className="bg-white rounded-2xl border border-slate-200/90 hover:border-slate-300/90 shadow-2xs hover:shadow-xs transition duration-150 p-5 sm:p-6 space-y-4 max-w-full overflow-hidden break-words"
               >
                 {/* ======================================================== */}
                 {/* A. STUDENT HEADER ROW                                    */}
@@ -969,7 +969,7 @@ export const AssignmentSubmissionsRoster: React.FC<AssignmentSubmissionsRosterPr
                         </button>
 
                         {openDropdownId === sub.id && (
-                          <div className="absolute right-0 top-full mt-1.5 w-48 bg-white rounded-xl border border-slate-200 shadow-lg py-1 z-30 animate-in fade-in zoom-in-95 duration-100">
+                          <div className="absolute right-0 top-full mt-1.5 w-48 max-w-[calc(100vw-2rem)] bg-white rounded-xl border border-slate-200 shadow-lg py-1 z-30 animate-in fade-in zoom-in-95 duration-100">
                             <button
                               type="button"
                               onClick={() => {
@@ -1022,7 +1022,7 @@ export const AssignmentSubmissionsRoster: React.FC<AssignmentSubmissionsRosterPr
                       )}
                     </div>
 
-                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-800 whitespace-pre-wrap leading-relaxed select-text">
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-800 whitespace-pre-wrap break-words overflow-hidden leading-relaxed select-text">
                       {sub.content || (
                         <span className="italic text-slate-400 font-medium">
                           No written solution notes or repository link provided with this submission.
@@ -1085,7 +1085,7 @@ export const AssignmentSubmissionsRoster: React.FC<AssignmentSubmissionsRosterPr
                         </button>
 
                         {openDropdownId === sub.id && (
-                          <div className="absolute right-0 top-full mt-1.5 w-48 bg-white rounded-xl border border-slate-200 shadow-lg py-1 z-30 animate-in fade-in zoom-in-95 duration-100">
+                          <div className="absolute right-0 top-full mt-1.5 w-48 max-w-[calc(100vw-2rem)] bg-white rounded-xl border border-slate-200 shadow-lg py-1 z-30 animate-in fade-in zoom-in-95 duration-100">
                             <button
                               type="button"
                               onClick={() => {

@@ -112,7 +112,7 @@ export const MonthYearPicker: React.FC<MonthYearPickerProps> = ({
 
       {/* Popover Dropdown */}
       {isOpen && (
-        <div className="absolute z-50 left-0 mt-1 w-72 bg-white border border-slate-300 shadow-xl p-3.5 animate-in fade-in zoom-in-95 duration-100">
+        <div className="absolute z-50 left-0 mt-1 w-72 max-w-[calc(100vw-2rem)] bg-white border border-slate-300 shadow-xl p-3.5 animate-in fade-in zoom-in-95 duration-100 rounded-xl">
           {/* Header: Year Controller */}
           <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-200">
             <button

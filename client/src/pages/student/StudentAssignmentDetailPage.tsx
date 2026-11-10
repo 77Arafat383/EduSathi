@@ -312,7 +312,7 @@ export const StudentAssignmentDetailPage: React.FC = () => {
                 <FileText className="w-3.5 h-3.5 text-brand-600" />
                 <span>Assignment Instructions & Requirements</span>
               </h2>
-              <div className="text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-wrap bg-slate-50/70 p-4 rounded-2xl border border-slate-200/70 font-normal">
+              <div className="text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-wrap break-words bg-slate-50/70 p-4 rounded-2xl border border-slate-200/70 font-normal">
                 {assignment.instructions || 'No detailed written instructions provided.'}
               </div>
             </div>
@@ -451,7 +451,7 @@ export const StudentAssignmentDetailPage: React.FC = () => {
                       <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
                         Submitted Answer / Notes:
                       </span>
-                      <div className="p-3 bg-white rounded-xl border border-slate-200/70 text-xs text-slate-800 whitespace-pre-wrap leading-relaxed">
+                      <div className="p-3 bg-white rounded-xl border border-slate-200/70 text-xs text-slate-800 whitespace-pre-wrap break-words leading-relaxed">
                         {submission.content}
                       </div>
                     </div>
@@ -467,11 +467,11 @@ export const StudentAssignmentDetailPage: React.FC = () => {
                         target="_blank"
                         rel="noreferrer"
                         download="submitted_assignment_document"
-                        className="flex items-center justify-between p-2.5 bg-white border border-slate-200/80 rounded-xl text-xs font-bold text-brand-600 hover:text-brand-700 transition"
+                        className="flex items-center justify-between p-2.5 bg-white border border-slate-200/80 rounded-xl text-xs font-bold text-brand-600 hover:text-brand-700 transition gap-2"
                       >
                         <div className="flex items-center gap-2 min-w-0">
                           <Paperclip className="w-3.5 h-3.5 text-brand-600 shrink-0" />
-                          <span className="truncate max-w-[190px]">
+                          <span className="truncate">
                             {fileName || 'Download Submitted File'}
                           </span>
                         </div>

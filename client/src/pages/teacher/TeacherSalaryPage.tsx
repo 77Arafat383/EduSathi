@@ -25,6 +25,7 @@ import { api } from '../../lib/api';
 import { useAuth } from '../../app/providers';
 import { TeacherSalary } from '../../types';
 import { MonthYearPicker } from '../../components/common/MonthYearPicker';
+import { formatCourseOption } from '../../lib/formatters';
 
 export const TeacherSalaryPage: React.FC = () => {
   const { user } = useAuth();
@@ -331,8 +332,8 @@ export const TeacherSalaryPage: React.FC = () => {
                 <option value="all">All Course Allocations</option>
                 <option value="general">General Faculty Honorarium</option>
                 {assignedCourses.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.title} ({c.subject_code || 'CRS'})
+                  <option key={c.id} value={c.id} title={c.title}>
+                    {formatCourseOption(c.title, c.subject_code)}
                   </option>
                 ))}
               </select>
@@ -386,131 +387,245 @@ export const TeacherSalaryPage: React.FC = () => {
               )}
             </div>
           ) : (
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  <th className="py-3 px-4">Pay Period / Month</th>
-                  <th className="py-3 px-4">Course(s) Mentioned</th>
-                  <th className="py-3 px-4 text-right">Net Compensation</th>
-                  <th className="py-3 px-4">Disbursement Date</th>
-                  <th className="py-3 px-4">Payment Rail</th>
-                  <th className="py-3 px-4">Transaction Ref</th>
-                  <th className="py-3 px-4 text-center">Status</th>
-                  <th className="py-3 px-4 text-right">Voucher</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-xs">
+            <>
+              {/* Desktop / Laptop View: Unaltered Table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/80 border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      <th className="py-3 px-4">Pay Period / Month</th>
+                      <th className="py-3 px-4">Course(s) Mentioned</th>
+                      <th className="py-3 px-4 text-right">Net Compensation</th>
+                      <th className="py-3 px-4">Disbursement Date</th>
+                      <th className="py-3 px-4">Payment Rail</th>
+                      <th className="py-3 px-4">Transaction Ref</th>
+                      <th className="py-3 px-4 text-center">Status</th>
+                      <th className="py-3 px-4 text-right">Voucher</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs">
+                    {filteredSalaries.map((sal) => {
+                      const isPaid = sal.status === 'paid';
+                      return (
+                        <tr key={sal.id} className="hover:bg-slate-50/60 transition">
+                          {/* Pay Period */}
+                          <td className="py-3.5 px-4 font-bold text-slate-900">
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0">
+                                <Calendar className="w-3.5 h-3.5 text-brand-600" />
+                              </div>
+                              <div>
+                                <span className="block font-black text-slate-900">{sal.pay_period}</span>
+                                <span className="text-[10px] text-slate-400 font-mono">Academic Payroll</span>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Course(s) Mentioned */}
+                          <td className="py-3.5 px-4">
+                            {sal.course_title ? (
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                    {sal.subject_code || 'CRS'}
+                                  </span>
+                                  <span className="font-bold text-slate-800 line-clamp-1">
+                                    {sal.course_title}
+                                  </span>
+                                </div>
+                                {sal.note && (
+                                  <span className="text-[10px] text-slate-400 block line-clamp-1 italic">
+                                    &ldquo;{sal.note}&rdquo;
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                                    GENERAL
+                                  </span>
+                                  <span className="font-bold text-slate-700">
+                                    Full Faculty Load ({assignedCourses.length} Courses)
+                                  </span>
+                                </div>
+                                <span className="text-[10px] text-slate-400 block truncate max-w-[220px]">
+                                  {assignedCourses.map((c) => c.title).join(', ') || 'Institutional Teaching Scope'}
+                                </span>
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Amount */}
+                          <td className="py-3.5 px-4 text-right">
+                            <span className="font-mono font-black text-sm text-slate-900">
+                              {formatTaka(sal.amount)}
+                            </span>
+                          </td>
+
+                          {/* Payment Date */}
+                          <td className="py-3.5 px-4 text-slate-600 font-medium">
+                            {sal.payment_date ? new Date(sal.payment_date).toLocaleDateString(undefined, {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                            }) : 'Pending'}
+                          </td>
+
+                          {/* Rail / Channel */}
+                          <td className="py-3.5 px-4 text-slate-600 font-medium">
+                            <span className="inline-flex items-center gap-1 text-[11px] bg-slate-100 px-2 py-0.5 rounded-md text-slate-700">
+                              <Building className="w-3 h-3 text-slate-400" />
+                              <span>{sal.payment_method || 'Bank Transfer'}</span>
+                            </span>
+                          </td>
+
+                          {/* Transaction Ref */}
+                          <td className="py-3.5 px-4">
+                            <span className="font-mono text-[11px] font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
+                              {sal.transaction_ref || 'TRX-DEFAULT'}
+                            </span>
+                          </td>
+
+                          {/* Status */}
+                          <td className="py-3.5 px-4 text-center">
+                            <span
+                              className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${isPaid
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                }`}
+                            >
+                              {isPaid ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : <Clock className="w-3 h-3 text-amber-600" />}
+                              <span>{isPaid ? 'Paid' : 'Pending'}</span>
+                            </span>
+                          </td>
+
+                          {/* Action: Pay Slip Voucher */}
+                          <td className="py-3.5 px-4 text-right">
+                            <button
+                              onClick={() => setViewingVoucher(sal)}
+                              className="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-700 text-[11px] font-bold transition inline-flex items-center gap-1 shadow-2xs"
+                            >
+                              <FileText className="w-3 h-3 text-indigo-600" />
+                              <span>Pay Voucher</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile View: High-Readability Vertical Cards */}
+              <div className="block md:hidden p-3.5 space-y-3 bg-slate-50/60">
                 {filteredSalaries.map((sal) => {
                   const isPaid = sal.status === 'paid';
                   return (
-                    <tr key={sal.id} className="hover:bg-slate-50/60 transition">
-                      {/* Pay Period */}
-                      <td className="py-3.5 px-4 font-bold text-slate-900">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0">
-                            <Calendar className="w-3.5 h-3.5 text-brand-600" />
+                    <div key={sal.id} className="p-4 space-y-3 bg-white rounded-2xl border border-slate-200/90 shadow-2xs max-w-full overflow-hidden break-words">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0">
+                            <Calendar className="w-4 h-4 text-brand-600" />
                           </div>
-                          <div>
-                            <span className="block font-black text-slate-900">{sal.pay_period}</span>
+                          <div className="min-w-0 flex-1">
+                            <span className="block font-black text-slate-900 text-sm break-words">{sal.pay_period}</span>
                             <span className="text-[10px] text-slate-400 font-mono">Academic Payroll</span>
                           </div>
                         </div>
-                      </td>
+                        <span
+                          className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0 ${isPaid
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : 'bg-amber-50 text-amber-700 border border-amber-200'
+                            }`}
+                        >
+                          {isPaid ? <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" /> : <Clock className="w-3 h-3 text-amber-600 shrink-0" />}
+                          <span>{isPaid ? 'Paid' : 'Pending'}</span>
+                        </span>
+                      </div>
 
-                      {/* Course(s) Mentioned */}
-                      <td className="py-3.5 px-4">
+                      {/* Course / Scope info */}
+                      <div className="bg-slate-50/80 rounded-xl p-2.5 border border-slate-100 text-xs break-words">
                         {sal.course_title ? (
                           <div className="space-y-0.5">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                              <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 shrink-0">
                                 {sal.subject_code || 'CRS'}
                               </span>
-                              <span className="font-bold text-slate-800 line-clamp-1">
+                              <span className="font-bold text-slate-800 break-words">
                                 {sal.course_title}
                               </span>
                             </div>
                             {sal.note && (
-                              <span className="text-[10px] text-slate-400 block line-clamp-1 italic">
+                              <span className="text-[10px] text-slate-400 block break-words italic">
                                 &ldquo;{sal.note}&rdquo;
                               </span>
                             )}
                           </div>
                         ) : (
                           <div className="space-y-0.5">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                            <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                              <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
                                 GENERAL
                               </span>
-                              <span className="font-bold text-slate-700">
+                              <span className="font-bold text-slate-700 break-words">
                                 Full Faculty Load ({assignedCourses.length} Courses)
                               </span>
                             </div>
-                            <span className="text-[10px] text-slate-400 block truncate max-w-[220px]">
+                            <span className="text-[10px] text-slate-400 block break-words">
                               {assignedCourses.map((c) => c.title).join(', ') || 'Institutional Teaching Scope'}
                             </span>
                           </div>
                         )}
-                      </td>
+                      </div>
 
-                      {/* Amount */}
-                      <td className="py-3.5 px-4 text-right">
-                        <span className="font-mono font-black text-sm text-slate-900">
-                          {formatTaka(sal.amount)}
-                        </span>
-                      </td>
+                      {/* Financial & rail breakdown */}
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-slate-50 p-2 rounded-xl">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase block">Compensation</span>
+                          <span className="font-mono font-black text-slate-900 text-sm">
+                            {formatTaka(sal.amount)}
+                          </span>
+                        </div>
+                        <div className="bg-slate-50 p-2 rounded-xl">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase block">Disbursed Date</span>
+                          <span className="text-slate-700 font-medium text-xs">
+                            {sal.payment_date ? new Date(sal.payment_date).toLocaleDateString(undefined, {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                            }) : 'Pending'}
+                          </span>
+                        </div>
+                      </div>
 
-                      {/* Payment Date */}
-                      <td className="py-3.5 px-4 text-slate-600 font-medium">
-                        {sal.payment_date ? new Date(sal.payment_date).toLocaleDateString(undefined, {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                        }) : 'Pending'}
-                      </td>
-
-                      {/* Rail / Channel */}
-                      <td className="py-3.5 px-4 text-slate-600 font-medium">
-                        <span className="inline-flex items-center gap-1 text-[11px] bg-slate-100 px-2 py-0.5 rounded-md text-slate-700">
+                      {/* Rail & Ref */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 pt-0.5">
+                        <span className="inline-flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-md text-slate-700 shrink-0">
                           <Building className="w-3 h-3 text-slate-400" />
                           <span>{sal.payment_method || 'Bank Transfer'}</span>
                         </span>
-                      </td>
-
-                      {/* Transaction Ref */}
-                      <td className="py-3.5 px-4">
-                        <span className="font-mono text-[11px] font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
+                        <span className="font-mono font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded break-all">
                           {sal.transaction_ref || 'TRX-DEFAULT'}
                         </span>
-                      </td>
+                      </div>
 
-                      {/* Status */}
-                      <td className="py-3.5 px-4 text-center">
-                        <span
-                          className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${isPaid
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-amber-50 text-amber-700 border border-amber-200'
-                            }`}
-                        >
-                          {isPaid ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : <Clock className="w-3 h-3 text-amber-600" />}
-                          <span>{isPaid ? 'Paid' : 'Pending'}</span>
-                        </span>
-                      </td>
-
-                      {/* Action: Pay Slip Voucher */}
-                      <td className="py-3.5 px-4 text-right">
+                      {/* Action Button */}
+                      <div className="pt-1">
                         <button
+                          type="button"
                           onClick={() => setViewingVoucher(sal)}
-                          className="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-700 text-[11px] font-bold transition inline-flex items-center gap-1 shadow-2xs"
+                          className="w-full py-2 px-3 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-2xs truncate"
                         >
-                          <FileText className="w-3 h-3 text-indigo-600" />
-                          <span>Pay Voucher</span>
+                          <FileText className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                          <span>View Pay Voucher / Receipt</span>
                         </button>
-                      </td>
-                    </tr>
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -544,7 +659,7 @@ export const TeacherSalaryPage: React.FC = () => {
             {/* Scrollable Body */}
             <div className="p-6 overflow-y-auto flex-1 space-y-5 print:overflow-visible print:max-h-none print:p-4">
               {/* Faculty & Period Identification */}
-              <div className="grid grid-cols-2 gap-4 text-xs font-mono border-b border-slate-200 pb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono border-b border-slate-200 pb-4">
                 <div>
                   <span className="text-[10px] uppercase text-slate-400 font-bold block">
                     Beneficiary (Faculty Member)
@@ -559,7 +674,7 @@ export const TeacherSalaryPage: React.FC = () => {
                     Email: {user?.email}
                   </span>
                 </div>
-                <div className="text-right">
+                <div className="text-left sm:text-right">
                   <span className="text-[10px] uppercase text-slate-400 font-bold block">
                     Accounting Period
                   </span>
@@ -744,10 +859,10 @@ export const TeacherSalaryPage: React.FC = () => {
                   onChange={(e) => setRequestForm(prev => ({ ...prev, course_id: e.target.value }))}
                   className="w-full px-3 py-2 border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
                 >
-                  <option value="">General Instructional Honorarium (All Courses)</option>
+                  <option value="">General Honorarium (All Courses)</option>
                   {assignedCourses.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.title} ({c.subject_name || c.subject_code || 'Academic Course'})
+                    <option key={c.id} value={c.id} title={c.title}>
+                      {formatCourseOption(c.title, c.subject_code || c.subject_name)}
                     </option>
                   ))}
                 </select>

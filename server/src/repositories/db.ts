@@ -411,8 +411,11 @@ export async function initDb(): Promise<void> {
   } catch {}
 
   // Seed default demonstration records if not already populated
-  await seedDefaults();
-  await seedFinanceDefaults();
+  const existingAdmin = await getOne<{ id: string }>('SELECT id FROM profiles WHERE email = ?', ['admin@edusathi.edu']);
+  if (!existingAdmin) {
+    const { resetAndSeedDatabase } = await import('../scripts/resetAndSeed');
+    await resetAndSeedDatabase();
+  }
   console.log('[DB] Schema and seed verification complete.');
 }
 

@@ -471,11 +471,11 @@ export const StudentPaymentsPage: React.FC = () => {
       {/* Main Content Tabs */}
       <div className="space-y-6">
         {/* Tab Headers */}
-        <div className="flex items-center justify-between border-b border-slate-200">
-          <div className="flex items-center gap-2 sm:gap-6">
+        <div className="flex items-center justify-between border-b border-slate-200 gap-2">
+          <div className="flex items-center gap-2 sm:gap-6 overflow-x-auto no-scrollbar">
             <button
               onClick={() => switchTab('history')}
-              className={`pb-3.5 text-xs sm:text-sm font-bold flex items-center gap-2 transition-all border-b-2 ${
+              className={`pb-3.5 text-xs sm:text-sm font-bold flex items-center gap-2 transition-all border-b-2 shrink-0 whitespace-nowrap ${
                 activeTab === 'history'
                   ? 'border-brand-600 text-brand-700'
                   : 'border-transparent text-slate-500 hover:text-slate-900'
@@ -490,7 +490,7 @@ export const StudentPaymentsPage: React.FC = () => {
 
             <button
               onClick={() => switchTab('catalog')}
-              className={`pb-3.5 text-xs sm:text-sm font-bold flex items-center gap-2 transition-all border-b-2 ${
+              className={`pb-3.5 text-xs sm:text-sm font-bold flex items-center gap-2 transition-all border-b-2 shrink-0 whitespace-nowrap ${
                 activeTab === 'catalog'
                   ? 'border-brand-600 text-brand-700'
                   : 'border-transparent text-slate-500 hover:text-slate-900'
@@ -507,7 +507,7 @@ export const StudentPaymentsPage: React.FC = () => {
           <button
             onClick={fetchPaymentData}
             title="Refresh records"
-            className="p-2 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition mb-2"
+            className="p-2 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition mb-2 shrink-0"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -559,127 +559,226 @@ export const StudentPaymentsPage: React.FC = () => {
                   </p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-slate-100 bg-slate-50/70 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                        <th className="py-3.5 px-4 sm:px-6">Invoice # &amp; Date</th>
-                        <th className="py-3.5 px-4">Fee Description / Course</th>
-                        <th className="py-3.5 px-4">Method &amp; Ref</th>
-                        <th className="py-3.5 px-4 text-right">Total Fee</th>
-                        <th className="py-3.5 px-4 text-right">Paid</th>
-                        <th className="py-3.5 px-4 text-right">Outstanding</th>
-                        <th className="py-3.5 px-4 text-center">Status</th>
-                        <th className="py-3.5 px-4 sm:px-6 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-xs">
-                      {filteredPayments.map((p) => {
-                        const isPaid = p.status === 'paid';
-                        const isPartial = p.status === 'partial';
-                        const isDue = p.status === 'due' || p.status === 'overdue' || p.due_amount > 0;
+                <>
+                  {/* Desktop View: Table */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-100 bg-slate-50/70 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                          <th className="py-3.5 px-4 sm:px-6">Invoice # &amp; Date</th>
+                          <th className="py-3.5 px-4">Fee Description / Course</th>
+                          <th className="py-3.5 px-4">Method &amp; Ref</th>
+                          <th className="py-3.5 px-4 text-right">Total Fee</th>
+                          <th className="py-3.5 px-4 text-right">Paid</th>
+                          <th className="py-3.5 px-4 text-right">Outstanding</th>
+                          <th className="py-3.5 px-4 text-center">Status</th>
+                          <th className="py-3.5 px-4 sm:px-6 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-xs">
+                        {filteredPayments.map((p) => {
+                          const isPaid = p.status === 'paid';
+                          const isPartial = p.status === 'partial';
+                          const isDue = p.status === 'due' || p.status === 'overdue' || p.due_amount > 0;
 
-                        return (
-                          <tr key={p.id} className="hover:bg-slate-50/60 transition">
-                            <td className="py-4 px-4 sm:px-6 font-mono font-semibold text-slate-800">
-                              <div>{p.transaction_ref || p.id}</div>
-                              <div className="text-[10px] font-normal text-slate-400">
+                          return (
+                            <tr key={p.id} className="hover:bg-slate-50/60 transition">
+                              <td className="py-4 px-4 sm:px-6 font-mono font-semibold text-slate-800">
+                                <div>{p.transaction_ref || p.id}</div>
+                                <div className="text-[10px] font-normal text-slate-400">
+                                  {p.payment_date
+                                    ? new Date(p.payment_date).toLocaleDateString()
+                                    : p.created_at
+                                    ? new Date(p.created_at).toLocaleDateString()
+                                    : 'Pending'}
+                                </div>
+                              </td>
+
+                              <td className="py-4 px-4">
+                                <div className="font-bold text-slate-900">{p.title}</div>
+                                {p.course_title && (
+                                  <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+                                    <BookOpen className="w-3 h-3 text-brand-600" />
+                                    <span>{p.course_title}</span>
+                                  </div>
+                                )}
+                              </td>
+
+                              <td className="py-4 px-4">
+                                <span
+                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border ${
+                                    p.payment_method?.includes('bKash')
+                                      ? 'bg-pink-50 text-pink-700 border-pink-200'
+                                      : p.payment_method?.includes('Nagad')
+                                      ? 'bg-orange-50 text-orange-700 border-orange-200'
+                                      : p.payment_method?.includes('Card')
+                                      ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                      : 'bg-slate-100 text-slate-700 border-slate-200'
+                                  }`}
+                                >
+                                  <Smartphone className="w-3 h-3" />
+                                  <span>{p.payment_method || 'Online Channel'}</span>
+                                </span>
+                              </td>
+
+                              <td className="py-4 px-4 text-right font-semibold text-slate-900">
+                                ৳{Number(p.total_amount).toLocaleString()}
+                              </td>
+
+                              <td className="py-4 px-4 text-right font-bold text-emerald-700">
+                                ৳{Number(p.paid_amount).toLocaleString()}
+                              </td>
+
+                              <td className="py-4 px-4 text-right">
+                                {Number(p.due_amount) > 0 ? (
+                                  <span className="font-bold text-rose-700">
+                                    ৳{Number(p.due_amount).toLocaleString()}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400 font-semibold">৳0</span>
+                                )}
+                              </td>
+
+                              <td className="py-4 px-4 text-center">
+                                {isPaid && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    <CheckCircle2 className="w-3 h-3" /> Paid
+                                  </span>
+                                )}
+                                {isPartial && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-amber-50 text-amber-700 border border-amber-200">
+                                    <Clock className="w-3 h-3" /> Partial
+                                  </span>
+                                )}
+                                {isDue && !isPartial && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-rose-50 text-rose-700 border border-rose-200">
+                                    <AlertTriangle className="w-3 h-3" /> Due
+                                  </span>
+                                )}
+                              </td>
+
+                              <td className="py-4 px-4 sm:px-6 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  {Number(p.due_amount) > 0 && (
+                                    <button
+                                      onClick={() => openSettleModal(p)}
+                                      className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-xs transition"
+                                    >
+                                      Pay Due
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => setViewingReceipt(p)}
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition"
+                                  >
+                                    <Receipt className="w-3.5 h-3.5" />
+                                    <span>Receipt</span>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile View: Card List */}
+                  <div className="block md:hidden p-3.5 space-y-3.5 bg-slate-50/60">
+                    {filteredPayments.map((p) => {
+                      const isPaid = p.status === 'paid';
+                      const isPartial = p.status === 'partial';
+                      const isDue = p.status === 'due' || p.status === 'overdue' || p.due_amount > 0;
+
+                      return (
+                        <div key={p.id} className="p-4 space-y-3 bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden break-words max-w-full">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <h4 className="text-xs font-bold text-slate-900 leading-snug break-words">{p.title}</h4>
+                              {p.course_title && (
+                                <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 break-words">
+                                  <BookOpen className="w-3 h-3 text-brand-600 shrink-0" />
+                                  <span className="truncate">{p.course_title}</span>
+                                </div>
+                              )}
+                              <div className="text-[10px] font-mono text-slate-400 mt-1 break-all">
+                                #{p.transaction_ref || p.id} •{' '}
                                 {p.payment_date
                                   ? new Date(p.payment_date).toLocaleDateString()
                                   : p.created_at
                                   ? new Date(p.created_at).toLocaleDateString()
                                   : 'Pending'}
                               </div>
-                            </td>
-
-                            <td className="py-4 px-4">
-                              <div className="font-bold text-slate-900">{p.title}</div>
-                              {p.course_title && (
-                                <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
-                                  <BookOpen className="w-3 h-3 text-brand-600" />
-                                  <span>{p.course_title}</span>
-                                </div>
-                              )}
-                            </td>
-
-                            <td className="py-4 px-4">
-                              <span
-                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border ${
-                                  p.payment_method?.includes('bKash')
-                                    ? 'bg-pink-50 text-pink-700 border-pink-200'
-                                    : p.payment_method?.includes('Nagad')
-                                    ? 'bg-orange-50 text-orange-700 border-orange-200'
-                                    : p.payment_method?.includes('Card')
-                                    ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                    : 'bg-slate-100 text-slate-700 border-slate-200'
-                                }`}
-                              >
-                                <Smartphone className="w-3 h-3" />
-                                <span>{p.payment_method || 'Online Channel'}</span>
-                              </span>
-                            </td>
-
-                            <td className="py-4 px-4 text-right font-semibold text-slate-900">
-                              ৳{Number(p.total_amount).toLocaleString()}
-                            </td>
-
-                            <td className="py-4 px-4 text-right font-bold text-emerald-700">
-                              ৳{Number(p.paid_amount).toLocaleString()}
-                            </td>
-
-                            <td className="py-4 px-4 text-right">
-                              {Number(p.due_amount) > 0 ? (
-                                <span className="font-bold text-rose-700">
-                                  ৳{Number(p.due_amount).toLocaleString()}
-                                </span>
-                              ) : (
-                                <span className="text-slate-400 font-semibold">৳0</span>
-                              )}
-                            </td>
-
-                            <td className="py-4 px-4 text-center">
+                            </div>
+                            <div className="shrink-0 text-right">
                               {isPaid && (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
                                   <CheckCircle2 className="w-3 h-3" /> Paid
                                 </span>
                               )}
                               {isPartial && (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-amber-50 text-amber-700 border border-amber-200">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase bg-amber-50 text-amber-700 border border-amber-200">
                                   <Clock className="w-3 h-3" /> Partial
                                 </span>
                               )}
                               {isDue && !isPartial && (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-rose-50 text-rose-700 border border-rose-200">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase bg-rose-50 text-rose-700 border border-rose-200">
                                   <AlertTriangle className="w-3 h-3" /> Due
                                 </span>
                               )}
-                            </td>
+                            </div>
+                          </div>
 
-                            <td className="py-4 px-4 sm:px-6 text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                {Number(p.due_amount) > 0 && (
-                                  <button
-                                    onClick={() => openSettleModal(p)}
-                                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-xs transition"
-                                  >
-                                    Pay Due
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => setViewingReceipt(p)}
-                                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition"
-                                >
-                                  <Receipt className="w-3.5 h-3.5" />
-                                  <span>Receipt</span>
-                                </button>
+                          {/* Financial Breakdown Grid */}
+                          <div className="grid grid-cols-3 gap-2 p-2.5 bg-slate-50 rounded-xl text-center text-xs">
+                            <div>
+                              <div className="text-[10px] text-slate-400 uppercase font-semibold">Total</div>
+                              <div className="font-bold text-slate-900 mt-0.5">৳{Number(p.total_amount).toLocaleString()}</div>
+                            </div>
+                            <div>
+                              <div className="text-[10px] text-slate-400 uppercase font-semibold">Paid</div>
+                              <div className="font-bold text-emerald-700 mt-0.5">৳{Number(p.paid_amount).toLocaleString()}</div>
+                            </div>
+                            <div>
+                              <div className="text-[10px] text-slate-400 uppercase font-semibold">Due</div>
+                              <div className={`font-bold mt-0.5 ${Number(p.due_amount) > 0 ? 'text-rose-700' : 'text-slate-400'}`}>
+                                ৳{Number(p.due_amount).toLocaleString()}
                               </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                            </div>
+                          </div>
+
+                          {/* Footer Actions & Method */}
+                          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-50">
+                            <span className="text-[11px] font-semibold text-slate-600 flex items-center gap-1 break-words">
+                              <Smartphone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              <span>{p.payment_method || 'Online Channel'}</span>
+                            </span>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              {Number(p.due_amount) > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => openSettleModal(p)}
+                                  className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-xs transition shrink-0"
+                                >
+                                  Pay Due
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setViewingReceipt(p)}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition shrink-0"
+                              >
+                                <Receipt className="w-3.5 h-3.5" />
+                                <span>Receipt</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
               )}
             </div>
           </div>

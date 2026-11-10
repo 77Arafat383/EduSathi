@@ -28,6 +28,7 @@ import {
   CornerDownLeft,
 } from 'lucide-react';
 import { api } from '../../lib/api';
+import { formatCourseOption } from '../../lib/formatters';
 import { Course } from '../../types';
 import { MathText } from '../../components/common/MathText';
 
@@ -616,8 +617,8 @@ export const TeacherQuizBuilderPage: React.FC = () => {
                     <option value="" disabled>No courses available</option>
                   ) : (
                     courses.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.title}{c.subject_name ? ` (${c.subject_name})` : ''}
+                      <option key={c.id} value={c.id} title={c.title}>
+                        {formatCourseOption(c.title, c.subject_name || c.subject_code)}
                       </option>
                     ))
                   )}
@@ -707,7 +708,7 @@ export const TeacherQuizBuilderPage: React.FC = () => {
                     <span className="text-xs font-bold text-slate-700">Question #{qIdx + 1}</span>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     {/* Points Editor */}
                     <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-1 rounded-xl">
                       <span className="text-[11px] font-bold text-slate-500">Points:</span>
@@ -948,7 +949,7 @@ export const TeacherQuizBuilderPage: React.FC = () => {
 
                 {/* Options Choices */}
                 <div className="space-y-2.5 pt-2 border-t border-slate-100">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                     <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                       Answer Choices (Select the correct option)
                     </span>
@@ -958,115 +959,133 @@ export const TeacherQuizBuilderPage: React.FC = () => {
                   </div>
 
                   {q.options.map((opt, optIdx) => (
-                    <div key={optIdx} className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type={q.question_type === 'single' ? 'radio' : 'checkbox'}
-                          checked={opt.is_correct}
-                          onChange={() => handleCorrectToggle(qIdx, optIdx)}
-                          className="w-4 h-4 accent-emerald-600 cursor-pointer"
-                          title="Mark as correct answer"
-                        />
-                        <div className="flex-1 relative flex items-center gap-1.5">
-                          {/* Option Box: Click to type text directly, or see rendered final output */}
-                          {activeEditTarget?.qIdx === qIdx && activeEditTarget?.optIdx === optIdx ? (
-                            <input
-                              type="text"
-                              autoFocus
-                              value={opt.option_text}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  setActiveEditTarget(null);
-                                }
-                              }}
-                              onSelect={(e) => {
-                                const target = e.target as HTMLInputElement;
-                                activeCursorRef.current = {
-                                  qIdx,
-                                  optIdx,
-                                  start: target.selectionStart || 0,
-                                  end: target.selectionEnd || 0,
-                                };
-                              }}
-                              onChange={(e) => {
-                                const updated = [...questions];
-                                updated[qIdx].options[optIdx].option_text = e.target.value;
-                                setQuestions(updated);
-                                activeCursorRef.current = {
-                                  qIdx,
-                                  optIdx,
-                                  start: e.target.selectionStart || 0,
-                                  end: e.target.selectionEnd || 0,
-                                };
-                              }}
-                              onBlur={() => {
-                                setTimeout(() => {
-                                  setActiveEditTarget((prev) =>
-                                    prev?.qIdx === qIdx && prev?.optIdx === optIdx ? null : prev
-                                  );
-                                }, 150);
-                              }}
-                              placeholder={`Option ${optIdx + 1} text... (e.g. pi/v)`}
-                              className={`flex-1 min-h-[38px] px-3.5 py-2 text-xs rounded-xl border ${opt.is_correct
-                                ? 'border-emerald-500 bg-emerald-50/30'
-                                : 'border-brand-500 bg-white'
-                                } focus:outline-none focus:ring-2 focus:ring-brand-500/20 shadow-2xs font-normal`}
-                            />
-                          ) : (
-                            <div
-                              onClick={() => openEditMode(qIdx, optIdx)}
-                              className={`flex-1 min-h-[38px] px-3.5 py-2 text-xs rounded-xl border ${opt.is_correct
-                                ? 'border-emerald-300 bg-emerald-50/40 text-emerald-950 font-bold'
-                                : 'border-slate-200 bg-white text-slate-800'
-                                } hover:border-brand-400 cursor-text transition flex items-center justify-between group shadow-2xs`}
-                              title="Click to write text, or click fx to insert equation"
-                            >
-                              <div className="flex-1 font-medium leading-relaxed">
-                                {opt.option_text ? (
-                                  <MathText text={opt.option_text} />
-                                ) : (
-                                  <span className="text-slate-400 font-normal italic">
-                                    Option {optIdx + 1} (Click to write text or click fx for equation)
-                                  </span>
-                                )}
+                    <div key={optIdx} className="space-y-1.5 max-w-full">
+                      <div className="flex flex-col md:flex-row md:items-center gap-2">
+                        {/* Option Answer Text Row */}
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <input
+                            type={q.question_type === 'single' ? 'radio' : 'checkbox'}
+                            checked={opt.is_correct}
+                            onChange={() => handleCorrectToggle(qIdx, optIdx)}
+                            className="w-4 h-4 accent-emerald-600 cursor-pointer shrink-0"
+                            title="Mark as correct answer"
+                          />
+                          <div className="flex-1 relative flex items-center gap-1.5 min-w-0">
+                            {/* Option Box: Click to type text directly, or see rendered final output */}
+                            {activeEditTarget?.qIdx === qIdx && activeEditTarget?.optIdx === optIdx ? (
+                              <input
+                                type="text"
+                                autoFocus
+                                value={opt.option_text}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    setActiveEditTarget(null);
+                                  }
+                                }}
+                                onSelect={(e) => {
+                                  const target = e.target as HTMLInputElement;
+                                  activeCursorRef.current = {
+                                    qIdx,
+                                    optIdx,
+                                    start: target.selectionStart || 0,
+                                    end: target.selectionEnd || 0,
+                                  };
+                                }}
+                                onChange={(e) => {
+                                  const updated = [...questions];
+                                  updated[qIdx].options[optIdx].option_text = e.target.value;
+                                  setQuestions(updated);
+                                  activeCursorRef.current = {
+                                    qIdx,
+                                    optIdx,
+                                    start: e.target.selectionStart || 0,
+                                    end: e.target.selectionEnd || 0,
+                                  };
+                                }}
+                                onBlur={() => {
+                                  setTimeout(() => {
+                                    setActiveEditTarget((prev) =>
+                                      prev?.qIdx === qIdx && prev?.optIdx === optIdx ? null : prev
+                                    );
+                                  }, 150);
+                                }}
+                                placeholder={`Option ${optIdx + 1} text... (e.g. pi/v)`}
+                                className={`flex-1 min-w-0 min-h-[38px] px-3.5 py-2 text-xs rounded-xl border ${opt.is_correct
+                                  ? 'border-emerald-500 bg-emerald-50/30'
+                                  : 'border-brand-500 bg-white'
+                                  } focus:outline-none focus:ring-2 focus:ring-brand-500/20 shadow-2xs font-normal`}
+                              />
+                            ) : (
+                              <div
+                                onClick={() => openEditMode(qIdx, optIdx)}
+                                className={`flex-1 min-w-0 min-h-[38px] px-3.5 py-2 text-xs rounded-xl border ${opt.is_correct
+                                  ? 'border-emerald-300 bg-emerald-50/40 text-emerald-950 font-bold'
+                                  : 'border-slate-200 bg-white text-slate-800'
+                                  } hover:border-brand-400 cursor-text transition flex items-center justify-between group shadow-2xs`}
+                                title="Click to write text, or click fx to insert equation"
+                              >
+                                <div className="flex-1 min-w-0 font-medium leading-relaxed truncate">
+                                  {opt.option_text ? (
+                                    <MathText text={opt.option_text} />
+                                  ) : (
+                                    <span className="text-slate-400 font-normal italic truncate block">
+                                      Option {optIdx + 1} (Click to write text or click fx for equation)
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            )}
 
-                          {/* Equation button for Option */}
-                          <button
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => openEquationStudio(qIdx, optIdx)}
-                            className="px-2.5 py-1.5 bg-slate-100 hover:bg-brand-50 hover:text-brand-700 text-slate-600 rounded-xl text-xs font-bold transition flex items-center gap-1 border border-slate-200 shrink-0"
-                            title="Open Equation Studio to insert equation at cursor"
-                          >
-                            <Calculator className="w-3.5 h-3.5 text-brand-600" />
-                            fx
-                          </button>
+                            {/* Equation button for Option */}
+                            <button
+                              type="button"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => openEquationStudio(qIdx, optIdx)}
+                              className="px-2.5 py-1.5 bg-slate-100 hover:bg-brand-50 hover:text-brand-700 text-slate-600 rounded-xl text-xs font-bold transition flex items-center gap-1 border border-slate-200 shrink-0"
+                              title="Open Equation Studio to insert equation at cursor"
+                            >
+                              <Calculator className="w-3.5 h-3.5 text-brand-600" />
+                              fx
+                            </button>
+                          </div>
+
+                          {q.options.length > 2 && (
+                            <button
+                              type="button"
+                              onClick={() => removeOption(qIdx, optIdx)}
+                              className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 md:hidden shrink-0 transition"
+                              title="Remove Option"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
 
-                        <input
-                          type="text"
-                          value={opt.explanation}
-                          onChange={(e) => {
-                            const updated = [...questions];
-                            updated[qIdx].options[optIdx].explanation = e.target.value;
-                            setQuestions(updated);
-                          }}
-                          placeholder="Optional explanation..."
-                          className="w-48 px-3 py-1.5 text-xs rounded-xl border border-slate-200 text-slate-500 focus:outline-none"
-                        />
+                        {/* Optional Explanation Input Field */}
+                        <div className="flex items-center gap-2 pl-6 md:pl-0 shrink-0">
+                          <input
+                            type="text"
+                            value={opt.explanation}
+                            onChange={(e) => {
+                              const updated = [...questions];
+                              updated[qIdx].options[optIdx].explanation = e.target.value;
+                              setQuestions(updated);
+                            }}
+                            placeholder="Optional explanation..."
+                            className="w-full md:w-48 px-3 py-1.5 text-xs rounded-xl border border-slate-200 text-slate-600 bg-slate-50 md:bg-white focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-500 transition"
+                          />
 
-                        {q.options.length > 2 && (
-                          <button
-                            type="button"
-                            onClick={() => removeOption(qIdx, optIdx)}
-                            className="p-1 text-slate-400 hover:text-rose-500 rounded-md"
-                          >
-                            ×
-                          </button>
-                        )}
+                          {q.options.length > 2 && (
+                            <button
+                              type="button"
+                              onClick={() => removeOption(qIdx, optIdx)}
+                              className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 hidden md:block shrink-0 transition"
+                              title="Remove Option"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -1084,8 +1103,8 @@ export const TeacherQuizBuilderPage: React.FC = () => {
           </div>
 
           {/* Submit Action */}
-          <div className="sticky bottom-4 bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200/90 shadow-xl flex items-center justify-between">
-            <div className="text-xs text-slate-600">
+          <div className="sticky bottom-4 bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200/90 shadow-xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="text-xs text-slate-600 text-center sm:text-left">
               Total Questions: <strong>{questions.length}</strong> | Total Marks:{' '}
               <strong className="text-brand-600 font-extrabold">{maxScore} pts</strong>
               {durationMinutes > 0 && (
@@ -1098,7 +1117,7 @@ export const TeacherQuizBuilderPage: React.FC = () => {
             <button
               type="submit"
               disabled={submitting}
-              className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-sm transition disabled:opacity-50 flex items-center gap-2"
+              className="w-full sm:w-auto px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-sm transition disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {submitting ? 'Publishing...' : 'Save & Publish'}
               <ArrowRight className="w-4 h-4" />
@@ -1249,7 +1268,7 @@ export const TeacherQuizBuilderPage: React.FC = () => {
                     </p>
                   </div>
 
-                  <div className="relative w-64">
+                  <div className="relative w-full sm:w-64">
                     <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                     <input
                       type="text"
@@ -1266,103 +1285,187 @@ export const TeacherQuizBuilderPage: React.FC = () => {
                     No student submissions found matching criteria.
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead>
-                        <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px]">
-                          <th className="py-3 px-3">Student</th>
-                          <th className="py-3 px-3">Score Achieved</th>
-                          <th className="py-3 px-3">Percentage</th>
-                          <th className="py-3 px-3">Grade</th>
-                          <th className="py-3 px-3">Submitted At</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {filteredAttempts.map((att: any) => {
-                          let gradeBadge = 'bg-slate-100 text-slate-700';
-                          let grade = 'F';
-                          const pct = att.percentage || 0;
-                          if (pct >= 90) {
-                            grade = 'A+';
-                            gradeBadge = 'bg-emerald-100 text-emerald-800';
-                          } else if (pct >= 80) {
-                            grade = 'A';
-                            gradeBadge = 'bg-emerald-50 text-emerald-700';
-                          } else if (pct >= 70) {
-                            grade = 'B';
-                            gradeBadge = 'bg-blue-100 text-blue-800';
-                          } else if (pct >= 60) {
-                            grade = 'C';
-                            gradeBadge = 'bg-amber-100 text-amber-800';
-                          } else if (pct >= 50) {
-                            grade = 'D';
-                            gradeBadge = 'bg-orange-100 text-orange-800';
-                          } else {
-                            grade = 'F';
-                            gradeBadge = 'bg-rose-100 text-rose-800';
-                          }
+                  <>
+                    {/* Desktop / Laptop View: Unaltered Table */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px]">
+                            <th className="py-3 px-3">Student</th>
+                            <th className="py-3 px-3">Score Achieved</th>
+                            <th className="py-3 px-3">Percentage</th>
+                            <th className="py-3 px-3">Grade</th>
+                            <th className="py-3 px-3">Submitted At</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {filteredAttempts.map((att: any) => {
+                            let gradeBadge = 'bg-slate-100 text-slate-700';
+                            let grade = 'F';
+                            const pct = att.percentage || 0;
+                            if (pct >= 90) {
+                              grade = 'A+';
+                              gradeBadge = 'bg-emerald-100 text-emerald-800';
+                            } else if (pct >= 80) {
+                              grade = 'A';
+                              gradeBadge = 'bg-emerald-50 text-emerald-700';
+                            } else if (pct >= 70) {
+                              grade = 'B';
+                              gradeBadge = 'bg-blue-100 text-blue-800';
+                            } else if (pct >= 60) {
+                              grade = 'C';
+                              gradeBadge = 'bg-amber-100 text-amber-800';
+                            } else if (pct >= 50) {
+                              grade = 'D';
+                              gradeBadge = 'bg-orange-100 text-orange-800';
+                            } else {
+                              grade = 'F';
+                              gradeBadge = 'bg-rose-100 text-rose-800';
+                            }
 
-                          return (
-                            <tr key={att.id} className="hover:bg-slate-50/50 transition">
-                              <td className="py-3 px-3">
-                                <div className="flex items-center gap-2.5">
-                                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700 overflow-hidden shrink-0">
-                                    {att.avatar_url ? (
-                                      <img
-                                        src={att.avatar_url}
-                                        alt={att.student_name}
-                                        className="w-full h-full object-cover"
-                                      />
-                                    ) : (
-                                      (att.student_name || 'S')[0].toUpperCase()
-                                    )}
-                                  </div>
-                                  <div>
-                                    <div className="font-bold text-slate-900">{att.student_name}</div>
-                                    <div className="text-[10px] text-slate-400">
-                                      {att.student_code || att.student_email}
+                            return (
+                              <tr key={att.id} className="hover:bg-slate-50/50 transition">
+                                <td className="py-3 px-3">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700 overflow-hidden shrink-0">
+                                      {att.avatar_url ? (
+                                        <img
+                                          src={att.avatar_url}
+                                          alt={att.student_name}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      ) : (
+                                        (att.student_name || 'S')[0].toUpperCase()
+                                      )}
+                                    </div>
+                                    <div>
+                                      <div className="font-bold text-slate-900">{att.student_name}</div>
+                                      <div className="text-[10px] text-slate-400">
+                                        {att.student_code || att.student_email}
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                              </td>
+                                </td>
 
-                              <td className="py-3 px-3 font-extrabold text-slate-900">
-                                {att.score} / {att.max_score}
-                              </td>
+                                <td className="py-3 px-3 font-extrabold text-slate-900">
+                                  {att.score} / {att.max_score}
+                                </td>
 
-                              <td className="py-3 px-3">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-16 bg-slate-100 rounded-full h-2 overflow-hidden">
-                                    <div
-                                      className="bg-brand-600 h-full rounded-full"
-                                      style={{ width: `${pct}%` }}
-                                    />
+                                <td className="py-3 px-3">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-16 bg-slate-100 rounded-full h-2 overflow-hidden">
+                                      <div
+                                        className="bg-brand-600 h-full rounded-full"
+                                        style={{ width: `${pct}%` }}
+                                      />
+                                    </div>
+                                    <span className="font-bold text-slate-700">{pct}%</span>
                                   </div>
-                                  <span className="font-bold text-slate-700">{pct}%</span>
+                                </td>
+
+                                <td className="py-3 px-3">
+                                  <span
+                                    className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold ${gradeBadge}`}
+                                  >
+                                    {grade}
+                                  </span>
+                                </td>
+
+                                <td className="py-3 px-3 text-slate-400 text-[11px]">
+                                  {new Date(att.submitted_at).toLocaleDateString()} at{' '}
+                                  {new Date(att.submitted_at).toLocaleTimeString([], {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile View: High-Readability Vertical Cards */}
+                    <div className="block md:hidden p-3.5 space-y-3 bg-slate-50/60">
+                      {filteredAttempts.map((att: any) => {
+                        let gradeBadge = 'bg-slate-100 text-slate-700';
+                        let grade = 'F';
+                        const pct = att.percentage || 0;
+                        if (pct >= 90) {
+                          grade = 'A+';
+                          gradeBadge = 'bg-emerald-100 text-emerald-800';
+                        } else if (pct >= 80) {
+                          grade = 'A';
+                          gradeBadge = 'bg-emerald-50 text-emerald-700';
+                        } else if (pct >= 70) {
+                          grade = 'B';
+                          gradeBadge = 'bg-blue-100 text-blue-800';
+                        } else if (pct >= 60) {
+                          grade = 'C';
+                          gradeBadge = 'bg-amber-100 text-amber-800';
+                        } else if (pct >= 50) {
+                          grade = 'D';
+                          gradeBadge = 'bg-orange-100 text-orange-800';
+                        } else {
+                          grade = 'F';
+                          gradeBadge = 'bg-rose-100 text-rose-800';
+                        }
+
+                        return (
+                          <div key={att.id} className="p-4 space-y-3 bg-white rounded-2xl border border-slate-200/90 shadow-2xs max-w-full overflow-hidden break-words">
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700 overflow-hidden shrink-0 ring-1 ring-slate-200">
+                                  {att.avatar_url ? (
+                                    <img
+                                      src={att.avatar_url}
+                                      alt={att.student_name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    (att.student_name || 'S')[0].toUpperCase()
+                                  )}
                                 </div>
-                              </td>
+                                <div className="min-w-0 flex-1">
+                                  <div className="font-extrabold text-slate-900 text-sm break-words leading-snug">{att.student_name}</div>
+                                  <div className="text-[11px] text-slate-400 break-all mt-0.5">
+                                    {att.student_code || att.student_email}
+                                  </div>
+                                </div>
+                              </div>
+                              <span className={`px-2.5 py-0.5 rounded-lg text-xs font-black shrink-0 ${gradeBadge}`}>
+                                {grade}
+                              </span>
+                            </div>
 
-                              <td className="py-3 px-3">
-                                <span
-                                  className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold ${gradeBadge}`}
-                                >
-                                  {grade}
-                                </span>
-                              </td>
+                            <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1.5">
+                              <div className="flex flex-wrap items-center justify-between gap-1 text-xs">
+                                <span className="text-[11px] font-bold text-slate-400 uppercase">Score Achieved</span>
+                                <span className="font-extrabold text-slate-900">{att.score} / {att.max_score} ({pct}%)</span>
+                              </div>
+                              <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                                <div
+                                  className="bg-brand-600 h-full rounded-full"
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                            </div>
 
-                              <td className="py-3 px-3 text-slate-400 text-[11px]">
+                            <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] text-slate-400 pt-0.5">
+                              <span>Submitted</span>
+                              <span className="font-medium text-slate-600">
                                 {new Date(att.submitted_at).toLocaleDateString()} at{' '}
                                 {new Date(att.submitted_at).toLocaleTimeString([], {
                                   hour: '2-digit',
                                   minute: '2-digit',
                                 })}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -1385,8 +1488,8 @@ export const TeacherQuizBuilderPage: React.FC = () => {
                   >
                     <option value="all">All Courses</option>
                     {courses.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.title}
+                      <option key={c.id} value={c.id} title={c.title}>
+                        {formatCourseOption(c.title, c.subject_code)}
                       </option>
                     ))}
                   </select>

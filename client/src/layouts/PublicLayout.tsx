@@ -111,47 +111,7 @@ export const PublicLayout: React.FC = () => {
         </div>
       </header>
 
-      {/* Mobile Page Switcher (Sticky Tap Bar) */}
-      <nav
-        aria-label="Mobile Page Switcher"
-        className="md:hidden bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-3 py-2 sticky top-20 z-30 shadow-xs"
-      >
-        <div className="flex items-center justify-between gap-1 max-w-md mx-auto bg-slate-100/90 p-1 rounded-xl">
-          <Link
-            to="/"
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
-              currentPath === '/'
-                ? 'bg-white text-brand-600 shadow-sm font-bold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Home className="w-3.5 h-3.5" />
-            <span>Home</span>
-          </Link>
-          <Link
-            to="/features"
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
-              currentPath === '/features'
-                ? 'bg-white text-brand-600 shadow-sm font-bold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Features</span>
-          </Link>
-          <Link
-            to="/about"
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
-              currentPath === '/about'
-                ? 'bg-white text-brand-600 shadow-sm font-bold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Info className="w-3.5 h-3.5" />
-            <span>About Us</span>
-          </Link>
-        </div>
-      </nav>
+      
 
       {/* Mobile Drawer Dropdown Menu */}
       {mobileMenuOpen && (
@@ -165,7 +125,7 @@ export const PublicLayout: React.FC = () => {
               }`}
             >
               <Home className="w-4 h-4 text-brand-600" />
-              <span>Home (Overview)</span>
+              <span>Home</span>
             </Link>
             <Link
               to="/features"
@@ -175,7 +135,7 @@ export const PublicLayout: React.FC = () => {
               }`}
             >
               <Sparkles className="w-4 h-4 text-brand-600" />
-              <span>Features &amp; Curriculum</span>
+              <span>Features</span>
             </Link>
             <Link
               to="/about"
@@ -185,40 +145,8 @@ export const PublicLayout: React.FC = () => {
               }`}
             >
               <Info className="w-4 h-4 text-brand-600" />
-              <span>About EduSathi</span>
+              <span>About</span>
             </Link>
-          </div>
-
-          <div className="pt-2 border-t border-slate-100 flex flex-col gap-2">
-            {user ? (
-              <Link
-                to={`/${user.role}`}
-                onClick={() => setMobileMenuOpen(false)}
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow-sm transition"
-              >
-                <LayoutDashboard className="w-4 h-4" />
-                Go to Dashboard
-              </Link>
-            ) : (
-              <div className="grid grid-cols-2 gap-2">
-                <Link
-                  to="/login"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl transition"
-                >
-                  <LogIn className="w-3.5 h-3.5" />
-                  Sign In
-                </Link>
-                <Link
-                  to="/register"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-sm transition"
-                >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  Get Started
-                </Link>
-              </div>
-            )}
           </div>
         </div>
       )}

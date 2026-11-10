@@ -92,30 +92,30 @@ export const StudentAttendancePage: React.FC = () => {
             return (
               <div
                 key={sess.id}
-                className="p-3 sm:px-4 bg-gradient-to-r from-blue-50/90 via-indigo-50/80 to-blue-50/90 border border-blue-200/90 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs animate-fade-in"
+                className="p-3.5 sm:px-4 bg-gradient-to-r from-blue-50/90 via-indigo-50/80 to-blue-50/90 border border-blue-200/90 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs animate-fade-in max-w-full overflow-hidden break-words"
               >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="relative flex h-2.5 w-2.5 shrink-0">
+                <div className="flex items-start sm:items-center gap-2.5 min-w-0 flex-1">
+                  <span className="relative flex h-2.5 w-2.5 shrink-0 mt-1 sm:mt-0">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-600"></span>
                   </span>
-                  <div className="truncate">
-                    <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-blue-600 text-white mr-2">Live Call</span>
-                    <span className="font-bold text-slate-800">{sess.course_title}</span>
-                    <span className="text-slate-400 mx-1.5">•</span>
-                    <span className="text-slate-600">{sess.title}</span>
-                    <span className="text-slate-400 mx-1.5">•</span>
-                    <span className="font-mono font-bold text-blue-700">
+                  <div className="flex flex-wrap items-center gap-1.5 min-w-0 flex-1">
+                    <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-blue-600 text-white shrink-0">Live Call</span>
+                    <span className="font-bold text-slate-800 break-words">{sess.course_title}</span>
+                    <span className="text-slate-400">•</span>
+                    <span className="text-slate-600 break-words">{sess.title}</span>
+                    <span className="text-slate-400">•</span>
+                    <span className="font-mono font-bold text-blue-700 shrink-0">
                       {formatCountdown(remaining)} left ({isPresentPhase ? 'Present' : 'Late'})
                     </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
                   <button
                     onClick={() => handleCheckIn(sess.id)}
                     disabled={checkingInId === sess.id}
-                    className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-xs transition active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
+                    className="w-full sm:w-auto px-4 py-2 sm:py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-xs transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>{checkingInId === sess.id ? 'Recording...' : 'Mark Present'}</span>

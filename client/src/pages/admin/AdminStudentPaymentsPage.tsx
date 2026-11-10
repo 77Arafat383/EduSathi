@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { StudentPayment, User, Course } from '../../types';
+import { formatCourseOption } from '../../lib/formatters';
 
 export const AdminStudentPaymentsPage: React.FC = () => {
   const [payments, setPayments] = useState<StudentPayment[]>([]);
@@ -535,8 +536,8 @@ export const AdminStudentPaymentsPage: React.FC = () => {
             >
               <option value="all">All Linked Courses</option>
               {courses.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.title}
+                <option key={c.id} value={c.id} title={c.title}>
+                  {formatCourseOption(c.title, c.subject_code)}
                 </option>
               ))}
             </select>
@@ -591,7 +592,8 @@ export const AdminStudentPaymentsPage: React.FC = () => {
             </span>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* Desktop / Laptop View: Unaltered Table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-100 border-b border-slate-200 text-[10px] font-mono uppercase tracking-wider text-slate-600">
@@ -734,6 +736,125 @@ export const AdminStudentPaymentsPage: React.FC = () => {
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile View: High-Readability Vertical Cards */}
+          <div className="block md:hidden p-3.5 space-y-3.5 bg-slate-50/60">
+            {paginatedPayments.map((p) => {
+              const isDue = Number(p.due_amount) > 0;
+              const isOverdue = isDue && p.due_date && new Date(p.due_date) < new Date();
+
+              return (
+                <div key={p.id} className="p-4 space-y-3 bg-white rounded-2xl border border-slate-200/90 shadow-2xs max-w-full overflow-hidden break-words">
+                  {/* Student Header */}
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      {p.student_avatar ? (
+                        <img
+                          src={p.student_avatar}
+                          alt={p.student_name || 'Student'}
+                          className="w-9 h-9 rounded-xl object-cover border border-slate-200 shrink-0"
+                        />
+                      ) : (
+                        <div className="w-9 h-9 bg-slate-100 border border-slate-200 text-slate-700 font-mono font-bold text-xs flex items-center justify-center shrink-0 rounded-xl">
+                          {getInitials(p.student_name)}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="font-extrabold text-slate-900 break-words text-sm leading-snug">
+                          {p.student_name || 'Student Account'}
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-mono flex flex-wrap items-center gap-1 mt-0.5 break-all">
+                          <span className="font-bold text-slate-600 shrink-0">{p.student_identifier || 'ID: N/A'}</span>
+                          <span>•</span>
+                          <span className="break-all">{p.student_email}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <span
+                      className={`inline-block px-2 py-0.5 text-[10px] font-mono uppercase font-bold rounded border shrink-0 ${p.status === 'paid'
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                          : p.status === 'partial'
+                            ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
+                            : 'bg-amber-50 text-amber-800 border-amber-200'
+                        }`}
+                    >
+                      {p.status}
+                    </span>
+                  </div>
+
+                  {/* Invoice Description */}
+                  <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 space-y-0.5 text-xs break-words">
+                    <div className="font-bold text-slate-800 leading-tight break-words">{p.title}</div>
+                    <div className="text-[11px] text-slate-500 break-words">{p.course_title || 'General Semester Tuition'}</div>
+                    <div className="text-[10px] font-mono text-slate-400 break-all">Ref: {p.transaction_ref || 'N/A'}</div>
+                  </div>
+
+                  {/* 3-Column Financial Grid */}
+                  <div className="grid grid-cols-3 gap-2 text-center bg-slate-50 p-2 rounded-xl border border-slate-100 text-xs">
+                    <div>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase block">Invoiced</span>
+                      <span className="font-mono font-black text-slate-800 text-xs mt-0.5 block truncate">
+                        ৳{Number(p.total_amount).toFixed(0)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase block">Paid</span>
+                      <span className="font-mono font-black text-emerald-700 text-xs mt-0.5 block truncate">
+                        ৳{Number(p.paid_amount).toFixed(0)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase block">Due</span>
+                      <span className={`font-mono font-black text-xs mt-0.5 block truncate ${
+                        isDue ? 'text-rose-700' : 'text-slate-400'
+                      }`}>
+                        ৳{Number(p.due_amount).toFixed(0)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Rail & Due Date */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+                    <span className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-mono font-medium text-slate-700 shrink-0">
+                      {p.payment_method || 'Standard'}
+                    </span>
+                    <div className="flex flex-wrap items-center gap-1.5 font-mono text-[10px]">
+                      <span>Due: {p.due_date ? new Date(p.due_date).toLocaleDateString() : 'N/A'}</span>
+                      {isOverdue && (
+                        <span className="text-[9px] font-bold uppercase text-rose-700 bg-rose-50 px-1.5 py-0.2 rounded shrink-0">
+                          Overdue
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    {isDue && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenSettle(p)}
+                        className="w-full py-2 px-3 bg-amber-700 hover:bg-amber-800 text-white font-bold text-xs rounded-xl shadow-2xs transition text-center truncate"
+                      >
+                        Settle Due
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setViewingReceipt(p)}
+                      className={`w-full py-2 px-3 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl shadow-2xs transition inline-flex items-center justify-center gap-1.5 truncate ${
+                        isDue ? '' : 'sm:col-span-2'
+                      }`}
+                    >
+                      <Receipt className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                      <span>View Receipt / Slip</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* Pagination Controls */}
@@ -1340,7 +1461,7 @@ export const AdminStudentPaymentsPage: React.FC = () => {
             {/* Scrollable Receipt Body (Unclipped in print) */}
             <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-5 print:overflow-visible print:max-h-none print:p-4">
               {/* Receipt Identification Grid */}
-              <div className="grid grid-cols-2 gap-4 text-xs font-mono border-b border-slate-200 pb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono border-b border-slate-200 pb-4">
                 <div>
                   <span className="text-[10px] uppercase text-slate-500 font-bold block">Student Name</span>
                   <span className="font-semibold text-slate-900 text-sm block mt-0.5">
@@ -1350,7 +1471,7 @@ export const AdminStudentPaymentsPage: React.FC = () => {
                     ID: {viewingReceipt.student_identifier || 'N/A'}
                   </span>
                 </div>
-                <div className="text-right">
+                <div className="text-left sm:text-right">
                   <span className="text-[10px] uppercase text-slate-500 font-bold block">Transaction Date</span>
                   <span className="text-slate-800 block mt-0.5">
                     {viewingReceipt.payment_date ? new Date(viewingReceipt.payment_date).toLocaleDateString() : new Date().toLocaleDateString()}

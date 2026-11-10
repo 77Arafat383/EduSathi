@@ -107,13 +107,13 @@ export const StudentNotificationsPage: React.FC = () => {
           displayNotifications.map((n) => (
             <div
               key={n.id}
-              className={`p-4 sm:p-5 flex items-start justify-between gap-4 transition ${
+              className={`p-4 sm:p-5 flex flex-wrap sm:flex-nowrap items-start justify-between gap-4 transition max-w-full overflow-hidden break-words ${
                 !n.read_at ? 'bg-brand-50/20' : 'hover:bg-slate-50/60'
               }`}
             >
-              <div className="flex items-start gap-3.5">
+              <div className="flex items-start gap-3.5 min-w-0 flex-1">
                 {user?.role === 'admin' && (
-                  <div className="mt-0.5">
+                  <div className="mt-0.5 shrink-0">
                     {n.type === 'salary_request' || n.type === 'salary_disbursed' ? (
                       <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center">
                         <Wallet className="w-4 h-4" />
@@ -125,19 +125,19 @@ export const StudentNotificationsPage: React.FC = () => {
                     )}
                   </div>
                 )}
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-xs font-bold text-slate-900">{n.title}</h4>
+                <div className="space-y-1 min-w-0 flex-1 break-words">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="text-xs font-bold text-slate-900 break-words">{n.title}</h4>
                     {!n.read_at && (
                       <span className="w-2 h-2 rounded-full bg-brand-500 shrink-0" />
                     )}
                   </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">{n.message}</p>
-                  <div className="flex items-center gap-3 pt-1 text-[11px] text-slate-400">
+                  <p className="text-xs text-slate-600 leading-relaxed break-words">{n.message}</p>
+                  <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] text-slate-400">
                     <span>{new Date(n.created_at).toLocaleString()}</span>
                     {n.link && (
                       <Link to={n.link} className="text-brand-600 hover:underline flex items-center gap-1 font-semibold">
-                        Open <ExternalLink className="w-3 h-3" />
+                        Open <ExternalLink className="w-3 h-3 shrink-0" />
                       </Link>
                     )}
                   </div>

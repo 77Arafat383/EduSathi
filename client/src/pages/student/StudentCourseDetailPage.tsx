@@ -257,7 +257,7 @@ export const StudentCourseDetailPage: React.FC = () => {
             </div>
 
             {/* Price & Primary CTA */}
-            <div className="bg-white/10 backdrop-blur-md p-5 rounded-2xl border border-white/15 flex flex-col items-center sm:items-end justify-center shrink-0 min-w-[240px] text-center sm:text-right">
+            <div className="bg-white/10 backdrop-blur-md p-5 rounded-2xl border border-white/15 flex flex-col items-center sm:items-end justify-center shrink-0 w-full sm:w-auto min-w-0 sm:min-w-[240px] text-center sm:text-right">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
                 Course Tuition Fee
               </span>
@@ -294,12 +294,12 @@ export const StudentCourseDetailPage: React.FC = () => {
           <div className="space-y-4">
             {course.modules && course.modules.length > 0 ? (
               course.modules.map((mod: any, mIdx: number) => (
-                <div key={mod.id} className="border border-slate-100 rounded-xl overflow-hidden">
-                  <div className="bg-slate-50/80 px-4 py-2.5 flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-800">
+                <div key={mod.id} className="border border-slate-100 rounded-xl overflow-hidden max-w-full">
+                  <div className="bg-slate-50/80 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-slate-800 break-words">
                       Module {mIdx + 1}: {mod.title}
                     </span>
-                    <span className="text-[10px] font-mono text-slate-400">
+                    <span className="text-[10px] font-mono text-slate-400 shrink-0">
                       {mod.lessons?.length || 0} Topics
                     </span>
                   </div>
@@ -307,15 +307,15 @@ export const StudentCourseDetailPage: React.FC = () => {
                     {(mod.lessons || []).map((les: any, lIdx: number) => (
                       <div
                         key={les.id}
-                        className="px-4 py-2.5 flex items-center justify-between text-xs text-slate-600"
+                        className="px-4 py-2.5 flex items-center justify-between text-xs text-slate-600 gap-2"
                       >
-                        <div className="flex items-center gap-2.5">
-                          <span className="font-mono text-[10px] text-slate-400">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="font-mono text-[10px] text-slate-400 shrink-0">
                             {mIdx + 1}.{lIdx + 1}
                           </span>
-                          <span>{les.title}</span>
+                          <span className="break-words">{les.title}</span>
                         </div>
-                        <div className="flex items-center gap-1 text-[11px] text-slate-400">
+                        <div className="flex items-center gap-1 text-[11px] text-slate-400 shrink-0">
                           <Lock className="w-3 h-3 text-slate-400" />
                           <span>Locked</span>
                         </div>
@@ -466,7 +466,7 @@ export const StudentCourseDetailPage: React.FC = () => {
       </div>
 
       {/* Academic Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 overflow-x-auto text-xs font-bold pb-px">
+      <div className="flex items-center gap-2 border-b border-slate-200 overflow-x-auto no-scrollbar text-xs font-bold pb-px max-w-full">
         <button
           onClick={() => handleTabChange('content')}
           className={`pb-3 px-3 border-b-2 transition flex items-center gap-1.5 whitespace-nowrap ${
@@ -588,11 +588,11 @@ export const StudentCourseDetailPage: React.FC = () => {
 
                   return (
                     <div key={mod.id} className="space-y-1.5">
-                      <div className="flex items-center justify-between px-2 py-1 bg-slate-50 rounded-lg">
-                        <span className="text-xs font-bold text-slate-800 line-clamp-1">
+                      <div className="flex items-center justify-between px-2 py-1 bg-slate-50 rounded-lg gap-2">
+                        <span className="text-xs font-bold text-slate-800 line-clamp-1 min-w-0 flex-1">
                           {mod.title}
                         </span>
-                        <span className="text-[10px] font-semibold text-slate-400 font-mono shrink-0 ml-2">
+                        <span className="text-[10px] font-semibold text-slate-400 font-mono shrink-0">
                           {modDoneCount}/{modLessons.length}
                         </span>
                       </div>
@@ -606,13 +606,13 @@ export const StudentCourseDetailPage: React.FC = () => {
                             <button
                               key={les.id}
                               onClick={() => setSelectedLesson(les)}
-                              className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition ${
+                              className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between gap-2 transition ${
                                 isSelected
                                   ? 'bg-brand-50 text-brand-700 font-bold border border-brand-200/80 shadow-xs'
                                   : 'text-slate-600 hover:bg-slate-50'
                               }`}
                             >
-                              <div className="flex items-center gap-2 min-w-0 pr-2">
+                              <div className="flex items-center gap-2 min-w-0 pr-1 flex-1">
                                 <span className="text-[10px] font-mono text-slate-400 shrink-0">
                                   {mIdx + 1}.{lIdx + 1}
                                 </span>
@@ -683,21 +683,33 @@ export const StudentCourseDetailPage: React.FC = () => {
                 </div>
 
                 {/* Navigation Between Lessons */}
-                <div className="pt-6 border-t border-slate-100 flex items-center justify-between gap-4">
-                  {prevLesson ? (
-                    <button
-                      onClick={() => setSelectedLesson(prevLesson)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                      <span className="truncate max-w-[150px] sm:max-w-xs">{prevLesson.title}</span>
-                    </button>
-                  ) : (
-                    <div />
-                  )}
+                <div className="pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                  <div className="flex items-center justify-between sm:justify-start gap-2 order-2 sm:order-1">
+                    {prevLesson ? (
+                      <button
+                        onClick={() => setSelectedLesson(prevLesson)}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition flex-1 sm:flex-none justify-center"
+                      >
+                        <ChevronLeft className="w-4 h-4 shrink-0" />
+                        <span className="truncate max-w-[120px] sm:max-w-xs">{prevLesson.title}</span>
+                      </button>
+                    ) : (
+                      <div />
+                    )}
+
+                    {nextLesson && (
+                      <button
+                        onClick={() => setSelectedLesson(nextLesson)}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition flex-1 sm:flex-none justify-center sm:hidden"
+                      >
+                        <span className="truncate max-w-[120px]">{nextLesson.title}</span>
+                        <ChevronRight className="w-4 h-4 shrink-0" />
+                      </button>
+                    )}
+                  </div>
 
                   {currentNavIndex >= 0 && (
-                    <span className="text-[11px] text-slate-400 font-mono">
+                    <span className="text-[11px] text-slate-400 font-mono text-center order-1 sm:order-2">
                       Lesson {currentNavIndex + 1} of {flattenedLessons.length}
                     </span>
                   )}
@@ -705,13 +717,13 @@ export const StudentCourseDetailPage: React.FC = () => {
                   {nextLesson ? (
                     <button
                       onClick={() => setSelectedLesson(nextLesson)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition"
+                      className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition order-3"
                     >
                       <span className="truncate max-w-[150px] sm:max-w-xs">{nextLesson.title}</span>
-                      <ChevronRight className="w-4 h-4" />
+                      <ChevronRight className="w-4 h-4 shrink-0" />
                     </button>
                   ) : (
-                    <div />
+                    <div className="hidden sm:block" />
                   )}
                 </div>
               </div>
@@ -1187,18 +1199,18 @@ export const StudentCourseDetailPage: React.FC = () => {
             </p>
           </div>
 
-          <form onSubmit={handlePostComment} className="flex gap-2">
+          <form onSubmit={handlePostComment} className="flex flex-col sm:flex-row gap-2">
             <input
               type="text"
               required
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               placeholder="Ask a question or raise a doubt about this course..."
-              className="flex-1 px-4 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 bg-slate-50 focus:bg-white"
+              className="flex-1 px-4 py-2.5 sm:py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 bg-slate-50 focus:bg-white min-w-0"
             />
             <button
               type="submit"
-              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 shrink-0"
+              className="px-4 py-2.5 sm:py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 shrink-0"
             >
               <Send className="w-3.5 h-3.5" />
               <span>Post Question</span>

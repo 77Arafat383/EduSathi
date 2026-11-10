@@ -26,6 +26,7 @@ import {
 import { api } from '../../lib/api';
 import { Course } from '../../types';
 import { AssignmentSubmissionsRoster } from './AssignmentSubmissionsRoster';
+import { formatCourseOption } from '../../lib/formatters';
 
 interface AssignmentWithStats {
   id: string;
@@ -466,8 +467,8 @@ export const TeacherAssignmentBuilderPage: React.FC = () => {
               >
                 <option value="all">All Courses</option>
                 {courses.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.title}
+                  <option key={c.id} value={c.id} title={c.title}>
+                    {formatCourseOption(c.title, c.subject_code)}
                   </option>
                 ))}
               </select>
@@ -647,8 +648,8 @@ export const TeacherAssignmentBuilderPage: React.FC = () => {
                     <option value="" disabled>No courses available</option>
                   ) : (
                     courses.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.title}{c.subject_name ? ` (${c.subject_name})` : ''}
+                      <option key={c.id} value={c.id} title={c.title}>
+                        {formatCourseOption(c.title, c.subject_name || c.subject_code)}
                       </option>
                     ))
                   )}
@@ -667,7 +668,7 @@ export const TeacherAssignmentBuilderPage: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Maximum Points</label>
                   <input

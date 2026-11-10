@@ -25,6 +25,7 @@ import { api } from '../../lib/api';
 import { User, UserRole, DEFAULT_NEUTRAL_AVATAR } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { MonthYearPicker } from '../../components/common/MonthYearPicker';
+import { formatCourseOption } from '../../lib/formatters';
 import { useAuth } from '../../app/providers';
 
 export const AdminUsersPage: React.FC = () => {
@@ -590,8 +591,9 @@ export const AdminUsersPage: React.FC = () => {
         </div>
       ) : (
         /* Admin Staff Table */
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-6 shadow-sm overflow-hidden">
+          {/* Desktop / Laptop View: Unaltered Table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="border-b border-slate-200 bg-slate-50 text-slate-500 font-bold uppercase text-[10px]">
                 <tr>
@@ -641,6 +643,48 @@ export const AdminUsersPage: React.FC = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Mobile View: High-Readability Vertical Cards */}
+          <div className="block md:hidden p-3.5 space-y-3.5 bg-slate-50/60">
+            {currentDisplayList.map((admin) => (
+              <div key={admin.id} className="p-4 space-y-3 bg-white rounded-2xl border border-slate-200/90 shadow-2xs max-w-full overflow-hidden break-words">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <img
+                      src={admin.avatar_url || DEFAULT_NEUTRAL_AVATAR}
+                      alt={admin.full_name}
+                      className="w-10 h-10 rounded-full object-cover ring-1 ring-slate-200 shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <span className="font-extrabold text-slate-900 block break-words text-sm leading-snug">{admin.full_name}</span>
+                      <span className="text-[11px] text-slate-400 block break-all mt-0.5">{admin.email}</span>
+                    </div>
+                  </div>
+                  <StatusBadge status={admin.status || 'active'} size="sm" />
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                  <span className="text-slate-500 break-words">
+                    Dept: <span className="font-semibold text-slate-700">{admin.department || 'Central Administration'}</span>
+                  </span>
+                  <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-white border border-slate-200 font-bold uppercase text-slate-700 shrink-0">
+                    {admin.role}
+                  </span>
+                </div>
+
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={() => handleToggleStatus(admin)}
+                    disabled={admin.id === currentUser?.id}
+                    className="w-full py-2 px-3 border border-slate-200 hover:border-rose-300 hover:bg-rose-50 text-slate-600 hover:text-rose-700 disabled:opacity-40 text-xs font-bold rounded-xl transition shadow-2xs truncate"
+                  >
+                    Deactivate Account
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -651,22 +695,22 @@ export const AdminUsersPage: React.FC = () => {
         <div className="fixed inset-0 z-[100] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl border border-slate-200 max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col my-auto animate-fade-in">
             {/* Modal Header */}
-            <div className="p-6 bg-slate-950 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
-              <div className="flex items-center gap-4">
+            <div className="p-6 bg-slate-950 text-white flex items-center justify-between border-b border-slate-800 shrink-0 gap-3">
+              <div className="flex items-center gap-4 min-w-0">
                 <img
                   src={selectedTeacher.avatar_url || DEFAULT_NEUTRAL_AVATAR}
                   alt={selectedTeacher.full_name}
-                  className="w-14 h-14 rounded-2xl object-cover border border-slate-700"
+                  className="w-14 h-14 rounded-2xl object-cover border border-slate-700 shrink-0"
                 />
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 uppercase font-mono">
                       Faculty Instructor
                     </span>
                     <StatusBadge status={selectedTeacher.status || 'active'} size="sm" />
                   </div>
-                  <h3 className="text-lg font-extrabold text-white leading-snug">{selectedTeacher.full_name}</h3>
-                  <p className="text-xs text-slate-400">
+                  <h3 className="text-lg font-extrabold text-white leading-snug truncate">{selectedTeacher.full_name}</h3>
+                  <p className="text-xs text-slate-400 truncate">
                     {selectedTeacher.email} • {selectedTeacher.department || 'Academic Department'}
                   </p>
                 </div>
@@ -674,18 +718,18 @@ export const AdminUsersPage: React.FC = () => {
 
               <button
                 onClick={() => setSelectedTeacher(null)}
-                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-sm font-bold transition"
+                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-sm font-bold transition shrink-0"
               >
                 ✕
               </button>
             </div>
 
             {/* Navigation Tabs in Modal */}
-            <div className="px-6 pt-4 pb-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-4 shrink-0">
-              <div className="flex items-center gap-2">
+            <div className="px-6 pt-4 pb-2 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
                 <button
                   onClick={() => setTeacherModalTab('courses')}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${teacherModalTab === 'courses'
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 whitespace-nowrap ${teacherModalTab === 'courses'
                       ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80'
                       : 'text-slate-600 hover:text-slate-900'
                     }`}
@@ -696,7 +740,7 @@ export const AdminUsersPage: React.FC = () => {
 
                 <button
                   onClick={() => setTeacherModalTab('salaries')}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${teacherModalTab === 'salaries'
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 whitespace-nowrap ${teacherModalTab === 'salaries'
                       ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80'
                       : 'text-slate-600 hover:text-slate-900'
                     }`}
@@ -708,7 +752,7 @@ export const AdminUsersPage: React.FC = () => {
 
               <button
                 onClick={() => setShowTeacherPayModal(true)}
-                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition inline-flex items-center gap-1.5"
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition inline-flex items-center justify-center gap-1.5 shrink-0"
               >
                 <DollarSign className="w-3.5 h-3.5" />
                 <span>Disburse Salary</span>
@@ -803,54 +847,102 @@ export const AdminUsersPage: React.FC = () => {
                       </div>
                     ) : (
                       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-                        <table className="w-full text-left border-collapse text-xs">
-                          <thead>
-                            <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                              <th className="py-3 px-4">Pay Period</th>
-                              <th className="py-3 px-4">Course Mention</th>
-                              <th className="py-3 px-4">Date</th>
-                              <th className="py-3 px-4">Amount</th>
-                              <th className="py-3 px-4">Method</th>
-                              <th className="py-3 px-4">Reference</th>
-                              <th className="py-3 px-4 text-center">Status</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {teacherFinanceData?.salary_history?.map((sal: any) => (
-                              <tr key={sal.id} className="hover:bg-slate-50/60">
-                                <td className="py-3 px-4 font-bold text-slate-800">{sal.pay_period}</td>
-                                <td className="py-3 px-4 font-medium text-slate-700">
-                                  {sal.course_title ? (
-                                    <span className="text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded text-[11px] border border-indigo-200">
-                                      {sal.course_title}
-                                    </span>
-                                  ) : (
-                                    <span className="text-slate-400 text-[11px]">All Assigned Courses</span>
-                                  )}
-                                </td>
-                                <td className="py-3 px-4 text-slate-500">
-                                  {sal.payment_date ? new Date(sal.payment_date).toLocaleDateString() : 'N/A'}
-                                </td>
-                                <td className="py-3 px-4 font-extrabold text-slate-900">
-                                  ৳ {Number(sal.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                </td>
-                                <td className="py-3 px-4 text-slate-600">{sal.payment_method}</td>
-                                <td className="py-3 px-4 font-mono font-bold text-slate-500">{sal.transaction_ref}</td>
-                                <td className="py-3 px-4 text-center">
-                                  <span
-                                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                      sal.status === 'paid'
-                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                        : 'bg-amber-50 text-amber-700 border border-amber-200'
-                                    }`}
-                                  >
-                                    {sal.status === 'paid' ? 'Disbursed' : 'Pending'}
-                                  </span>
-                                </td>
+                        {/* Desktop / Laptop View: Unaltered Table */}
+                        <div className="hidden md:block overflow-x-auto">
+                          <table className="w-full text-left border-collapse text-xs">
+                            <thead>
+                              <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                                <th className="py-3 px-4">Pay Period</th>
+                                <th className="py-3 px-4">Course Mention</th>
+                                <th className="py-3 px-4">Date</th>
+                                <th className="py-3 px-4">Amount</th>
+                                <th className="py-3 px-4">Method</th>
+                                <th className="py-3 px-4">Reference</th>
+                                <th className="py-3 px-4 text-center">Status</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {teacherFinanceData?.salary_history?.map((sal: any) => (
+                                <tr key={sal.id} className="hover:bg-slate-50/60">
+                                  <td className="py-3 px-4 font-bold text-slate-800">{sal.pay_period}</td>
+                                  <td className="py-3 px-4 font-medium text-slate-700">
+                                    {sal.course_title ? (
+                                      <span className="text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded text-[11px] border border-indigo-200">
+                                        {sal.course_title}
+                                      </span>
+                                    ) : (
+                                      <span className="text-slate-400 text-[11px]">All Assigned Courses</span>
+                                    )}
+                                  </td>
+                                  <td className="py-3 px-4 text-slate-500">
+                                    {sal.payment_date ? new Date(sal.payment_date).toLocaleDateString() : 'N/A'}
+                                  </td>
+                                  <td className="py-3 px-4 font-extrabold text-slate-900">
+                                    ৳ {Number(sal.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  </td>
+                                  <td className="py-3 px-4 text-slate-600">{sal.payment_method}</td>
+                                  <td className="py-3 px-4 font-mono font-bold text-slate-500">{sal.transaction_ref}</td>
+                                  <td className="py-3 px-4 text-center">
+                                    <span
+                                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                        sal.status === 'paid'
+                                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                          : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                      }`}
+                                    >
+                                      {sal.status === 'paid' ? 'Disbursed' : 'Pending'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Mobile View: High-Readability Vertical Cards */}
+                        <div className="block md:hidden p-3 space-y-2.5 bg-slate-50/60">
+                          {teacherFinanceData?.salary_history?.map((sal: any) => (
+                            <div key={sal.id} className="p-3.5 space-y-2.5 bg-white rounded-xl border border-slate-200/90 shadow-2xs max-w-full overflow-hidden break-words">
+                              <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div>
+                                  <span className="font-extrabold text-slate-900 block text-xs break-words">{sal.pay_period}</span>
+                                  <span className="text-[10px] text-slate-400">
+                                    {sal.payment_date ? new Date(sal.payment_date).toLocaleDateString() : 'N/A'}
+                                  </span>
+                                </div>
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                                    sal.status === 'paid'
+                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                      : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                  }`}
+                                >
+                                  {sal.status === 'paid' ? 'Disbursed' : 'Pending'}
+                                </span>
+                              </div>
+
+                              <div className="bg-slate-50 p-2 rounded-lg text-xs break-words">
+                                {sal.course_title ? (
+                                  <span className="text-indigo-700 font-bold block break-words">
+                                    {sal.course_title}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-500 block break-words">All Assigned Courses</span>
+                                )}
+                              </div>
+
+                              <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-0.5">
+                                <span className="font-mono font-black text-slate-900 text-sm">
+                                  ৳ {Number(sal.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                </span>
+                                <div className="text-right text-[11px] text-slate-500 break-all">
+                                  <span>{sal.payment_method}</span>
+                                  <span className="font-mono text-[10px] block text-slate-400 break-all">{sal.transaction_ref}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -877,22 +969,22 @@ export const AdminUsersPage: React.FC = () => {
         <div className="fixed inset-0 z-[100] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl border border-slate-200 max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col my-auto animate-fade-in">
             {/* Modal Header */}
-            <div className="p-6 bg-slate-950 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
-              <div className="flex items-center gap-4">
+            <div className="p-6 bg-slate-950 text-white flex items-center justify-between border-b border-slate-800 shrink-0 gap-3">
+              <div className="flex items-center gap-4 min-w-0">
                 <img
                   src={selectedStudent.avatar_url || DEFAULT_NEUTRAL_AVATAR}
                   alt={selectedStudent.full_name}
-                  className="w-14 h-14 rounded-2xl object-cover border border-slate-700"
+                  className="w-14 h-14 rounded-2xl object-cover border border-slate-700 shrink-0"
                 />
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 uppercase font-mono">
                       Student ID: {selectedStudent.student_id || 'CS-2024'}
                     </span>
                     <StatusBadge status={selectedStudent.status || 'active'} size="sm" />
                   </div>
-                  <h3 className="text-lg font-extrabold text-white leading-snug">{selectedStudent.full_name}</h3>
-                  <p className="text-xs text-slate-400">
+                  <h3 className="text-lg font-extrabold text-white leading-snug truncate">{selectedStudent.full_name}</h3>
+                  <p className="text-xs text-slate-400 truncate">
                     {selectedStudent.email} • {selectedStudent.department || 'Enrolled Student'}
                   </p>
                 </div>
@@ -900,33 +992,33 @@ export const AdminUsersPage: React.FC = () => {
 
               <button
                 onClick={() => setSelectedStudent(null)}
-                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-sm font-bold transition"
+                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-sm font-bold transition shrink-0"
               >
                 ✕
               </button>
             </div>
 
             {/* Outstanding Due Available Banner */}
-            <div className="px-6 py-3 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
-              <div className="flex items-center gap-2">
+            <div className="px-6 py-3 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-2 min-w-0">
                 {studentFinanceData?.financial_summary?.has_due ? (
-                  <div className="flex items-center gap-2 text-xs font-bold text-amber-800 bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200">
-                    <AlertCircle className="w-4 h-4 text-amber-600" />
-                    <span>
+                  <div className="flex items-center gap-2 text-xs font-bold text-amber-800 bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200 w-full sm:w-auto">
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span className="truncate">
                       Outstanding Due Available: <span className="font-extrabold text-sm text-amber-700 font-mono">৳ {Number(studentFinanceData.financial_summary.total_due_available).toFixed(2)}</span>
                     </span>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    <span>All Tuition &amp; Academic Fees Cleared (৳ 0.00 Outstanding)</span>
+                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 w-full sm:w-auto">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span className="truncate">All Tuition &amp; Academic Fees Cleared (৳ 0.00 Outstanding)</span>
                   </div>
                 )}
               </div>
 
               <button
                 onClick={() => setShowStudentPayModal(true)}
-                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition inline-flex items-center gap-1.5"
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition inline-flex items-center justify-center gap-1.5 shrink-0 w-full sm:w-auto"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Record Fee / Payment</span>
@@ -934,10 +1026,10 @@ export const AdminUsersPage: React.FC = () => {
             </div>
 
             {/* Navigation Tabs in Modal */}
-            <div className="px-6 pt-3 pb-2 border-b border-slate-200 flex items-center gap-2 shrink-0">
+            <div className="px-6 pt-3 pb-2 border-b border-slate-200 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
               <button
                 onClick={() => setStudentModalTab('courses')}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${studentModalTab === 'courses'
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 whitespace-nowrap ${studentModalTab === 'courses'
                     ? 'bg-slate-900 text-white shadow-sm'
                     : 'text-slate-600 hover:text-slate-900 bg-slate-100'
                   }`}
@@ -948,7 +1040,7 @@ export const AdminUsersPage: React.FC = () => {
 
               <button
                 onClick={() => setStudentModalTab('payments')}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${studentModalTab === 'payments'
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 whitespace-nowrap ${studentModalTab === 'payments'
                     ? 'bg-slate-900 text-white shadow-sm'
                     : 'text-slate-600 hover:text-slate-900 bg-slate-100'
                   }`}
@@ -1050,64 +1142,120 @@ export const AdminUsersPage: React.FC = () => {
                       </div>
                     ) : (
                       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-                        <table className="w-full text-left border-collapse text-xs">
-                          <thead>
-                            <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                              <th className="py-3 px-4">Invoice Title</th>
-                              <th className="py-3 px-4">Total</th>
-                              <th className="py-3 px-4">Paid</th>
-                              <th className="py-3 px-4">Due</th>
-                              <th className="py-3 px-4">Method / Ref</th>
-                              <th className="py-3 px-4 text-center">Status</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {studentFinanceData?.payment_history?.map((pay: any) => (
-                              <tr key={pay.id} className="hover:bg-slate-50/60">
-                                <td className="py-3 px-4">
-                                  <span className="font-bold text-slate-900 block leading-tight">{pay.title}</span>
-                                  <span className="text-[10px] text-brand-600 block">{pay.course_title || 'General Semester Tuition'}</span>
-                                </td>
-
-                                <td className="py-3 px-4 font-bold text-slate-800">
-                                  ৳ {Number(pay.total_amount).toFixed(2)}
-                                </td>
-
-                                <td className="py-3 px-4 font-bold text-emerald-600">
-                                  ৳ {Number(pay.paid_amount).toFixed(2)}
-                                </td>
-
-                                <td className="py-3 px-4 font-bold">
-                                  {Number(pay.due_amount) > 0 ? (
-                                    <span className="text-amber-700 font-mono font-extrabold">
-                                      ৳ {Number(pay.due_amount).toFixed(2)}
-                                    </span>
-                                  ) : (
-                                    <span className="text-emerald-700 font-mono">৳ 0.00</span>
-                                  )}
-                                </td>
-
-                                <td className="py-3 px-4 text-slate-500 text-[11px]">
-                                  <span>{pay.payment_method || 'Bank Transfer'}</span>
-                                  <span className="font-mono text-[10px] block text-slate-400">{pay.transaction_ref}</span>
-                                </td>
-
-                                <td className="py-3 px-4 text-center">
-                                  <span
-                                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${pay.status === 'paid'
-                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                        : pay.status === 'partial'
-                                          ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                                          : 'bg-amber-50 text-amber-700 border border-amber-200'
-                                      }`}
-                                  >
-                                    {pay.status}
-                                  </span>
-                                </td>
+                        {/* Desktop / Laptop View: Unaltered Table */}
+                        <div className="hidden md:block overflow-x-auto">
+                          <table className="w-full text-left border-collapse text-xs">
+                            <thead>
+                              <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                                <th className="py-3 px-4">Invoice Title</th>
+                                <th className="py-3 px-4">Total</th>
+                                <th className="py-3 px-4">Paid</th>
+                                <th className="py-3 px-4">Due</th>
+                                <th className="py-3 px-4">Method / Ref</th>
+                                <th className="py-3 px-4 text-center">Status</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {studentFinanceData?.payment_history?.map((pay: any) => (
+                                <tr key={pay.id} className="hover:bg-slate-50/60">
+                                  <td className="py-3 px-4">
+                                    <span className="font-bold text-slate-900 block leading-tight">{pay.title}</span>
+                                    <span className="text-[10px] text-brand-600 block">{pay.course_title || 'General Semester Tuition'}</span>
+                                  </td>
+
+                                  <td className="py-3 px-4 font-bold text-slate-800">
+                                    ৳ {Number(pay.total_amount).toFixed(2)}
+                                  </td>
+
+                                  <td className="py-3 px-4 font-bold text-emerald-600">
+                                    ৳ {Number(pay.paid_amount).toFixed(2)}
+                                  </td>
+
+                                  <td className="py-3 px-4 font-bold">
+                                    {Number(pay.due_amount) > 0 ? (
+                                      <span className="text-amber-700 font-mono font-extrabold">
+                                        ৳ {Number(pay.due_amount).toFixed(2)}
+                                      </span>
+                                    ) : (
+                                      <span className="text-emerald-700 font-mono">৳ 0.00</span>
+                                    )}
+                                  </td>
+
+                                  <td className="py-3 px-4 text-slate-500 text-[11px]">
+                                    <span>{pay.payment_method || 'Bank Transfer'}</span>
+                                    <span className="font-mono text-[10px] block text-slate-400">{pay.transaction_ref}</span>
+                                  </td>
+
+                                  <td className="py-3 px-4 text-center">
+                                    <span
+                                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${pay.status === 'paid'
+                                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                          : pay.status === 'partial'
+                                            ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                                            : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                        }`}
+                                    >
+                                      {pay.status}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Mobile View: High-Readability Vertical Cards */}
+                        <div className="block md:hidden p-3 space-y-2.5 bg-slate-50/60">
+                          {studentFinanceData?.payment_history?.map((pay: any) => (
+                            <div key={pay.id} className="p-3.5 space-y-2.5 bg-white rounded-xl border border-slate-200/90 shadow-2xs max-w-full overflow-hidden break-words">
+                              <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <span className="font-extrabold text-slate-900 block text-xs break-words">{pay.title}</span>
+                                  <span className="text-[10px] text-brand-600 block break-words">{pay.course_title || 'General Semester Tuition'}</span>
+                                </div>
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase shrink-0 ${pay.status === 'paid'
+                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                      : pay.status === 'partial'
+                                        ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                                        : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                    }`}
+                                >
+                                  {pay.status}
+                                </span>
+                              </div>
+
+                              {/* 3-Column Financial Grid */}
+                              <div className="grid grid-cols-3 gap-2 text-center bg-slate-50 p-2 rounded-xl border border-slate-100 text-xs">
+                                <div>
+                                  <span className="text-[9px] text-slate-400 font-bold uppercase block">Total</span>
+                                  <span className="font-black text-slate-800 text-xs mt-0.5 block truncate">
+                                    ৳ {Number(pay.total_amount).toFixed(2)}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-[9px] text-slate-400 font-bold uppercase block">Paid</span>
+                                  <span className="font-black text-emerald-600 text-xs mt-0.5 block truncate">
+                                    ৳ {Number(pay.paid_amount).toFixed(2)}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-[9px] text-slate-400 font-bold uppercase block">Due</span>
+                                  <span className={`font-black text-xs mt-0.5 block truncate ${
+                                    Number(pay.due_amount) > 0 ? 'text-amber-700' : 'text-slate-400'
+                                  }`}>
+                                    ৳ {Number(pay.due_amount).toFixed(2)}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 pt-0.5">
+                                <span>{pay.payment_method || 'Bank Transfer'}</span>
+                                <span className="font-mono text-[10px] text-slate-400 break-all">{pay.transaction_ref}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1167,10 +1315,10 @@ export const AdminUsersPage: React.FC = () => {
                     onChange={(e) => setTeacherPayCourseId(e.target.value)}
                     className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white"
                   >
-                    <option value="">All Assigned Courses (General Faculty Load)</option>
+                    <option value="">All Assigned Courses (General Load)</option>
                     {teacherFinanceData?.assigned_courses?.map((c: any) => (
-                      <option key={c.id} value={c.id}>
-                        {c.title} ({c.subject_code || 'CRS'})
+                      <option key={c.id} value={c.id} title={c.title}>
+                        {formatCourseOption(c.title, c.subject_code)}
                       </option>
                     ))}
                   </select>
@@ -1343,7 +1491,7 @@ export const AdminUsersPage: React.FC = () => {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">Role</label>
                     <select

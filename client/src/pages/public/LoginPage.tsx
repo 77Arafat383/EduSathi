@@ -163,7 +163,7 @@ export const LoginPage: React.FC = () => {
         {mode === 'login' && (
           <div className="bg-brand-50/50 border border-brand-200/60 rounded-2xl p-4">
             <div className="flex items-center gap-1.5 text-xs font-bold text-brand-800 mb-2">
-              <Sparkles className="w-3.5 h-3.5 text-brand-600" />
+
               <span>1-Click Demonstration Login</span>
             </div>
             <div className="grid grid-cols-3 gap-2">

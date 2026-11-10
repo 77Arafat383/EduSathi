@@ -214,7 +214,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
+        <div className="px-4 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-brand-50 border border-brand-200 flex items-center justify-center text-brand-600">
               <UserIcon className="w-5 h-5" />
@@ -233,10 +233,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-slate-200 bg-slate-50/60 px-6 pt-2 gap-2 shrink-0">
+        <div className="flex border-b border-slate-200 bg-slate-50/60 px-4 sm:px-6 pt-2 gap-2 shrink-0 overflow-x-auto no-scrollbar">
           <button
             onClick={() => handleTabChange('photo')}
-            className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-bold border-b-2 transition ${activeTab === 'photo'
+            className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-bold border-b-2 transition whitespace-nowrap shrink-0 ${activeTab === 'photo'
                 ? 'border-brand-600 text-brand-600 bg-white rounded-t-lg shadow-sm'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
@@ -247,7 +247,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
           <button
             onClick={() => handleTabChange('email')}
-            className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-bold border-b-2 transition ${activeTab === 'email'
+            className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-bold border-b-2 transition whitespace-nowrap shrink-0 ${activeTab === 'email'
                 ? 'border-brand-600 text-brand-600 bg-white rounded-t-lg shadow-sm'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
@@ -258,7 +258,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
           <button
             onClick={() => handleTabChange('password')}
-            className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-bold border-b-2 transition ${activeTab === 'password'
+            className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-bold border-b-2 transition whitespace-nowrap shrink-0 ${activeTab === 'password'
                 ? 'border-brand-600 text-brand-600 bg-white rounded-t-lg shadow-sm'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
@@ -270,7 +270,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
         {/* Alerts */}
         {(successMessage || errorMessage) && (
-          <div className="px-6 pt-4 shrink-0">
+          <div className="px-4 sm:px-6 pt-4 shrink-0">
             {successMessage && (
               <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl animate-fade-in">
                 <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
@@ -288,7 +288,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         )}
 
         {/* Tab Contents */}
-        <div className="p-6 overflow-y-auto flex-1">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1">
           {/* TAB 1: Profile Photo */}
           {activeTab === 'photo' && (
             <form onSubmit={handleSavePhoto} className="space-y-6">

@@ -1205,7 +1205,7 @@ export const TeacherAnalyticsPage: React.FC = () => {
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-3">
+                          <div className="flex flex-wrap items-center gap-2.5">
                             <div className="w-24 hidden sm:block">
                               <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
                                 <div
@@ -1252,13 +1252,13 @@ export const TeacherAnalyticsPage: React.FC = () => {
                                 <div
                                   key={item.id}
                                   onClick={() => toggleChecklistItem(phase.id, item.id)}
-                                  className={`p-3 rounded-xl border flex items-center justify-between gap-3 text-xs cursor-pointer transition select-none ${
+                                  className={`p-3 rounded-xl border flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 text-xs cursor-pointer transition select-none max-w-full overflow-hidden break-words ${
                                     isChecked
                                       ? 'bg-emerald-50/40 border-emerald-200/70 hover:bg-emerald-50/70'
                                       : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                                   }`}
                                 >
-                                  <div className="flex items-center gap-3 min-w-0">
+                                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
                                     <button
                                       type="button"
                                       className={`w-5 h-5 rounded-md flex items-center justify-center transition flex-shrink-0 ${
@@ -1270,9 +1270,9 @@ export const TeacherAnalyticsPage: React.FC = () => {
                                       {isChecked && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                                     </button>
 
-                                    <div className="min-w-0">
+                                    <div className="min-w-0 flex-1">
                                       <span
-                                        className={`font-semibold block truncate ${
+                                        className={`font-semibold block break-words ${
                                           isChecked ? 'line-through text-slate-400' : 'text-slate-800'
                                         }`}
                                       >
@@ -1281,7 +1281,7 @@ export const TeacherAnalyticsPage: React.FC = () => {
                                     </div>
                                   </div>
 
-                                  <div className="flex items-center gap-3 flex-shrink-0">
+                                  <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
                                     <span
                                       className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
                                         item.type === 'practical'
@@ -1483,7 +1483,7 @@ export const TeacherAnalyticsPage: React.FC = () => {
                           key={m.id}
                           className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                         >
-                          <div className="flex items-center gap-3">
+                          <div className="flex flex-wrap items-center gap-2.5">
                             <span
                               className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${
                                 m.type === 'quiz'
@@ -1589,7 +1589,8 @@ export const TeacherAnalyticsPage: React.FC = () => {
 
               {/* Roster Table */}
               <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-                <div className="overflow-x-auto">
+                {/* Desktop / Laptop View: Unaltered Table */}
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-slate-50/80 border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
@@ -1702,6 +1703,110 @@ export const TeacherAnalyticsPage: React.FC = () => {
                       )}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Mobile View: High-Readability Vertical Cards */}
+                <div className="block md:hidden p-3.5 space-y-3.5 bg-slate-50/60">
+                  {filteredRoster.length === 0 ? (
+                    <div className="py-12 text-center text-slate-400 text-xs bg-white rounded-2xl border border-slate-200/80">
+                      No students match the current filter.
+                    </div>
+                  ) : (
+                    filteredRoster.map((st: any) => {
+                      const isCritical = st.risk_level === 'critical';
+                      const isWarning = st.risk_level === 'warning';
+
+                      return (
+                        <div key={st.id} className="p-4 space-y-3 bg-white rounded-2xl border border-slate-200/90 shadow-2xs max-w-full overflow-hidden break-words">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                              <img
+                                src={
+                                  st.avatar_url ||
+                                  `https://ui-avatars.com/api/?name=${encodeURIComponent(st.full_name)}&background=2563eb&color=fff`
+                                }
+                                alt={st.full_name}
+                                className="w-9 h-9 rounded-full object-cover border border-slate-200 shrink-0"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <span className="font-extrabold text-slate-900 block break-words text-sm leading-snug">{st.full_name}</span>
+                                <span className="text-[11px] text-slate-400 block break-all mt-0.5">{st.email}</span>
+                              </div>
+                            </div>
+                            <span className="font-mono text-brand-600 bg-brand-50 border border-brand-200/80 px-2 py-0.5 rounded text-[11px] font-extrabold shrink-0">
+                              {st.student_code || 'CS-2026'}
+                            </span>
+                          </div>
+
+                          {/* 4-Stat Overview */}
+                          <div className="grid grid-cols-4 gap-2 text-center bg-slate-50 p-2 rounded-xl border border-slate-100 text-xs">
+                            <div>
+                              <span className="text-[9px] text-slate-400 font-bold uppercase block">Quiz</span>
+                              <span className="font-extrabold text-slate-800 text-xs mt-0.5 block">{st.quiz_avg}%</span>
+                            </div>
+                            <div>
+                              <span className="text-[9px] text-slate-400 font-bold uppercase block">Task</span>
+                              <span className="font-extrabold text-slate-800 text-xs mt-0.5 block">{st.assignment_avg}%</span>
+                            </div>
+                            <div>
+                              <span className="text-[9px] text-slate-400 font-bold uppercase block">Attend</span>
+                              <span
+                                className={`text-xs font-extrabold mt-0.5 block ${
+                                  st.attendance_rate >= 80
+                                    ? 'text-emerald-700'
+                                    : st.attendance_rate >= 65
+                                    ? 'text-amber-700'
+                                    : 'text-rose-700'
+                                }`}
+                              >
+                                {st.attendance_rate}%
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[9px] text-slate-400 font-bold uppercase block">Grade</span>
+                              <span className="font-black text-brand-600 text-xs mt-0.5 block">
+                                {st.overall_score}% ({st.grade_letter})
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Academic Status */}
+                          <div className="pt-0.5">
+                            {isCritical ? (
+                              <div className="bg-rose-50/80 p-2.5 rounded-xl border border-rose-200/80 space-y-1">
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700">
+                                  <XCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                                  High Academic Risk
+                                </span>
+                                {st.risk_reasons?.map((r: string, i: number) => (
+                                  <div key={i} className="text-[10px] text-rose-600 break-words">
+                                    • {r}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : isWarning ? (
+                              <div className="bg-amber-50/80 p-2.5 rounded-xl border border-amber-200/80 space-y-1">
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700">
+                                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                  Needs Attention
+                                </span>
+                                {st.risk_reasons?.map((r: string, i: number) => (
+                                  <div key={i} className="text-[10px] text-amber-600 break-words">
+                                    • {r}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="bg-emerald-50/80 p-2 rounded-xl border border-emerald-200/60 flex items-center gap-1.5">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                <span className="text-xs font-bold text-emerald-700">Healthy & On Track</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>

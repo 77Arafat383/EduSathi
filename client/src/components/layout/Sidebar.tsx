@@ -39,10 +39,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { label: 'Overview', to: '/student', icon: LayoutDashboard },
     { label: 'My Courses', to: '/student/courses', icon: BookOpen },
     { label: 'Assignments', to: '/student/assignments', icon: FileText },
-    { label: 'Progress & Grades', to: '/student/progress', icon: TrendingUp },
+    { label: 'Progress', to: '/student/progress', icon: TrendingUp },
     { label: 'Attendance', to: '/student/attendance', icon: CalendarCheck2 },
-    { label: 'Tuition & Payments', to: '/student/payments', icon: CreditCard },
-    { label: 'AI Study Assistant', to: '/student/ai-assistant', icon: Bot },
+    { label: 'Payments', to: '/student/payments', icon: CreditCard },
+    { label: 'Study Assistant', to: '/student/ai-assistant', icon: Bot },
   ];
 
   const teacherLinks: NavItem[] = [
@@ -53,7 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { label: 'Gradebook', to: '/teacher/gradebook', icon: FileCheck2 },
     { label: 'Attendance', to: '/teacher/attendance', icon: CalendarCheck2 },
     { label: 'Class Analytics', to: '/teacher/analytics', icon: TrendingUp },
-    { label: 'Salary & Compensation', to: '/teacher/salary', icon: Wallet },
+    { label: 'Salaries', to: '/teacher/salary', icon: Wallet },
   ];
 
   const adminLinks: NavItem[] = [

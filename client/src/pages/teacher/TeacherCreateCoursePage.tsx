@@ -21,6 +21,7 @@ import {
 import { api } from '../../lib/api';
 import { Subject } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { truncateOption } from '../../lib/formatters';
 
 export const TeacherCreateCoursePage: React.FC = () => {
   const navigate = useNavigate();
@@ -222,8 +223,8 @@ export const TeacherCreateCoursePage: React.FC = () => {
                   className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-brand-500 bg-slate-50 text-slate-800 font-medium"
                 >
                   {subjects.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.code})
+                    <option key={s.id} value={s.id} title={`${s.name} (${s.code})`}>
+                      {truncateOption(s.name, 24)} ({s.code})
                     </option>
                   ))}
                 </select>
@@ -389,11 +390,11 @@ export const TeacherCreateCoursePage: React.FC = () => {
             </div>
 
             {/* Submit Bar */}
-            <div className="pt-5 border-t border-slate-100 flex items-center justify-end gap-3">
+            <div className="pt-5 border-t border-slate-100 flex flex-wrap sm:flex-nowrap items-center justify-end gap-2.5">
               <button
                 type="button"
                 onClick={() => navigate('/teacher/courses')}
-                className="px-4 py-2.5 text-xs font-semibold text-slate-600 hover:text-slate-800"
+                className="w-full sm:w-auto px-4 py-2.5 text-xs font-semibold text-slate-600 hover:text-slate-800 text-center"
               >
                 Cancel
               </button>
@@ -402,7 +403,7 @@ export const TeacherCreateCoursePage: React.FC = () => {
                 type="button"
                 disabled={submitting}
                 onClick={(e) => handleSubmit(e, 'draft')}
-                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition"
+                className="w-full sm:w-auto px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition text-center"
               >
                 Save as Draft
               </button>
@@ -410,7 +411,7 @@ export const TeacherCreateCoursePage: React.FC = () => {
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-2 disabled:opacity-50"
+                className="w-full sm:w-auto px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 <PlusCircle className="w-4 h-4" />
                 <span>{submitting ? 'Creating Course...' : 'Launch Course'}</span>

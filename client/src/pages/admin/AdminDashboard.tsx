@@ -355,7 +355,7 @@ export const AdminDashboard: React.FC = () => {
                       <Link
                         key={s.id}
                         to="/admin/users?tab=students"
-                        className="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50/60 transition block"
+                        className="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50/60 transition"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           {s.avatar_url ? (
@@ -415,7 +415,7 @@ export const AdminDashboard: React.FC = () => {
                       <Link
                         key={t.id}
                         to="/admin/users?tab=teachers"
-                        className="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50/60 transition block"
+                        className="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50/60 transition"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           {t.avatar_url ? (

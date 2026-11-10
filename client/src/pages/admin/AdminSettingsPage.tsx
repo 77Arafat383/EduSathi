@@ -891,9 +891,9 @@ export const AdminSettingsPage: React.FC = () => {
                   onChange={(e) => updateSetting('gradingScale', e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 focus:outline-none focus:border-slate-900 text-slate-900 bg-white"
                 >
-                  <option value="4.00 Standard UGC Uniform Grading System">4.00 Standard UGC Uniform Grading System</option>
-                  <option value="Percentage Based Marking (0 - 100%)">Percentage Based Marking (0 - 100%)</option>
-                  <option value="Letter Grade Scale (A+, A, B, C, F)">Letter Grade Scale (A+, A, B, C, F)</option>
+                  <option value="4.00 Standard UGC Uniform Grading System">4.00 UGC Uniform Scale</option>
+                  <option value="Percentage Based Marking (0 - 100%)">Percentage (0 - 100%)</option>
+                  <option value="Letter Grade Scale (A+, A, B, C, F)">Letter Scale (A+, A, B, C, F)</option>
                 </select>
               </div>
 
