@@ -62,11 +62,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const demoCredentials: Record<UserRole, { email: string; pass: string }> = {
       admin: { email: 'admin@edusathi.edu', pass: 'Admin@123' },
       teacher: { email: 'dr.rahim@edusathi.edu', pass: 'Teacher@123' },
-      student: { email: 'student.arafat@edusathi.edu', pass: 'Student@123' },
+      student: { email: 'student.saiful@edusathi.edu', pass: 'Student@123' },
     };
 
     const target = demoCredentials[role];
-    await login(target.email, target.pass);
+    try {
+      await login(target.email, target.pass);
+    } catch (err) {
+      if (role === 'student') {
+        await login('student@edusathi.edu', target.pass);
+      } else {
+        throw err;
+      }
+    }
   };
 
   return (

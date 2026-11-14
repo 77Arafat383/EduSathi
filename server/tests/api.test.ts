@@ -28,7 +28,7 @@ beforeAll(async () => {
   // Login student
   const studentRes = await request(app)
     .post('/api/auth/login')
-    .send({ email: 'student.arafat@edusathi.edu', password: 'Student@123' });
+    .send({ email: 'student.saiful@edusathi.edu', password: 'Student@123' });
   studentToken = studentRes.body.data.token;
 }, 30000);
 

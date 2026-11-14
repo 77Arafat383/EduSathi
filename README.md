@@ -35,7 +35,7 @@ EduSathi comes pre-seeded with realistic demonstration accounts. You can also us
 
 | Role | Email | Password | Pre-seeded Activity |
 |---|---|---|---|
-| **Student** | `student.arafat@edusathi.edu` | `Student@123` | Enrolled in 3 courses, completed lessons, attendance history |
+| **Student** | `student.saiful@edusathi.edu` | `Student@123` | Enrolled in 3 courses, completed lessons, attendance history |
 | **Teacher** | `dr.rahim@edusathi.edu` | `Teacher@123` | Course instructor for Web Dev & AI Engineering |
 | **Admin** | `admin@edusathi.edu` | `Admin@123` | System oversight & user governance |
 

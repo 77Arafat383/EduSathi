@@ -71,12 +71,12 @@ export async function resetAndSeedDatabase() {
   await run(`INSERT INTO profiles (id, full_name, email, password_hash, role, status, avatar_url, department) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     ['usr_teacher_2_alias', 'Prof. Fatima Rahman (Alias)', 'teacher2@edusathi.edu', teacherHash, 'teacher', 'active', 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150', 'Information Technology']);
 
-  // Student 1: student.arafat@edusathi.edu & student@edusathi.edu / Student@123
+  // Student 1: student.saiful@edusathi.edu & student@edusathi.edu / Student@123
   await run(`INSERT INTO profiles (id, full_name, email, password_hash, role, status, avatar_url, student_id, department) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ['usr_student_1', 'Arafat Rahman', 'student.arafat@edusathi.edu', studentHash, 'student', 'active', 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150', 'CS-2026-001', 'Computer Science & Engineering']);
+    ['usr_student_1', 'Md Saiful Islam', 'student.saiful@edusathi.edu', studentHash, 'student', 'active', 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150', 'CS-2026-001', 'Computer Science & Engineering']);
 
   await run(`INSERT INTO profiles (id, full_name, email, password_hash, role, status, avatar_url, student_id, department) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ['usr_student_1_alias', 'Arafat Rahman (Alias)', 'student@edusathi.edu', studentHash, 'student', 'active', 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150', 'CS-2026-001', 'Computer Science & Engineering']);
+    ['usr_student_1_alias', 'Md Saiful Islam (Alias)', 'student@edusathi.edu', studentHash, 'student', 'active', 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150', 'CS-2026-001', 'Computer Science & Engineering']);
 
   // Student 2: student2@edusathi.edu / Student@123
   await run(`INSERT INTO profiles (id, full_name, email, password_hash, role, status, avatar_url, student_id, department) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -279,7 +279,7 @@ export async function resetAndSeedDatabase() {
   await run(`INSERT INTO notifications (id, recipient_id, type, title, message, link) VALUES (?, ?, ?, ?, ?, ?)`,
     ['notif_admin_1', 'usr_admin_1', 'salary_request', 'Faculty Salary Disbursement Request', 'Dr. Rahim Ahmed submitted a salary clearance request of ৳45,000 for October 2026.', '/admin/salaries']);
   await run(`INSERT INTO notifications (id, recipient_id, type, title, message, link) VALUES (?, ?, ?, ?, ?, ?)`,
-    ['notif_admin_2', 'usr_admin_1', 'new_payment', 'New Student Tuition Payment Received', 'Arafat Rahman (ID: CS-2026-001) paid ৳15,000 semester tuition clearance via bKash (Ref: TRX-99214).', '/admin/student-payments']);
+    ['notif_admin_2', 'usr_admin_1', 'new_payment', 'New Student Tuition Payment Received', 'Md Saiful Islam (ID: CS-2026-001) paid ৳15,000 semester tuition clearance via bKash (Ref: TRX-99214).', '/admin/student-payments']);
 
   // Teacher notifications
   await run(`INSERT INTO notifications (id, recipient_id, type, title, message, link) VALUES (?, ?, ?, ?, ?, ?)`,

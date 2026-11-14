@@ -442,7 +442,7 @@ async function seedDefaults(): Promise<void> {
     ['usr_teacher_2', 'Prof. Fatima Rahman', 'prof.fatima@edusathi.edu', teacherHash, 'teacher', 'active', 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150', 'Information Technology']);
 
   await run(`INSERT INTO profiles (id, full_name, email, password_hash, role, status, avatar_url, student_id, department) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ['usr_student_1', 'Arafat Rahman', 'student.arafat@edusathi.edu', studentHash, 'student', 'active', 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150', 'CS-2024-001', 'Computer Science & Engineering']);
+    ['usr_student_1', 'Md Saiful Islam', 'student.saiful@edusathi.edu', studentHash, 'student', 'active', 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150', 'CS-2024-001', 'Computer Science & Engineering']);
 
   await run(`INSERT INTO profiles (id, full_name, email, password_hash, role, status, avatar_url, student_id, department) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ['usr_student_2', 'Tanvir Hossain', 'student.nstu@edusathi.edu', studentHash, 'student', 'active', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150', 'CS-2024-002', 'Software Engineering']);
@@ -596,14 +596,14 @@ async function seedDefaults(): Promise<void> {
     ['notif_2', 'usr_student_1', 'announcement', 'New Announcement in Web Dev', 'Assignment 1 Submissions Now Open', '/student/courses/crs_web_dev']);
   
   await run(`INSERT INTO notifications (id, recipient_id, type, title, message, link) VALUES (?, ?, ?, ?, ?, ?)`,
-    ['notif_3', 'usr_teacher_1', 'submission', 'New Assignment Submission', 'Arafat Rahman submitted Assignment 1', '/teacher/gradebook']);
+    ['notif_3', 'usr_teacher_1', 'submission', 'New Assignment Submission', 'Md Saiful Islam submitted Assignment 1', '/teacher/gradebook']);
 
   // Admin Operational Notifications (Salary Requests, Student Payments, Financial Audits)
   await run(`INSERT INTO notifications (id, recipient_id, type, title, message, link) VALUES (?, ?, ?, ?, ?, ?)`,
     ['notif_admin_1', 'usr_admin_1', 'salary_request', 'Faculty Salary Disbursement Request', 'Dr. Rahim Ahmed submitted a salary clearance request of ৳45,000 for October 2026.', '/admin/salaries']);
 
   await run(`INSERT INTO notifications (id, recipient_id, type, title, message, link) VALUES (?, ?, ?, ?, ?, ?)`,
-    ['notif_admin_2', 'usr_admin_1', 'new_payment', 'New Student Tuition Payment Received', 'Arafat Rahman (ID: EDUS-2026-001) paid ৳18,000 semester tuition clearance via bKash (Ref: TRX-99214).', '/admin/student-payments']);
+    ['notif_admin_2', 'usr_admin_1', 'new_payment', 'New Student Tuition Payment Received', 'Md Saiful Islam (ID: EDUS-2026-001) paid ৳18,000 semester tuition clearance via bKash (Ref: TRX-99214).', '/admin/student-payments']);
 
   await run(`INSERT INTO notifications (id, recipient_id, type, title, message, link) VALUES (?, ?, ?, ?, ?, ?)`,
     ['notif_admin_3', 'usr_admin_1', 'payment_received', 'Student Tuition Installment Received', 'Fatima Zahra deposited ৳5,000 installment for Data Structures & Algorithms. Outstanding due: ৳3,000.', '/admin/student-payments']);
@@ -634,7 +634,7 @@ async function seedFinanceDefaults(): Promise<void> {
   const existingPayment = await getOne<{ id: string }>('SELECT id FROM student_payments LIMIT 1');
   if (!existingPayment) {
     console.log('[DB] Seeding student tuition and dues records in Bangla Taka (BDT)...');
-    // Arafat - Fully Paid (৳0 due)
+    // Md Saiful Islam - Fully Paid (৳0 due)
     await run(`INSERT INTO student_payments (id, student_id, course_id, title, total_amount, paid_amount, due_amount, payment_date, due_date, payment_method, transaction_ref, status, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ['pay_1', 'usr_student_1', 'crs_web_dev', 'Fall 2026 Full-Stack Course Tuition', 18000.00, 18000.00, 0.00, '2026-09-05 10:30:00', '2026-09-15', 'bKash Merchant', 'INV-2026-001', 'paid', 'Full semester course tuition cleared.']);
     await run(`INSERT INTO student_payments (id, student_id, course_id, title, total_amount, paid_amount, due_amount, payment_date, due_date, payment_method, transaction_ref, status, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -661,7 +661,7 @@ async function seedFinanceDefaults(): Promise<void> {
     await run(`INSERT INTO notifications (id, recipient_id, type, title, message, link) VALUES (?, ?, ?, ?, ?, ?)`,
       ['notif_admin_1', 'usr_admin_1', 'salary_request', 'Faculty Salary Disbursement Request', 'Dr. Rahim Ahmed submitted a salary clearance request of ৳45,000 for October 2026.', '/admin/salaries']).catch(() => {});
     await run(`INSERT INTO notifications (id, recipient_id, type, title, message, link) VALUES (?, ?, ?, ?, ?, ?)`,
-      ['notif_admin_2', 'usr_admin_1', 'new_payment', 'New Student Tuition Payment Received', 'Arafat Rahman (ID: EDUS-2026-001) paid ৳18,000 semester tuition clearance via bKash (Ref: TRX-99214).', '/admin/student-payments']).catch(() => {});
+      ['notif_admin_2', 'usr_admin_1', 'new_payment', 'New Student Tuition Payment Received', 'Md Saiful Islam (ID: EDUS-2026-001) paid ৳18,000 semester tuition clearance via bKash (Ref: TRX-99214).', '/admin/student-payments']).catch(() => {});
     await run(`INSERT INTO notifications (id, recipient_id, type, title, message, link) VALUES (?, ?, ?, ?, ?, ?)`,
       ['notif_admin_3', 'usr_admin_1', 'payment_received', 'Student Tuition Installment Received', 'Fatima Zahra deposited ৳5,000 installment for Data Structures & Algorithms. Outstanding due: ৳3,000.', '/admin/student-payments']).catch(() => {});
   }

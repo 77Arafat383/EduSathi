@@ -164,7 +164,7 @@ export const LoginPage: React.FC = () => {
           <div className="bg-brand-50/50 border border-brand-200/60 rounded-2xl p-4">
             <div className="flex items-center gap-1.5 text-xs font-bold text-brand-800 mb-2">
 
-              <span>1-Click Demonstration Login</span>
+              <span>Demo Login</span>
             </div>
             <div className="grid grid-cols-3 gap-2">
               <button
@@ -220,7 +220,7 @@ export const LoginPage: React.FC = () => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="e.g. student.arafat@edusathi.edu"
+                    placeholder="e.g. student.saiful@edusathi.edu"
                     className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
                   />
                 </div>
@@ -320,7 +320,7 @@ export const LoginPage: React.FC = () => {
                         required
                         value={forgotEmail}
                         onChange={(e) => setForgotEmail(e.target.value)}
-                        placeholder="e.g. student.arafat@edusathi.edu"
+                        placeholder="e.g. student.saiful@edusathi.edu"
                         className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
                       />
                     </div>
